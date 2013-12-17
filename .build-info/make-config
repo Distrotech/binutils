@@ -1,9 +1,13 @@
 #!/bin/bash
 
-make ${MAKE_J} && exit 0
-
-if [ -x /usr/bin/find ] && [ -e ${ARCHROOT}/${5}/usr/bin/libtool ];then
-  cp ${ARCHROOT}/${5}/usr/bin/libtool ./libtool-arch
-  find . -name libtool |awk '{printf "cp libtool-arch %s\n", $1}' |sh
-  make ${MAKE_J}
+if ! make ${MAKE_J};then
+  if [ -x /usr/bin/find ] && [ -e ${ARCHROOT}/${5}/usr/bin/libtool ];then
+    cp ${ARCHROOT}/${5}/usr/bin/libtool ./libtool-arch
+    find . -name libtool |awk '{printf "cp libtool-arch %s\n", $1}' |sh
+    make ${MAKE_J} || exit 1
+   else
+    exit 1
+  fi;
 fi;
+
+make DESTDIR=${3} install
