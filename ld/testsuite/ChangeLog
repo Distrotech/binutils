@@ -1,3 +1,11 @@
+2014-01-10  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/16428
+	* ld-elf/pr16428a.d: New file.
+	* ld-elf/pr16428b.d: Likewise.
+	* ld-elf/pr16428c.d: Likewise.
+	* ld-elf/pr16428d.d: Likewise.
+
 2014-01-10  Alan Modra  <amodra@gmail.com>
 
 	* ld-x86-64/pr14207.d: Adjust.

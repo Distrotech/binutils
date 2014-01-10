@@ -269,9 +269,9 @@ static const struct ld_option ld_options[] =
     '\0', NULL, N_("Do not link against shared libraries"), ONE_DASH },
   { {"dn", no_argument, NULL, OPTION_NON_SHARED},
     '\0', NULL, NULL, ONE_DASH },
-  { {"non_shared", no_argument, NULL, OPTION_NON_SHARED},
+  { {"non_shared", no_argument, NULL, OPTION_STATIC},
     '\0', NULL, NULL, ONE_DASH },
-  { {"static", no_argument, NULL, OPTION_NON_SHARED},
+  { {"static", no_argument, NULL, OPTION_STATIC},
     '\0', NULL, NULL, ONE_DASH },
   { {"Bsymbolic", no_argument, NULL, OPTION_SYMBOLIC},
     '\0', NULL, N_("Bind global references locally"), ONE_DASH },
@@ -523,6 +523,7 @@ parse_args (unsigned argc, char **argv)
   struct option *really_longopts;
   int last_optind;
   enum report_method how_to_report_unresolved_symbols = RM_GENERATE_ERROR;
+  bfd_boolean seen_pie = FALSE, seen_shared = FALSE, seen_static = FALSE;
 
   shortopts = (char *) xmalloc (OPTION_COUNT * 3 + 2);
   longopts = (struct option *)
@@ -707,6 +708,8 @@ parse_args (unsigned argc, char **argv)
 	case OPTION_CALL_SHARED:
 	  input_flags.dynamic = TRUE;
 	  break;
+	case OPTION_STATIC:
+	  seen_static = TRUE;
 	case OPTION_NON_SHARED:
 	  input_flags.dynamic = FALSE;
 	  break;
@@ -1087,6 +1090,7 @@ parse_args (unsigned argc, char **argv)
 	case OPTION_SHARED:
 	  if (config.has_shared)
 	    {
+	      seen_shared = TRUE;
 	      link_info.shared = TRUE;
 	      /* When creating a shared library, the default
 		 behaviour is to ignore any unresolved references.  */
@@ -1101,6 +1105,7 @@ parse_args (unsigned argc, char **argv)
 	case OPTION_PIE:
 	  if (config.has_shared)
 	    {
+	      seen_pie = TRUE;
 	      link_info.shared = TRUE;
 	      link_info.pie = TRUE;
 	    }
@@ -1444,6 +1449,16 @@ parse_args (unsigned argc, char **argv)
           break;
 	}
     }
+
+  if (seen_shared)
+    {
+      if (seen_pie)
+	einfo (_("%P%F: -shared and -pie are incompatible\n"));
+      if (seen_static)
+	einfo (_("%P%F: -shared and -static are incompatible\n"));
+    }
+  if (seen_pie && seen_static)
+    einfo (_("%P%F: -pie and -static are incompatible\n"));
 
   while (ingroup)
     {
