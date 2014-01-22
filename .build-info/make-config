@@ -1,8 +1,14 @@
 #!/bin/bash
 
+if [ "${5:0:3}" == "win" ];then
+  PREFIX="/mingw";
+ else
+  PREFIX="/usr";
+fi;
+
 if ! make ${MAKE_J};then
-  if [ -x /usr/bin/find ] && [ -e ${ARCHROOT}/${5}/usr/bin/libtool ];then
-    cp ${ARCHROOT}/${5}/usr/bin/libtool ./libtool-arch
+  if [ -x /usr/bin/find ] && [ -e ${ARCHROOT}/${5}${PREFIX}/bin/libtool ];then
+    cp ${ARCHROOT}/${5}${PREFIX}/bin/libtool ./libtool-arch
     find . -name libtool |awk '{printf "cp libtool-arch %s\n", $1}' |sh
     make ${MAKE_J} || exit 1
    else
