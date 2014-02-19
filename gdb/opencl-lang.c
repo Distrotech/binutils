@@ -1,5 +1,5 @@
 /* OpenCL language support for GDB, the GNU debugger.
-   Copyright (C) 2010-2013 Free Software Foundation, Inc.
+   Copyright (C) 2010-2014 Free Software Foundation, Inc.
 
    Contributed by Ken Werner <ken.werner@de.ibm.com>.
 
@@ -19,12 +19,11 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "gdbtypes.h"
 #include "symtab.h"
 #include "expression.h"
 #include "parser-defs.h"
-#include "symtab.h"
 #include "language.h"
 #include "varobj.h"
 #include "c-lang.h"
@@ -157,11 +156,11 @@ struct lval_closure
 static struct lval_closure *
 allocate_lval_closure (int *indices, int n, struct value *val)
 {
-  struct lval_closure *c = XZALLOC (struct lval_closure);
+  struct lval_closure *c = XCNEW (struct lval_closure);
 
   c->refc = 1;
   c->n = n;
-  c->indices = XCALLOC (n, int);
+  c->indices = XCNEWVEC (int, n);
   memcpy (c->indices, indices, n * sizeof (int));
   value_incref (val); /* Increment the reference counter of the value.  */
   c->val = val;
@@ -1103,6 +1102,7 @@ const struct exp_descriptor exp_descriptor_opencl =
 const struct language_defn opencl_language_defn =
 {
   "opencl",			/* Language name */
+  "OpenCL C",
   language_opencl,
   range_check_off,
   case_sensitive_on,

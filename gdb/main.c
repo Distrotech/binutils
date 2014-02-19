@@ -1,6 +1,6 @@
 /* Top level stuff for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2013 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -28,10 +28,10 @@
 #include "getopt.h"
 
 #include <sys/types.h>
-#include "gdb_stat.h"
+#include <sys/stat.h>
 #include <ctype.h>
 
-#include "gdb_string.h"
+#include <string.h>
 #include "event-loop.h"
 #include "ui-out.h"
 
@@ -39,7 +39,6 @@
 #include "main.h"
 #include "source.h"
 #include "cli/cli-cmds.h"
-#include "python/python.h"
 #include "objfiles.h"
 #include "auto-load.h"
 #include "maint.h"
@@ -588,19 +587,14 @@ captured_main (void *data)
 	    xfree (interpreter_p);
 	    interpreter_p = xstrdup (INTERP_INSIGHT);
 #endif
-	    use_windows = 1;
 	    break;
 	  case OPT_NOWINDOWS:
 	    /* -nw is equivalent to -i=console.  */
 	    xfree (interpreter_p);
 	    interpreter_p = xstrdup (INTERP_CONSOLE);
-	    use_windows = 0;
 	    break;
 	  case 'f':
 	    annotation_level = 1;
-	    /* We have probably been invoked from emacs.  Disable
-	       window interface.  */
-	    use_windows = 0;
 	    break;
 	  case 's':
 	    symarg = optarg;
@@ -742,13 +736,6 @@ captured_main (void *data)
 				argv[0]);
 	    exit (1);
 	  }
-      }
-
-    /* If --help or --version or --configuration, disable window
-       interface.  */
-    if (print_help || print_version || print_configuration)
-      {
-	use_windows = 0;
       }
 
     if (batch_flag)
@@ -1072,7 +1059,6 @@ captured_main (void *data)
 int
 gdb_main (struct captured_main_args *args)
 {
-  use_windows = args->use_windows;
   catch_errors (captured_main, args, "", RETURN_MASK_ALL);
   /* The only way to end up here is by an error (normal exit is
      handled by quit_force()), hence always return an error status.  */

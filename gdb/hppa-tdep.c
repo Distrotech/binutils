@@ -1,6 +1,6 @@
 /* Target-dependent code for the HP PA-RISC architecture.
 
-   Copyright (C) 1986-2013 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    Contributed by the Center for Software Science at the
    University of Utah (pa-gdb-bugs@cs.utah.edu).
@@ -2775,18 +2775,6 @@ static struct insn_pattern hppa_plt_stub[] = {
   { 0, 0 }
 };
 
-static struct insn_pattern hppa_sigtramp[] = {
-  /* ldi 0, %r25 or ldi 1, %r25 */
-  { 0x34190000, 0xfffffffd },
-  /* ldi __NR_rt_sigreturn, %r20 */
-  { 0x3414015a, 0xffffffff },
-  /* be,l 0x100(%sr2, %r0), %sr0, %r31 */
-  { 0xe4008200, 0xffffffff },
-  /* nop */
-  { 0x08000240, 0xffffffff },
-  { 0, 0 }
-};
-
 /* Maximum number of instructions on the patterns above.  */
 #define HPPA_MAX_INSN_PATTERN_LEN	4
 
@@ -2997,7 +2985,7 @@ hppa_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
     return (arches->gdbarch);
 
   /* If none found, then allocate and initialize one.  */
-  tdep = XZALLOC (struct gdbarch_tdep);
+  tdep = XCNEW (struct gdbarch_tdep);
   gdbarch = gdbarch_alloc (&info, tdep);
 
   /* Determine from the bfd_arch_info structure if we are dealing with

@@ -1,5 +1,6 @@
 # Check illegal AVX512F instructions
 	.text
+	.allow_index_reg
 _start:
 	mov {sae}, %eax{%k1}
 	mov {sae}, %eax
@@ -14,6 +15,12 @@ _start:
 	vcvtps2pd (%eax){%k1}, %zmm1
 	vcvtps2pd (%eax){z}, %zmm1
 
+	vgatherqpd (%rdi,%zmm2,8),%zmm6
+	vgatherqpd (%edi),%zmm6{%k1}
+	vgatherqpd (%zmm2),%zmm6{%k1}
+	vpscatterdd %zmm6,(%edi){%k1}
+	vpscatterdd %zmm6,(%zmm2){%k1}
+
 	.intel_syntax noprefix
 	mov eax{k1}, {sae}
 	mov eax, {sae}
@@ -27,6 +34,12 @@ _start:
 
 	vcvtps2pd zmm1, [eax]{k1}
 	vcvtps2pd zmm1, [eax]{z}
+
+	vgatherqpd zmm6, ZMMWORD PTR [rdi+zmm2*8]
+	vgatherqpd zmm6{k1}, ZMMWORD PTR [edi]
+	vgatherqpd zmm6{k1}, ZMMWORD PTR [zmm2+eiz]
+	vpscatterdd ZMMWORD PTR [edi]{k1}, zmm6
+	vpscatterdd ZMMWORD PTR [zmm2+eiz]{k1}, zmm6
 
 	vaddps zmm2, zmm1, QWORD PTR [eax]{1to8}
 	vaddps zmm2, zmm1, QWORD PTR [eax]{1to16}

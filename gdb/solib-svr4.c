@@ -1,6 +1,6 @@
 /* Handle SVR4 shared libraries for GDB, the GNU Debugger.
 
-   Copyright (C) 1990-2013 Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -427,7 +427,7 @@ get_svr4_info (void)
   if (info != NULL)
     return info;
 
-  info = XZALLOC (struct svr4_info);
+  info = XCNEW (struct svr4_info);
   set_program_space_data (current_program_space, solib_svr4_pspace_data, info);
   return info;
 }
@@ -949,7 +949,7 @@ svr4_keep_data_in_core (CORE_ADDR vaddr, unsigned long size)
   if (!ldsomap)
     return 0;
 
-  new = XZALLOC (struct so_list);
+  new = XCNEW (struct so_list);
   old_chain = make_cleanup (xfree, new);
   new->lm_info = lm_info_read (ldsomap);
   make_cleanup (xfree, new->lm_info);
@@ -1126,8 +1126,8 @@ library_list_start_library (struct gdb_xml_parser *parser,
   ULONGEST *l_ldp = xml_find_attribute (attributes, "l_ld")->value;
   struct so_list *new_elem;
 
-  new_elem = XZALLOC (struct so_list);
-  new_elem->lm_info = XZALLOC (struct lm_info);
+  new_elem = XCNEW (struct so_list);
+  new_elem->lm_info = XCNEW (struct lm_info);
   new_elem->lm_info->lm_addr = *lmp;
   new_elem->lm_info->l_addr_inferior = *l_addrp;
   new_elem->lm_info->l_ld = *l_ldp;
@@ -1279,7 +1279,7 @@ svr4_default_sos (void)
   if (!info->debug_loader_offset_p)
     return NULL;
 
-  new = XZALLOC (struct so_list);
+  new = XCNEW (struct so_list);
 
   new->lm_info = xzalloc (sizeof (struct lm_info));
 
@@ -1316,7 +1316,7 @@ svr4_read_so_list (CORE_ADDR lm, CORE_ADDR prev_lm,
       int errcode;
       char *buffer;
 
-      new = XZALLOC (struct so_list);
+      new = XCNEW (struct so_list);
       old_chain = make_cleanup_free_so (new);
 
       new->lm_info = lm_info_read (lm);
@@ -1651,6 +1651,7 @@ solib_event_probe_action (struct probe_and_action *pa)
 {
   enum probe_action action;
   unsigned probe_argc;
+  struct frame_info *frame = get_current_frame ();
 
   action = pa->action;
   if (action == DO_NOTHING || action == PROBES_INTERFACE_FAILED)
@@ -1663,7 +1664,7 @@ solib_event_probe_action (struct probe_and_action *pa)
        arg0: Lmid_t lmid (mandatory)
        arg1: struct r_debug *debug_base (mandatory)
        arg2: struct link_map *new (optional, for incremental updates)  */
-  probe_argc = get_probe_argument_count (pa->probe);
+  probe_argc = get_probe_argument_count (pa->probe, frame);
   if (probe_argc == 2)
     action = FULL_RELOAD;
   else if (probe_argc < 2)
@@ -1772,6 +1773,7 @@ svr4_handle_solib_event (void)
   struct value *val;
   CORE_ADDR pc, debug_base, lm = 0;
   int is_initial_ns;
+  struct frame_info *frame = get_current_frame ();
 
   /* Do nothing if not using the probes interface.  */
   if (info->probes_table == NULL)
@@ -1816,7 +1818,7 @@ svr4_handle_solib_event (void)
   usm_chain = make_cleanup (resume_section_map_updates_cleanup,
 			    current_program_space);
 
-  val = evaluate_probe_argument (pa->probe, 1);
+  val = evaluate_probe_argument (pa->probe, 1, frame);
   if (val == NULL)
     {
       do_cleanups (old_chain);
@@ -1847,7 +1849,7 @@ svr4_handle_solib_event (void)
 
   if (action == UPDATE_OR_RELOAD)
     {
-      val = evaluate_probe_argument (pa->probe, 2);
+      val = evaluate_probe_argument (pa->probe, 2, frame);
       if (val != NULL)
 	lm = value_as_address (val);
 
@@ -2604,6 +2606,28 @@ svr4_exec_displacement (CORE_ADDR *displacementp)
 		  if (memcmp (phdrp, phdr2p, sizeof (*phdrp)) == 0)
 		    continue;
 
+		  /* Strip modifies the flags and alignment of PT_GNU_RELRO.
+		     CentOS-5 has problems with filesz, memsz as well.
+		     See PR 11786.  */
+		  if (phdr2[i].p_type == PT_GNU_RELRO)
+		    {
+		      Elf32_External_Phdr tmp_phdr = *phdrp;
+		      Elf32_External_Phdr tmp_phdr2 = *phdr2p;
+
+		      memset (tmp_phdr.p_filesz, 0, 4);
+		      memset (tmp_phdr.p_memsz, 0, 4);
+		      memset (tmp_phdr.p_flags, 0, 4);
+		      memset (tmp_phdr.p_align, 0, 4);
+		      memset (tmp_phdr2.p_filesz, 0, 4);
+		      memset (tmp_phdr2.p_memsz, 0, 4);
+		      memset (tmp_phdr2.p_flags, 0, 4);
+		      memset (tmp_phdr2.p_align, 0, 4);
+
+		      if (memcmp (&tmp_phdr, &tmp_phdr2, sizeof (tmp_phdr))
+			  == 0)
+			continue;
+		    }
+
 		  /* prelink can convert .plt SHT_NOBITS to SHT_PROGBITS.  */
 		  plt2_asect = bfd_get_section_by_name (exec_bfd, ".plt");
 		  if (plt2_asect)
@@ -2712,6 +2736,28 @@ svr4_exec_displacement (CORE_ADDR *displacementp)
 
 		  if (memcmp (phdrp, phdr2p, sizeof (*phdrp)) == 0)
 		    continue;
+
+		  /* Strip modifies the flags and alignment of PT_GNU_RELRO.
+		     CentOS-5 has problems with filesz, memsz as well.
+		     See PR 11786.  */
+		  if (phdr2[i].p_type == PT_GNU_RELRO)
+		    {
+		      Elf64_External_Phdr tmp_phdr = *phdrp;
+		      Elf64_External_Phdr tmp_phdr2 = *phdr2p;
+
+		      memset (tmp_phdr.p_filesz, 0, 8);
+		      memset (tmp_phdr.p_memsz, 0, 8);
+		      memset (tmp_phdr.p_flags, 0, 4);
+		      memset (tmp_phdr.p_align, 0, 8);
+		      memset (tmp_phdr2.p_filesz, 0, 8);
+		      memset (tmp_phdr2.p_memsz, 0, 8);
+		      memset (tmp_phdr2.p_flags, 0, 4);
+		      memset (tmp_phdr2.p_align, 0, 8);
+
+		      if (memcmp (&tmp_phdr, &tmp_phdr2, sizeof (tmp_phdr))
+			  == 0)
+			continue;
+		    }
 
 		  /* prelink can convert .plt SHT_NOBITS to SHT_PROGBITS.  */
 		  plt2_asect = bfd_get_section_by_name (exec_bfd, ".plt");

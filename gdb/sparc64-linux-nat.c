@@ -1,6 +1,6 @@
 /* Native-dependent code for GNU/Linux UltraSPARC.
 
-   Copyright (C) 2003-2013 Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -79,6 +79,8 @@ _initialize_sparc64_linux_nat (void)
 
   /* Fill in the generic GNU/Linux methods.  */
   t = linux_target ();
+
+  sparc_fpregset = &sparc64_bsd_fpregset;
 
   /* Add our register access methods.  */
   t->to_fetch_registers = sparc_fetch_inferior_registers;

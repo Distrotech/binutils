@@ -1,6 +1,6 @@
 /* Native-dependent code for GNU/Linux i386.
 
-   Copyright (C) 1999-2013 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -29,7 +29,7 @@
 #include "btrace.h"
 
 #include "gdb_assert.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "elf/common.h"
 #include <sys/uio.h>
 #include <sys/ptrace.h>
@@ -102,7 +102,7 @@ static int have_ptrace_getregset = -1;
   (I386_ST0_REGNUM <= (regno) && (regno) < I386_SSE_NUM_REGS)
 
 #define GETXSTATEREGS_SUPPLIES(regno) \
-  (I386_ST0_REGNUM <= (regno) && (regno) < I386_AVX_NUM_REGS)
+  (I386_ST0_REGNUM <= (regno) && (regno) < I386_MPX_NUM_REGS)
 
 /* Does the current host support the GETREGS request?  */
 int have_ptrace_getregs =
@@ -982,13 +982,14 @@ i386_linux_resume (struct target_ops *ops,
     perror_with_name (("ptrace"));
 }
 
-static void (*super_post_startup_inferior) (ptid_t ptid);
+static void (*super_post_startup_inferior) (struct target_ops *self,
+					    ptid_t ptid);
 
 static void
-i386_linux_child_post_startup_inferior (ptid_t ptid)
+i386_linux_child_post_startup_inferior (struct target_ops *self, ptid_t ptid)
 {
   i386_cleanup_dregs ();
-  super_post_startup_inferior (ptid);
+  super_post_startup_inferior (self, ptid);
 }
 
 /* Get Linux/x86 target description from running target.  */
@@ -1041,9 +1042,18 @@ i386_linux_read_description (struct target_ops *ops)
     }
 
   /* Check the native XCR0 only if PTRACE_GETREGSET is available.  */
-  if (have_ptrace_getregset
-      && (xcr0 & I386_XSTATE_AVX_MASK) == I386_XSTATE_AVX_MASK)
-    return tdesc_i386_avx_linux;
+  if (have_ptrace_getregset)
+    {
+      switch ((xcr0 & I386_XSTATE_ALL_MASK))
+	{
+	case I386_XSTATE_MPX_MASK:
+	  return tdesc_i386_mpx_linux;
+	case I386_XSTATE_AVX_MASK:
+	  return tdesc_i386_avx_linux;
+	default:
+	  return tdesc_i386_linux;
+	}
+    }
   else
     return tdesc_i386_linux;
 }
@@ -1051,7 +1061,7 @@ i386_linux_read_description (struct target_ops *ops)
 /* Enable branch tracing.  */
 
 static struct btrace_target_info *
-i386_linux_enable_btrace (ptid_t ptid)
+i386_linux_enable_btrace (struct target_ops *self, ptid_t ptid)
 {
   struct btrace_target_info *tinfo;
   struct gdbarch *gdbarch;
@@ -1073,21 +1083,32 @@ i386_linux_enable_btrace (ptid_t ptid)
 /* Disable branch tracing.  */
 
 static void
-i386_linux_disable_btrace (struct btrace_target_info *tinfo)
+i386_linux_disable_btrace (struct target_ops *self,
+			   struct btrace_target_info *tinfo)
 {
-  int errcode = linux_disable_btrace (tinfo);
+  enum btrace_error errcode = linux_disable_btrace (tinfo);
 
-  if (errcode != 0)
-    error (_("Could not disable branch tracing: %s."), safe_strerror (errcode));
+  if (errcode != BTRACE_ERR_NONE)
+    error (_("Could not disable branch tracing."));
 }
 
 /* Teardown branch tracing.  */
 
 static void
-i386_linux_teardown_btrace (struct btrace_target_info *tinfo)
+i386_linux_teardown_btrace (struct target_ops *self,
+			    struct btrace_target_info *tinfo)
 {
   /* Ignore errors.  */
   linux_disable_btrace (tinfo);
+}
+
+static enum btrace_error
+i386_linux_read_btrace (struct target_ops *self,
+			VEC (btrace_block_s) **data,
+			struct btrace_target_info *btinfo,
+			enum btrace_read_type type)
+{
+  return linux_read_btrace (data, btinfo, type);
 }
 
 /* -Wmissing-prototypes */
@@ -1128,7 +1149,7 @@ _initialize_i386_linux_nat (void)
   t->to_enable_btrace = i386_linux_enable_btrace;
   t->to_disable_btrace = i386_linux_disable_btrace;
   t->to_teardown_btrace = i386_linux_teardown_btrace;
-  t->to_read_btrace = linux_read_btrace;
+  t->to_read_btrace = i386_linux_read_btrace;
 
   /* Register the target.  */
   linux_nat_add_target (t);

@@ -1,6 +1,6 @@
 /* Program and address space management, for GDB, the GNU debugger.
 
-   Copyright (C) 2009-2013 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -44,16 +44,24 @@ static int highest_address_space_num;
 
 DEFINE_REGISTRY (program_space, REGISTRY_ACCESS_FIELD)
 
-
-
-/* An address space.  Currently this is not used for much other than
-   for comparing if pspaces/inferior/threads see the same address
+/* An address space.  It is used for comparing if pspaces/inferior/threads
+   see the same address space and for associating caches to each address
    space.  */
 
 struct address_space
 {
   int num;
+
+  /* Per aspace data-pointers required by other GDB modules.  */
+  REGISTRY_FIELDS;
 };
+
+/* Keep a registry of per-address_space data-pointers required by other GDB
+   modules.  */
+
+DEFINE_REGISTRY (address_space, REGISTRY_ACCESS_FIELD)
+
+
 
 /* Create a new address space object, and add it to the list.  */
 
@@ -62,8 +70,9 @@ new_address_space (void)
 {
   struct address_space *aspace;
 
-  aspace = XZALLOC (struct address_space);
+  aspace = XCNEW (struct address_space);
   aspace->num = ++highest_address_space_num;
+  address_space_alloc_data (aspace);
 
   return aspace;
 }
@@ -89,6 +98,7 @@ maybe_new_address_space (void)
 static void
 free_address_space (struct address_space *aspace)
 {
+  address_space_free_data (aspace);
   xfree (aspace);
 }
 
@@ -116,7 +126,7 @@ add_program_space (struct address_space *aspace)
 {
   struct program_space *pspace;
 
-  pspace = XZALLOC (struct program_space);
+  pspace = XCNEW (struct program_space);
 
   pspace->num = ++last_program_space_num;
   pspace->aspace = aspace;

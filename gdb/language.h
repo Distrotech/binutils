@@ -1,6 +1,6 @@
 /* Source-language-related definitions for GDB.
 
-   Copyright (C) 1991-2013 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    Contributed by the Department of Computer Science at the State University
    of New York at Buffalo.
@@ -22,6 +22,8 @@
 
 #if !defined (LANGUAGE_H)
 #define LANGUAGE_H 1
+
+#include "symtab.h"
 
 /* Forward decls for prototypes.  */
 struct value;
@@ -132,7 +134,11 @@ struct language_defn
   {
     /* Name of the language.  */
 
-    char *la_name;
+    const char *la_name;
+
+    /* Natural or official name of the language.  */
+
+    const char *la_natural_name;
 
     /* its symtab language-enum (defs.h).  */
 
@@ -488,7 +494,7 @@ extern enum language language_enum (char *str);
 
 extern const struct language_defn *language_def (enum language);
 
-extern char *language_str (enum language);
+extern const char *language_str (enum language);
 
 /* Add a language to the set known by GDB (at initialization time).  */
 

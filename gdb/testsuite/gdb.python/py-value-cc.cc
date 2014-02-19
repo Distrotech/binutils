@@ -1,6 +1,6 @@
 /* This testcase is part of GDB, the GNU debugger.
 
-   Copyright 2012-2013 Free Software Foundation, Inc.
+   Copyright 2012-2014 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,9 +16,35 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 class A {
+ public:
+  int a;
 };
 
+union U {
+  int a;
+  char c;
+};
+
+class B : public A {
+ public:
+  char a;
+};
+
+struct X
+{
+  union { int x; char y; };
+  union { int a; char b; };
+};
+
+union UU
+{
+  union { int x; char y; };
+  union { int a; char b; };
+};
+
+typedef B Btd;
 typedef int *int_ptr;
+typedef X Xtd;
 
 int
 func (const A &a)
@@ -28,6 +54,32 @@ func (const A &a)
   int_ptr ptr = &val;
   int_ptr &int_ptr_ref = ptr;
 
+  B b;
+  B b1;
+
+  b.a = 'a';
+  b.A::a = 10;
+
+  B *b_obj = &b1;
+  b_obj->a = 'b';
+  b_obj->A::a = 100;
+
+  B &b_ref = b1;
+  Btd &b_td = b1;
+
+  U u;
+  u.a = 99;
+
+  X x;
+  x.x = 101;
+  x.a = 102;
+
+  UU uu;
+  uu.x = 1000;
+
+  X *x_ptr = &x;
+  Xtd *xtd = &x;
+
   return 0; /* Break here.  */
 }
 
@@ -35,5 +87,6 @@ int
 main ()
 {
   A obj;
+
   return func (obj);
 }

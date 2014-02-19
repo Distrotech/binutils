@@ -1,7 +1,7 @@
 /* Default child (native) target interface, for GDB when running under
    Unix.
 
-   Copyright (C) 1988-2013 Free Software Foundation, Inc.
+   Copyright (C) 1988-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,8 +24,8 @@
 #include "symtab.h"
 #include "target.h"
 #include "inferior.h"
-#include "gdb_string.h"
-#include "gdb_stat.h"
+#include <string.h>
+#include <sys/stat.h>
 #include "inf-child.h"
 #include "gdb/fileio.h"
 #include "agent.h"
@@ -87,7 +87,7 @@ inf_child_store_inferior_registers (struct target_ops *ops,
 }
 
 static void
-inf_child_post_attach (int pid)
+inf_child_post_attach (struct target_ops *self, int pid)
 {
   /* This version of Unix doesn't require a meaningful "post attach"
      operation by a debugger.  */
@@ -100,7 +100,8 @@ inf_child_post_attach (int pid)
    program being debugged.  */
 
 static void
-inf_child_prepare_to_store (struct regcache *regcache)
+inf_child_prepare_to_store (struct target_ops *self,
+			    struct regcache *regcache)
 {
 }
 
@@ -111,7 +112,7 @@ inf_child_open (char *arg, int from_tty)
 }
 
 static void
-inf_child_post_startup_inferior (ptid_t ptid)
+inf_child_post_startup_inferior (struct target_ops *self, ptid_t ptid)
 {
   /* This version of Unix doesn't require a meaningful "post startup
      inferior" operation by a debugger.  */
@@ -127,13 +128,13 @@ inf_child_follow_fork (struct target_ops *ops, int follow_child,
 }
 
 static int
-inf_child_can_run (void)
+inf_child_can_run (struct target_ops *self)
 {
   return 1;
 }
 
 static char *
-inf_child_pid_to_exec_file (int pid)
+inf_child_pid_to_exec_file (struct target_ops *self, int pid)
 {
   /* This version of Unix doesn't support translation of a process ID
      to the filename of the executable file.  */
@@ -230,7 +231,8 @@ inf_child_errno_to_fileio_error (int errnum)
    target file descriptor, or -1 if an error occurs (and set
    *TARGET_ERRNO).  */
 static int
-inf_child_fileio_open (const char *filename, int flags, int mode,
+inf_child_fileio_open (struct target_ops *self,
+		       const char *filename, int flags, int mode,
 		       int *target_errno)
 {
   int nat_flags;
@@ -255,7 +257,8 @@ inf_child_fileio_open (const char *filename, int flags, int mode,
    Return the number of bytes written, or -1 if an error occurs
    (and set *TARGET_ERRNO).  */
 static int
-inf_child_fileio_pwrite (int fd, const gdb_byte *write_buf, int len,
+inf_child_fileio_pwrite (struct target_ops *self,
+			 int fd, const gdb_byte *write_buf, int len,
 			 ULONGEST offset, int *target_errno)
 {
   int ret;
@@ -283,7 +286,8 @@ inf_child_fileio_pwrite (int fd, const gdb_byte *write_buf, int len,
    Return the number of bytes read, or -1 if an error occurs
    (and set *TARGET_ERRNO).  */
 static int
-inf_child_fileio_pread (int fd, gdb_byte *read_buf, int len,
+inf_child_fileio_pread (struct target_ops *self,
+			int fd, gdb_byte *read_buf, int len,
 			ULONGEST offset, int *target_errno)
 {
   int ret;
@@ -310,7 +314,7 @@ inf_child_fileio_pread (int fd, gdb_byte *read_buf, int len,
 /* Close FD on the target.  Return 0, or -1 if an error occurs
    (and set *TARGET_ERRNO).  */
 static int
-inf_child_fileio_close (int fd, int *target_errno)
+inf_child_fileio_close (struct target_ops *self, int fd, int *target_errno)
 {
   int ret;
 
@@ -324,7 +328,8 @@ inf_child_fileio_close (int fd, int *target_errno)
 /* Unlink FILENAME on the target.  Return 0, or -1 if an error
    occurs (and set *TARGET_ERRNO).  */
 static int
-inf_child_fileio_unlink (const char *filename, int *target_errno)
+inf_child_fileio_unlink (struct target_ops *self,
+			 const char *filename, int *target_errno)
 {
   int ret;
 
@@ -339,7 +344,8 @@ inf_child_fileio_unlink (const char *filename, int *target_errno)
    null-terminated string allocated via xmalloc, or NULL if an error
    occurs (and set *TARGET_ERRNO).  */
 static char *
-inf_child_fileio_readlink (const char *filename, int *target_errno)
+inf_child_fileio_readlink (struct target_ops *self,
+			   const char *filename, int *target_errno)
 {
   /* We support readlink only on systems that also provide a compile-time
      maximum path length (PATH_MAX), at least for now.  */
@@ -366,7 +372,7 @@ inf_child_fileio_readlink (const char *filename, int *target_errno)
 }
 
 static int
-inf_child_use_agent (int use)
+inf_child_use_agent (struct target_ops *self, int use)
 {
   if (agent_loaded_p ())
     {
@@ -378,7 +384,7 @@ inf_child_use_agent (int use)
 }
 
 static int
-inf_child_can_use_agent (void)
+inf_child_can_use_agent (struct target_ops *self)
 {
   return agent_loaded_p ();
 }
@@ -386,7 +392,7 @@ inf_child_can_use_agent (void)
 struct target_ops *
 inf_child_target (void)
 {
-  struct target_ops *t = XZALLOC (struct target_ops);
+  struct target_ops *t = XCNEW (struct target_ops);
 
   t->to_shortname = "child";
   t->to_longname = "Unix child process";

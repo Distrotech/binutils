@@ -1,6 +1,6 @@
 /* Target-dependent code for OpenBSD/i386.
 
-   Copyright (C) 1988-2013 Free Software Foundation, Inc.
+   Copyright (C) 1988-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -31,8 +31,9 @@
 #include "trad-frame.h"
 
 #include "gdb_assert.h"
-#include "gdb_string.h"
+#include <string.h>
 
+#include "obsd-tdep.h"
 #include "i386-tdep.h"
 #include "i387-tdep.h"
 #include "solib-svr4.h"
@@ -447,6 +448,7 @@ i386obsd_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 
   /* Obviously OpenBSD is BSD-based.  */
   i386bsd_init_abi (info, gdbarch);
+  obsd_init_abi (info, gdbarch);
 
   /* OpenBSD has a different `struct reg'.  */
   tdep->gregset_reg_offset = i386obsd_r_reg_offset;

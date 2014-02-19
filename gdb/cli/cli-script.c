@@ -1,6 +1,6 @@
 /* GDB CLI command scripting.
 
-   Copyright (C) 1986-2013 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -23,7 +23,7 @@
 #include <ctype.h>
 
 #include "ui-out.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "exceptions.h"
 #include "top.h"
 #include "breakpoint.h"
@@ -32,7 +32,7 @@
 #include "cli/cli-script.h"
 #include "gdb_assert.h"
 
-#include "python/python.h"
+#include "extension.h"
 #include "interps.h"
 
 /* Prototypes for local functions.  */
@@ -78,6 +78,26 @@ struct user_args
  *user_args;
 
 
+/* Return non-zero if TYPE is a multi-line command (i.e., is terminated
+   by "end").  */
+
+static int
+multi_line_command_p (enum command_control_type type)
+{
+  switch (type)
+    {
+    case if_control:
+    case while_control:
+    case while_stepping_control:
+    case commands_control:
+    case python_control:
+    case guile_control:
+      return 1;
+    default:
+      return 0;
+    }
+}
+
 /* Allocate, initialize a new command line structure for one of the
    control commands (if/while).  */
 
@@ -247,6 +267,19 @@ print_command_lines (struct ui_out *uiout, struct command_line *cmd,
 	  ui_out_text (uiout, "\n");
 	  /* Don't indent python code at all.  */
 	  print_command_lines (uiout, *list->body_list, 0);
+	  if (depth)
+	    ui_out_spaces (uiout, 2 * depth);
+	  ui_out_field_string (uiout, NULL, "end");
+	  ui_out_text (uiout, "\n");
+	  list = list->next;
+	  continue;
+	}
+
+      if (list->control_type == guile_control)
+	{
+	  ui_out_field_string (uiout, NULL, "guile");
+	  ui_out_text (uiout, "\n");
+	  print_command_lines (uiout, *list->body_list, depth + 1);
 	  if (depth)
 	    ui_out_spaces (uiout, 2 * depth);
 	  ui_out_field_string (uiout, NULL, "end");
@@ -556,6 +589,7 @@ execute_control_command (struct command_line *cmd)
 
 	break;
       }
+
     case commands_control:
       {
 	/* Breakpoint commands list, record the commands in the
@@ -567,9 +601,11 @@ execute_control_command (struct command_line *cmd)
 	ret = commands_from_control_command (new_line, cmd);
 	break;
       }
+
     case python_control:
+    case guile_control:
       {
-	eval_python_from_control_command (cmd);
+	eval_ext_lang_from_control_command (cmd);
 	ret = simple_control;
 	break;
       }
@@ -1007,6 +1043,11 @@ process_next_line (char *p, struct command_line **command, int parse_commands,
 	     here.  */
 	  *command = build_command_line (python_control, "");
 	}
+      else if (p_end - p == 5 && !strncmp (p, "guile", 5))
+	{
+	  /* Note that we ignore the inline "guile command" form here.  */
+	  *command = build_command_line (guile_control, "");
+	}
       else if (p_end - p == 10 && !strncmp (p, "loop_break", 10))
 	{
 	  *command = (struct command_line *)
@@ -1094,7 +1135,8 @@ recurse_read_control_structure (char * (*read_next_line_func) (void),
 
       next = NULL;
       val = process_next_line (read_next_line_func (), &next, 
-			       current_cmd->control_type != python_control,
+			       current_cmd->control_type != python_control
+			       && current_cmd->control_type != guile_control,
 			       validator, closure);
 
       /* Just skip blanks and comments.  */
@@ -1103,11 +1145,7 @@ recurse_read_control_structure (char * (*read_next_line_func) (void),
 
       if (val == end_command)
 	{
-	  if (current_cmd->control_type == while_control
-	      || current_cmd->control_type == while_stepping_control
-	      || current_cmd->control_type == if_control
-	      || current_cmd->control_type == python_control
-	      || current_cmd->control_type == commands_control)
+	  if (multi_line_command_p (current_cmd->control_type))
 	    {
 	      /* Success reading an entire canned sequence of commands.  */
 	      ret = simple_control;
@@ -1156,11 +1194,7 @@ recurse_read_control_structure (char * (*read_next_line_func) (void),
 
       /* If the latest line is another control structure, then recurse
          on it.  */
-      if (next->control_type == while_control
-	  || next->control_type == while_stepping_control
-	  || next->control_type == if_control
-	  || next->control_type == python_control
-	  || next->control_type == commands_control)
+      if (multi_line_command_p (next->control_type))
 	{
 	  control_level++;
 	  ret = recurse_read_control_structure (read_next_line_func, next,
@@ -1275,11 +1309,7 @@ read_command_lines_1 (char * (*read_next_line_func) (void), int parse_commands,
 	  break;
 	}
 
-      if (next->control_type == while_control
-	  || next->control_type == if_control
-	  || next->control_type == python_control
-	  || next->control_type == commands_control
-	  || next->control_type == while_stepping_control)
+      if (multi_line_command_p (next->control_type))
 	{
 	  control_level++;
 	  ret = recurse_read_control_structure (read_next_line_func, next,

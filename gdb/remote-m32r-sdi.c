@@ -1,6 +1,6 @@
 /* Remote debugging interface for M32R/SDI.
 
-   Copyright (C) 2003-2013 Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
    Contributed by Renesas Technology Co.
    Written by Kei Sakamoto <sakamoto.kei@renesas.com>.
@@ -26,7 +26,7 @@
 #include "inferior.h"
 #include "target.h"
 #include "regcache.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "gdbthread.h"
 #include <ctype.h>
 #include <signal.h>
@@ -37,7 +37,6 @@
 #endif
 #include <sys/types.h>
 #include <sys/time.h>
-#include <signal.h>
 #include <time.h>
 #include "gdb_bfd.h"
 #include "cli/cli-utils.h"
@@ -430,7 +429,7 @@ m32r_open (char *args, int from_tty)
 /* Close out all files and local state before this target loses control.  */
 
 static void
-m32r_close (void)
+m32r_close (struct target_ops *self)
 {
   if (remote_debug)
     fprintf_unfiltered (gdb_stdlog, "m32r_close()\n");
@@ -878,7 +877,7 @@ m32r_wait (struct target_ops *ops,
    Use this when you want to detach and do something else
    with your gdb.  */
 static void
-m32r_detach (struct target_ops *ops, char *args, int from_tty)
+m32r_detach (struct target_ops *ops, const char *args, int from_tty)
 {
   if (remote_debug)
     fprintf_unfiltered (gdb_stdlog, "m32r_detach(%d)\n", from_tty);
@@ -1013,7 +1012,7 @@ m32r_store_register (struct target_ops *ops,
    debugged.  */
 
 static void
-m32r_prepare_to_store (struct regcache *regcache)
+m32r_prepare_to_store (struct target_ops *self, struct regcache *regcache)
 {
   /* Do nothing, since we can store individual regs.  */
   if (remote_debug)
@@ -1145,7 +1144,8 @@ m32r_mourn_inferior (struct target_ops *ops)
 }
 
 static int
-m32r_insert_breakpoint (struct gdbarch *gdbarch,
+m32r_insert_breakpoint (struct target_ops *ops,
+			struct gdbarch *gdbarch,
 			struct bp_target_info *bp_tgt)
 {
   CORE_ADDR addr = bp_tgt->placed_address;
@@ -1189,7 +1189,8 @@ m32r_insert_breakpoint (struct gdbarch *gdbarch,
 }
 
 static int
-m32r_remove_breakpoint (struct gdbarch *gdbarch,
+m32r_remove_breakpoint (struct target_ops *ops,
+			struct gdbarch *gdbarch,
 			struct bp_target_info *bp_tgt)
 {
   CORE_ADDR addr = bp_tgt->placed_address;
@@ -1212,7 +1213,7 @@ m32r_remove_breakpoint (struct gdbarch *gdbarch,
 }
 
 static void
-m32r_load (char *args, int from_tty)
+m32r_load (struct target_ops *self, char *args, int from_tty)
 {
   struct cleanup *old_chain;
   asection *section;
@@ -1390,7 +1391,7 @@ m32r_load (char *args, int from_tty)
 }
 
 static void
-m32r_stop (ptid_t ptid)
+m32r_stop (struct target_ops *self, ptid_t ptid)
 {
   if (remote_debug)
     fprintf_unfiltered (gdb_stdlog, "m32r_stop()\n");
@@ -1406,7 +1407,8 @@ m32r_stop (ptid_t ptid)
    implements the target_can_use_hardware_watchpoint macro.  */
 
 static int
-m32r_can_use_hw_watchpoint (int type, int cnt, int othertype)
+m32r_can_use_hw_watchpoint (struct target_ops *self,
+			    int type, int cnt, int othertype)
 {
   return sdi_desc != NULL && cnt < max_access_breaks;
 }
@@ -1416,7 +1418,8 @@ m32r_can_use_hw_watchpoint (int type, int cnt, int othertype)
    watchpoint.  */
 
 static int
-m32r_insert_watchpoint (CORE_ADDR addr, int len, int type,
+m32r_insert_watchpoint (struct target_ops *self,
+			CORE_ADDR addr, int len, int type,
 			struct expression *cond)
 {
   int i;
@@ -1441,7 +1444,8 @@ m32r_insert_watchpoint (CORE_ADDR addr, int len, int type,
 }
 
 static int
-m32r_remove_watchpoint (CORE_ADDR addr, int len, int type,
+m32r_remove_watchpoint (struct target_ops *self,
+			CORE_ADDR addr, int len, int type,
 			struct expression *cond)
 {
   int i;
@@ -1476,7 +1480,7 @@ m32r_stopped_data_address (struct target_ops *target, CORE_ADDR *addr_p)
 }
 
 static int
-m32r_stopped_by_watchpoint (void)
+m32r_stopped_by_watchpoint (struct target_ops *ops)
 {
   CORE_ADDR addr;
 

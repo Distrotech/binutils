@@ -1,5 +1,5 @@
 /* Native debugging support for Intel x86 running DJGPP.
-   Copyright (C) 1997-2013 Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
    Written by Robert Hoehne.
 
    This file is part of GDB.
@@ -99,7 +99,7 @@
 #include "i386-cpuid.h"
 #include "value.h"
 #include "regcache.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "top.h"
 #include "cli/cli-utils.h"
 
@@ -234,34 +234,9 @@ static int dr_ref_count[4];
 #define SOME_PID 42
 
 static int prog_has_started = 0;
-static void go32_open (char *name, int from_tty);
-static void go32_close (void);
-static void go32_attach (struct target_ops *ops, char *args, int from_tty);
-static void go32_detach (struct target_ops *ops, char *args, int from_tty);
-static void go32_resume (struct target_ops *ops,
-			 ptid_t ptid, int step,
-			 enum gdb_signal siggnal);
-static void go32_fetch_registers (struct target_ops *ops,
-				  struct regcache *, int regno);
-static void store_register (const struct regcache *, int regno);
-static void go32_store_registers (struct target_ops *ops,
-				  struct regcache *, int regno);
-static void go32_prepare_to_store (struct regcache *);
-static int go32_xfer_memory (CORE_ADDR memaddr, gdb_byte *myaddr, int len,
-			     int write,
-			     struct mem_attrib *attrib,
-			     struct target_ops *target);
-static void go32_files_info (struct target_ops *target);
-static void go32_kill_inferior (struct target_ops *ops);
-static void go32_create_inferior (struct target_ops *ops, char *exec_file,
-				  char *args, char **env, int from_tty);
 static void go32_mourn_inferior (struct target_ops *ops);
-static int go32_can_run (void);
 
 static struct target_ops go32_ops;
-static void go32_terminal_init (void);
-static void go32_terminal_inferior (void);
-static void go32_terminal_ours (void);
 
 #define r_ofs(x) (offsetof(TSS,x))
 
@@ -371,7 +346,7 @@ go32_open (char *name, int from_tty)
 }
 
 static void
-go32_close (void)
+go32_close (struct target_ops *self)
 {
 }
 
@@ -384,7 +359,7 @@ Use the `run' command to run DJGPP programs."));
 }
 
 static void
-go32_detach (struct target_ops *ops, char *args, int from_tty)
+go32_detach (struct target_ops *ops, const char *args, int from_tty)
 {
 }
 
@@ -598,7 +573,7 @@ go32_store_registers (struct target_ops *ops,
 }
 
 static void
-go32_prepare_to_store (struct regcache *regcache)
+go32_prepare_to_store (struct target_ops *self, struct regcache *regcache)
 {
 }
 
@@ -762,7 +737,7 @@ go32_mourn_inferior (struct target_ops *ops)
 }
 
 static int
-go32_can_run (void)
+go32_can_run (struct target_ops *self)
 {
   return 1;
 }
@@ -870,14 +845,14 @@ static int inf_terminal_mode;
 static int terminal_is_ours = 1;
 
 static void
-go32_terminal_init (void)
+go32_terminal_init (struct target_ops *self)
 {
   inf_mode_valid = 0;	/* Reinitialize, in case they are restarting child.  */
   terminal_is_ours = 1;
 }
 
 static void
-go32_terminal_info (const char *args, int from_tty)
+go32_terminal_info (struct target_ops *self, const char *args, int from_tty)
 {
   printf_unfiltered ("Inferior's terminal is in %s mode.\n",
 		     !inf_mode_valid
@@ -907,7 +882,7 @@ go32_terminal_info (const char *args, int from_tty)
 }
 
 static void
-go32_terminal_inferior (void)
+go32_terminal_inferior (struct target_ops *self)
 {
   /* Redirect standard handles as child wants them.  */
   errno = 0;
@@ -928,7 +903,7 @@ go32_terminal_inferior (void)
 }
 
 static void
-go32_terminal_ours (void)
+go32_terminal_ours (struct target_ops *self)
 {
   /* Switch to cooked mode on the gdb terminal and save the inferior
      terminal mode to be restored when it is resumed.  */

@@ -1771,6 +1771,10 @@ elf32_hppa_hide_symbol (struct bfd_link_info *info,
 	  _bfd_elf_strtab_delref (elf_hash_table (info)->dynstr,
 				  eh->dynstr_index);
 	}
+
+      /* PR 16082: Remove version information from hidden symbol.  */
+      eh->verinfo.verdef = NULL;
+      eh->verinfo.vertree = NULL;
     }
 
   /* STT_GNU_IFUNC symbol must go through PLT.  */
@@ -3690,13 +3694,14 @@ elf32_hppa_relocate_section (bfd *output_bfd,
       else
 	{
 	  struct elf_link_hash_entry *eh;
-	  bfd_boolean unresolved_reloc;
+	  bfd_boolean unresolved_reloc, ignored;
 	  struct elf_link_hash_entry **sym_hashes = elf_sym_hashes (input_bfd);
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rela,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   eh, sym_sec, relocation,
-				   unresolved_reloc, warned_undef);
+				   unresolved_reloc, warned_undef,
+				   ignored);
 
 	  if (!info->relocatable
 	      && relocation == 0
@@ -4638,7 +4643,6 @@ elf32_hppa_elf_get_symbol_type (Elf_Internal_Sym *elf_sym, int type)
 #define elf_backend_grok_psinfo		     elf32_hppa_grok_psinfo
 #define elf_backend_object_p		     elf32_hppa_object_p
 #define elf_backend_final_write_processing   elf_hppa_final_write_processing
-#define elf_backend_post_process_headers     _bfd_elf_set_osabi
 #define elf_backend_get_symbol_type	     elf32_hppa_elf_get_symbol_type
 #define elf_backend_reloc_type_class	     elf32_hppa_reloc_type_class
 #define elf_backend_action_discarded	     elf_hppa_action_discarded

@@ -910,10 +910,10 @@ struct mips_opcode
    "+k" 5-bit GPR at bit 6
    "+l" 5-bit MSA control register at bit 6
    "+n" 5-bit MSA control register at bit 11
-   "+o" 5-bit vector element index at bit 16
-   "+u" 4-bit vector element index at bit 16
-   "+v" 3-bit vector element index at bit 16
-   "+w" 2-bit vector element index at bit 16
+   "+o" 4-bit vector element index at bit 16
+   "+u" 3-bit vector element index at bit 16
+   "+v" 2-bit vector element index at bit 16
+   "+w" 1-bit vector element index at bit 16
    "+T" (-512 .. 511) << 0 at bit 16
    "+U" (-512 .. 511) << 1 at bit 16
    "+V" (-512 .. 511) << 2 at bit 16
@@ -973,8 +973,8 @@ struct mips_opcode
 #define INSN_TLB                    0x00000200
 /* Reads coprocessor register other than floating point register.  */
 #define INSN_COP                    0x00000400
-/* Instruction loads value from memory, requiring delay.  */
-#define INSN_LOAD_MEMORY_DELAY      0x00000800
+/* Instruction loads value from memory.  */
+#define INSN_LOAD_MEMORY	    0x00000800
 /* Instruction loads value from coprocessor, requiring delay.  */
 #define INSN_LOAD_COPROC_DELAY	    0x00001000
 /* Instruction has unconditional branch delay slot.  */
@@ -2093,10 +2093,10 @@ extern const int bfd_mips16_num_opcodes;
    "+k" 5-bit GPR at bit 6
    "+l" 5-bit MSA control register at bit 6
    "+n" 5-bit MSA control register at bit 11
-   "+o" 5-bit vector element index at bit 16
-   "+u" 4-bit vector element index at bit 16
-   "+v" 3-bit vector element index at bit 16
-   "+w" 2-bit vector element index at bit 16
+   "+o" 4-bit vector element index at bit 16
+   "+u" 3-bit vector element index at bit 16
+   "+v" 2-bit vector element index at bit 16
+   "+w" 1-bit vector element index at bit 16
    "+x" 5-bit shift amount at bit 16
    "+T" (-512 .. 511) << 0 at bit 16
    "+U" (-512 .. 511) << 1 at bit 16

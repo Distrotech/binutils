@@ -1,5 +1,5 @@
 /* Target-machine dependent code for Nios II, for GDB.
-   Copyright (C) 2012-2013 Free Software Foundation, Inc.
+   Copyright (C) 2012-2014 Free Software Foundation, Inc.
    Contributed by Peter Brookes (pbrookes@altera.com)
    and Andrew Draper (adraper@altera.com).
    Contributed by Mentor Graphics, Inc.
@@ -1330,18 +1330,6 @@ nios2_stub_frame_sniffer (const struct frame_unwind *self,
   return 0;
 }
 
-/* Implement the this_base, this_locals, and this_args hooks
-   for the stub unwinder.  */
-
-static CORE_ADDR
-nios2_stub_frame_base_address (struct frame_info *this_frame, void **this_cache)
-{
-  struct trad_frame_cache *this_trad_cache
-    = nios2_stub_frame_cache (this_frame, this_cache);
-
-  return trad_frame_get_this_base (this_trad_cache);
-}
-
 /* Define the data structures for the stub unwinder.  */
 
 static const struct frame_unwind nios2_stub_frame_unwind =
@@ -1352,14 +1340,6 @@ static const struct frame_unwind nios2_stub_frame_unwind =
   nios2_stub_frame_prev_register,
   NULL,
   nios2_stub_frame_sniffer
-};
-
-static const struct frame_base nios2_stub_frame_base =
-{
-  &nios2_stub_frame_unwind,
-  nios2_stub_frame_base_address,
-  nios2_stub_frame_base_address,
-  nios2_stub_frame_base_address
 };
 
 /* Helper function to read an instruction at PC.  */

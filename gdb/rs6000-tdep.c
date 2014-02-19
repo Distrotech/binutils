@@ -1,6 +1,6 @@
 /* Target-dependent code for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2013 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -48,6 +48,7 @@
 
 #include "elf-bfd.h"
 #include "elf/ppc.h"
+#include "elf/ppc64.h"
 
 #include "solib-svr4.h"
 #include "ppc-tdep.h"
@@ -1616,7 +1617,19 @@ skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc, CORE_ADDR lim_pc,
 	  continue;
 
 	}
-      else if ((op & 0xffff0000) == 0x60000000)
+      else if ((op & 0xffff0000) == 0x3c4c0000
+	       || (op & 0xffff0000) == 0x3c400000
+	       || (op & 0xffff0000) == 0x38420000)
+	{
+	  /* .	0:	addis 2,12,.TOC.-0b@ha
+	     .		addi 2,2,.TOC.-0b@l
+	     or
+	     .		lis 2,.TOC.@ha
+	     .		addi 2,2,.TOC.@l
+	     used by ELFv2 global entry points to set up r2.  */
+	  continue;
+	}
+      else if (op == 0x60000000)
         {
 	  /* nop */
 	  /* Allow nops in the prologue, but do not consider them to
@@ -1627,8 +1640,7 @@ skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc, CORE_ADDR lim_pc,
 
 	}
       else if ((op & 0xffff0000) == 0x3c000000)
-	{			/* addis 0,0,NUM, used
-				   for >= 32k frames */
+	{			/* addis 0,0,NUM, used for >= 32k frames */
 	  fdata->offset = (op & 0x0000ffff) << 16;
 	  fdata->frameless = 0;
           r0_contains_arg = 0;
@@ -1636,8 +1648,7 @@ skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc, CORE_ADDR lim_pc,
 
 	}
       else if ((op & 0xffff0000) == 0x60000000)
-	{			/* ori 0,0,NUM, 2nd ha
-				   lf of >= 32k frames */
+	{			/* ori 0,0,NUM, 2nd half of >= 32k frames */
 	  fdata->offset |= (op & 0x0000ffff);
 	  fdata->frameless = 0;
           r0_contains_arg = 0;
@@ -2662,10 +2673,10 @@ dfp_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
   else
     {
       status = regcache_raw_read (regcache, tdep->ppc_fp0_regnum +
-				  2 * reg_index + 1, buffer + 8);
+				  2 * reg_index + 1, buffer);
       if (status == REG_VALID)
 	status = regcache_raw_read (regcache, tdep->ppc_fp0_regnum +
-				    2 * reg_index, buffer);
+				    2 * reg_index, buffer + 8);
     }
 
   return status;
@@ -2691,9 +2702,9 @@ dfp_pseudo_register_write (struct gdbarch *gdbarch, struct regcache *regcache,
   else
     {
       regcache_raw_write (regcache, tdep->ppc_fp0_regnum +
-			  2 * reg_index + 1, buffer + 8);
+			  2 * reg_index + 1, buffer);
       regcache_raw_write (regcache, tdep->ppc_fp0_regnum +
-			  2 * reg_index, buffer);
+			  2 * reg_index, buffer + 8);
     }
 }
 
@@ -2769,10 +2780,12 @@ efpr_pseudo_register_read (struct gdbarch *gdbarch, struct regcache *regcache,
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   int reg_index = reg_nr - tdep->ppc_efpr0_regnum;
+  int offset = gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG ? 0 : 8;
 
   /* Read the portion that overlaps the VMX register.  */
-  return regcache_raw_read_part (regcache, tdep->ppc_vr0_regnum + reg_index, 0,
-				 register_size (gdbarch, reg_nr), buffer);
+  return regcache_raw_read_part (regcache, tdep->ppc_vr0_regnum + reg_index,
+				 offset, register_size (gdbarch, reg_nr),
+				 buffer);
 }
 
 /* Write method for POWER7 Extended FP pseudo-registers.  */
@@ -2782,10 +2795,12 @@ efpr_pseudo_register_write (struct gdbarch *gdbarch, struct regcache *regcache,
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   int reg_index = reg_nr - tdep->ppc_efpr0_regnum;
+  int offset = gdbarch_byte_order (gdbarch) == BFD_ENDIAN_BIG ? 0 : 8;
 
   /* Write the portion that overlaps the VMX register.  */
-  regcache_raw_write_part (regcache, tdep->ppc_vr0_regnum + reg_index, 0,
-			   register_size (gdbarch, reg_nr), buffer);
+  regcache_raw_write_part (regcache, tdep->ppc_vr0_regnum + reg_index,
+			   offset, register_size (gdbarch, reg_nr),
+			   buffer);
 }
 
 static enum register_status
@@ -3540,6 +3555,7 @@ rs6000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   enum auto_boolean soft_float_flag = powerpc_soft_float_global;
   int soft_float;
   enum powerpc_vector_abi vector_abi = powerpc_vector_abi_global;
+  enum powerpc_elf_abi elf_abi = POWERPC_ELF_AUTO;
   int have_fpu = 1, have_spe = 0, have_mq = 0, have_altivec = 0, have_dfp = 0,
       have_vsx = 0;
   int tdesc_wordsize = -1;
@@ -3635,10 +3651,6 @@ rs6000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	"r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15",
 	"r16", "r17", "r18", "r19", "r20", "r21", "r22", "r23",
 	"r24", "r25", "r26", "r27", "r28", "r29", "r30", "r31"
-      };
-      static const char *const segment_regs[] = {
-	"sr0", "sr1", "sr2", "sr3", "sr4", "sr5", "sr6", "sr7",
-	"sr8", "sr9", "sr10", "sr11", "sr12", "sr13", "sr14", "sr15"
       };
       const struct tdesc_feature *feature;
       int i, valid_p;
@@ -3846,6 +3858,21 @@ rs6000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
     }
 
 #ifdef HAVE_ELF
+  if (from_elf_exec)
+    {
+      switch (elf_elfheader (info.abfd)->e_flags & EF_PPC64_ABI)
+	{
+	case 1:
+	  elf_abi = POWERPC_ELF_V1;
+	  break;
+	case 2:
+	  elf_abi = POWERPC_ELF_V2;
+	  break;
+	default:
+	  break;
+	}
+    }
+
   if (soft_float_flag == AUTO_BOOLEAN_AUTO && from_elf_exec)
     {
       switch (bfd_elf_get_obj_attr_int (info.abfd, OBJ_ATTR_GNU,
@@ -3881,6 +3908,21 @@ rs6000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 	}
     }
 #endif
+
+  /* At this point, the only supported ELF-based 64-bit little-endian
+     operating system is GNU/Linux, and this uses the ELFv2 ABI by
+     default.  All other supported ELF-based operating systems use the
+     ELFv1 ABI by default.  Therefore, if the ABI marker is missing,
+     e.g. because we run a legacy binary, or have attached to a process
+     and have not found any associated binary file, set the default
+     according to this heuristic.  */
+  if (elf_abi == POWERPC_ELF_AUTO)
+    {
+      if (wordsize == 8 && info.byte_order == BFD_ENDIAN_LITTLE)
+        elf_abi = POWERPC_ELF_V2;
+      else
+        elf_abi = POWERPC_ELF_V1;
+    }
 
   if (soft_float_flag == AUTO_BOOLEAN_TRUE)
     soft_float = 1;
@@ -3924,6 +3966,8 @@ rs6000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
          meaningful, because 64-bit CPUs can run in 32-bit mode.  So, perform
          separate word size check.  */
       tdep = gdbarch_tdep (arches->gdbarch);
+      if (tdep && tdep->elf_abi != elf_abi)
+	continue;
       if (tdep && tdep->soft_float != soft_float)
 	continue;
       if (tdep && tdep->vector_abi != vector_abi)
@@ -3944,8 +3988,9 @@ rs6000_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
        - "set arch"		trust blindly
        - GDB startup		useless but harmless */
 
-  tdep = XCALLOC (1, struct gdbarch_tdep);
+  tdep = XCNEW (struct gdbarch_tdep);
   tdep->wordsize = wordsize;
+  tdep->elf_abi = elf_abi;
   tdep->soft_float = soft_float;
   tdep->vector_abi = vector_abi;
 

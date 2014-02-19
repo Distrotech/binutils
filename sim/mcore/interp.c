@@ -1,5 +1,5 @@
 /* Simulator for Motorola's MCore processor
-   Copyright (C) 1999-2013 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
 This file is part of GDB, the GNU debugger.
@@ -472,12 +472,6 @@ set_initial_gprs ()
   cpu.gr[PARM4] = cpu.gr[0];
 }
 
-static void
-interrupt ()
-{
-  cpu.asregs.exception = SIGINT;
-}
-
 /* Functions so that trapped open/close don't interfere with the
    parent's functions.  We say that we can't close the descriptors
    that we didn't open.  exit() and cleanup() get in trouble here,
@@ -762,7 +756,6 @@ sim_resume (sd, step, siggnal)
   word ibuf;
   word pc;
   unsigned short inst;
-  void (* sigsave)();
   int memops;
   int bonus_cycles;
   int insts;
@@ -770,7 +763,6 @@ sim_resume (sd, step, siggnal)
   int cycs;
   word WLhash;
 
-  sigsave = signal (SIGINT, interrupt);
   cpu.asregs.exception = step ? SIGTRAP: 0;
   pc = cpu.asregs.pc;
 
@@ -1709,8 +1701,6 @@ sim_resume (sd, step, siggnal)
   cpu.asregs.cycles += insts;		/* and each takes a cycle */
   cpu.asregs.cycles += bonus_cycles;	/* and extra cycles for branches */
   cpu.asregs.cycles += memops * memcycles;	/* and memop cycle delays */
-  
-  signal (SIGINT, sigsave);
 }
 
 

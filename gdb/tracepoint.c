@@ -1,6 +1,6 @@
 /* Tracing functionality for remote targets in custom GDB protocol
 
-   Copyright (C) 1997-2013 Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -26,8 +26,9 @@
 #include "gdbcmd.h"
 #include "value.h"
 #include "target.h"
+#include "target-dcache.h"
 #include "language.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "inferior.h"
 #include "breakpoint.h"
 #include "tracepoint.h"
@@ -44,7 +45,6 @@
 #include "filenames.h"
 #include "gdbthread.h"
 #include "stack.h"
-#include "gdbcore.h"
 #include "remote.h"
 #include "source.h"
 #include "ax.h"
@@ -54,8 +54,8 @@
 #include "cli/cli-utils.h"
 #include "probe.h"
 #include "ctf.h"
-#include "completer.h"
 #include "filestuff.h"
+#include "rsp-low.h"
 
 /* readline include files */
 #include "readline/readline.h"
@@ -79,6 +79,8 @@
    NOTE: expressions get mem2hex'ed otherwise this would be twice as
    large.  (400 - 31)/2 == 184 */
 #define MAX_AGENT_EXPR_LEN	184
+
+#define TFILE_PID (1)
 
 /* A hook used to notify the UI of tracepoint operations.  */
 
@@ -3090,7 +3092,7 @@ encode_source_string (int tpnum, ULONGEST addr,
 	   srctype, 0, (int) strlen (src));
   if (strlen (buf) + strlen (src) * 2 >= buf_size)
     error (_("Source string too long for buffer"));
-  bin2hex ((gdb_byte *) src, buf + strlen (buf), 0);
+  bin2hex ((gdb_byte *) src, buf + strlen (buf), strlen (src));
   return -1;
 }
 
@@ -3209,7 +3211,7 @@ tfile_write_status (struct trace_file_writer *self,
     {
       char *buf = (char *) alloca (strlen (ts->stop_desc) * 2 + 1);
 
-      bin2hex ((gdb_byte *) ts->stop_desc, buf, 0);
+      bin2hex ((gdb_byte *) ts->stop_desc, buf, strlen (ts->stop_desc));
       fprintf (writer->fp, ":%s", buf);
     }
   fprintf (writer->fp, ":%x", ts->stopping_tracepoint);
@@ -3239,14 +3241,14 @@ tfile_write_status (struct trace_file_writer *self,
     {
       char *buf = (char *) alloca (strlen (ts->notes) * 2 + 1);
 
-      bin2hex ((gdb_byte *) ts->notes, buf, 0);
+      bin2hex ((gdb_byte *) ts->notes, buf, strlen (ts->notes));
       fprintf (writer->fp, ";notes:%s", buf);
     }
   if (ts->user_name != NULL)
     {
       char *buf = (char *) alloca (strlen (ts->user_name) * 2 + 1);
 
-      bin2hex ((gdb_byte *) ts->user_name, buf, 0);
+      bin2hex ((gdb_byte *) ts->user_name, buf, strlen (ts->user_name));
       fprintf (writer->fp, ";username:%s", buf);
     }
   fprintf (writer->fp, "\n");
@@ -3266,7 +3268,7 @@ tfile_write_uploaded_tsv (struct trace_file_writer *self,
   if (utsv->name)
     {
       buf = (char *) xmalloc (strlen (utsv->name) * 2 + 1);
-      bin2hex ((gdb_byte *) (utsv->name), buf, 0);
+      bin2hex ((gdb_byte *) (utsv->name), buf, strlen (utsv->name));
     }
 
   fprintf (writer->fp, "tsv %x:%s:%x:%s\n",
@@ -4373,6 +4375,10 @@ tfile_open (char *filename, int from_tty)
       throw_exception (ex);
     }
 
+  inferior_appeared (current_inferior (), TFILE_PID);
+  inferior_ptid = pid_to_ptid (TFILE_PID);
+  add_thread_silent (inferior_ptid);
+
   if (ts->traceframe_count <= 0)
     warning (_("No traceframes present in this file."));
 
@@ -4383,6 +4389,8 @@ tfile_open (char *filename, int from_tty)
   merge_uploaded_trace_state_variables (&uploaded_tsvs);
 
   merge_uploaded_tracepoints (&uploaded_tps);
+
+  post_create_inferior (&tfile_ops, from_tty);
 }
 
 /* Interpret the given line from the definitions part of the trace
@@ -4748,12 +4756,16 @@ parse_tsv_definition (char *line, struct uploaded_tsv **utsvp)
 /* Close the trace file and generally clean up.  */
 
 static void
-tfile_close (void)
+tfile_close (struct target_ops *self)
 {
   int pid;
 
   if (trace_fd < 0)
     return;
+
+  pid = ptid_get_pid (inferior_ptid);
+  inferior_ptid = null_ptid;	/* Avoid confusion from thread stuff.  */
+  exit_inferior_silent (pid);
 
   close (trace_fd);
   trace_fd = -1;
@@ -4772,7 +4784,7 @@ tfile_files_info (struct target_ops *t)
 /* The trace status for a file is that tracing can never be run.  */
 
 static int
-tfile_get_trace_status (struct trace_status *ts)
+tfile_get_trace_status (struct target_ops *self, struct trace_status *ts)
 {
   /* Other bits of trace status were collected as part of opening the
      trace files, so nothing to do here.  */
@@ -4781,7 +4793,8 @@ tfile_get_trace_status (struct trace_status *ts)
 }
 
 static void
-tfile_get_tracepoint_status (struct breakpoint *tp, struct uploaded_tp *utp)
+tfile_get_tracepoint_status (struct target_ops *self,
+			     struct breakpoint *tp, struct uploaded_tp *utp)
 {
   /* Other bits of trace status were collected as part of opening the
      trace files, so nothing to do here.  */
@@ -4826,7 +4839,7 @@ tfile_get_traceframe_address (off_t tframe_offset)
    each.  */
 
 static int
-tfile_trace_find (enum trace_find_type type, int num,
+tfile_trace_find (struct target_ops *self, enum trace_find_type type, int num,
 		  CORE_ADDR addr1, CORE_ADDR addr2, int *tpp)
 {
   short tpnum;
@@ -5061,7 +5074,17 @@ tfile_fetch_registers (struct target_ops *ops,
   /* We can often usefully guess that the PC is going to be the same
      as the address of the tracepoint.  */
   pc_regno = gdbarch_pc_regnum (gdbarch);
-  if (pc_regno >= 0 && (regno == -1 || regno == pc_regno))
+
+  /* XXX This guessing code below only works if the PC register isn't
+     a pseudo-register.  The value of a pseudo-register isn't stored
+     in the (non-readonly) regcache -- instead it's recomputed
+     (probably from some other cached raw register) whenever the
+     register is read.  This guesswork should probably move to some
+     higher layer.  */
+  if (pc_regno < 0 || pc_regno >= gdbarch_num_regs (gdbarch))
+    return;
+
+  if (regno == -1 || regno == pc_regno)
     {
       struct tracepoint *tp = get_tracepoint (tracepoint_number);
 
@@ -5092,14 +5115,15 @@ tfile_fetch_registers (struct target_ops *ops,
     }
 }
 
-static LONGEST
+static enum target_xfer_status
 tfile_xfer_partial (struct target_ops *ops, enum target_object object,
 		    const char *annex, gdb_byte *readbuf,
-		    const gdb_byte *writebuf, ULONGEST offset, LONGEST len)
+		    const gdb_byte *writebuf, ULONGEST offset, ULONGEST len,
+		    ULONGEST *xfered_len)
 {
   /* We're only doing regular memory for now.  */
   if (object != TARGET_OBJECT_MEMORY)
-    return -1;
+    return TARGET_XFER_E_IO;
 
   if (readbuf == NULL)
     error (_("tfile_xfer_partial: trace file is read-only"));
@@ -5136,7 +5160,8 @@ tfile_xfer_partial (struct target_ops *ops, enum target_object object,
 	      if (maddr != offset)
 	        lseek (trace_fd, offset - maddr, SEEK_CUR);
 	      tfile_read (readbuf, amt);
-	      return amt;
+	      *xfered_len = amt;
+	      return TARGET_XFER_OK;
 	    }
 
 	  /* Skip over this block.  */
@@ -5170,22 +5195,23 @@ tfile_xfer_partial (struct target_ops *ops, enum target_object object,
 	      if (amt > len)
 		amt = len;
 
-	      amt = bfd_get_section_contents (exec_bfd, s,
-					      readbuf, offset - vma, amt);
-	      return amt;
+	      *xfered_len = bfd_get_section_contents (exec_bfd, s,
+						      readbuf, offset - vma, amt);
+	      return TARGET_XFER_OK;
 	    }
 	}
     }
 
   /* Indicate failure to find the requested memory block.  */
-  return -1;
+  return TARGET_XFER_E_IO;
 }
 
 /* Iterate through the blocks of a trace frame, looking for a 'V'
    block with a matching tsv number.  */
 
 static int
-tfile_get_trace_state_variable_value (int tsvnum, LONGEST *val)
+tfile_get_trace_state_variable_value (struct target_ops *self,
+				      int tsvnum, LONGEST *val)
 {
   int pos;
   int found = 0;
@@ -5239,6 +5265,12 @@ static int
 tfile_has_registers (struct target_ops *ops)
 {
   return traceframe_number != -1;
+}
+
+static int
+tfile_thread_alive (struct target_ops *ops, ptid_t ptid)
+{
+  return 1;
 }
 
 /* Callback for traceframe_walk_blocks.  Builds a traceframe_info
@@ -5296,7 +5328,7 @@ build_traceframe_info (char blocktype, void *data)
 }
 
 static struct traceframe_info *
-tfile_traceframe_info (void)
+tfile_traceframe_info (struct target_ops *self)
 {
   struct traceframe_info *info = XCNEW (struct traceframe_info);
 
@@ -5327,6 +5359,7 @@ init_tfile_ops (void)
   tfile_ops.to_has_stack = tfile_has_stack;
   tfile_ops.to_has_registers = tfile_has_registers;
   tfile_ops.to_traceframe_info = tfile_traceframe_info;
+  tfile_ops.to_thread_alive = tfile_thread_alive;
   tfile_ops.to_magic = OPS_MAGIC;
 }
 

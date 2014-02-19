@@ -3270,14 +3270,14 @@ parse_barrier (char **str)
    Returns the encoding for the option, or PARSE_FAIL.
 
    If IMPLE_DEFINED_P is non-zero, the function will also try to parse the
-   implementation defined system register name S3_<op1>_<Cn>_<Cm>_<op2>.  */
+   implementation defined system register name S<op0>_<op1>_<Cn>_<Cm>_<op2>.  */
 
 static int
 parse_sys_reg (char **str, struct hash_control *sys_regs, int imple_defined_p)
 {
   char *p, *q;
   char buf[32];
-  const struct aarch64_name_value_pair *o;
+  const aarch64_sys_reg *o;
   int value;
 
   p = buf;
@@ -3295,7 +3295,7 @@ parse_sys_reg (char **str, struct hash_control *sys_regs, int imple_defined_p)
 	return PARSE_FAIL;
       else
 	{
-	  /* Parse S3_<op1>_<Cn>_<Cm>_<op2>, the implementation defined
+	  /* Parse S<op0>_<op1>_<Cn>_<Cm>_<op2>, the implementation defined
 	     registers.  */
 	  unsigned int op0, op1, cn, cm, op2;
 	  if (sscanf (buf, "s%u_%u_c%u_c%u_%u", &op0, &op1, &cn, &cm, &op2) != 5)
@@ -3303,17 +3303,22 @@ parse_sys_reg (char **str, struct hash_control *sys_regs, int imple_defined_p)
 	  /* The architecture specifies the encoding space for implementation
 	     defined registers as:
 	     op0  op1  CRn   CRm   op2
-	     11   xxx  1x11  xxxx  xxx
+	     1x   xxx  1x11  xxxx  xxx
 	     For convenience GAS accepts a wider encoding space, as follows:
 	     op0  op1  CRn   CRm   op2
-	     11   xxx  xxxx  xxxx  xxx  */
-	  if (op0 != 3 || op1 > 7 || cn > 15 || cm > 15 || op2 > 7)
+	     1x   xxx  xxxx  xxxx  xxx  */
+	  if ((op0 != 2 && op0 != 3) || op1 > 7 || cn > 15 || cm > 15 || op2 > 7)
 	    return PARSE_FAIL;
 	  value = (op0 << 14) | (op1 << 11) | (cn << 7) | (cm << 3) | op2;
 	}
     }
   else
-    value = o->value;
+    {
+      if (aarch64_sys_reg_deprecated_p (o))
+	as_warn (_("system register name '%s' is deprecated and may be "
+"removed in a future release"), buf);
+      value = o->value;
+    }
 
   *str = q;
   return value;
@@ -4810,7 +4815,8 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	case AARCH64_OPND_IMM_MOV:
 	  {
 	    char *saved = str;
-	    if (reg_name_p (str, REG_TYPE_R_Z_SP))
+	    if (reg_name_p (str, REG_TYPE_R_Z_SP) ||
+		reg_name_p (str, REG_TYPE_VN))
 	      goto failure;
 	    str = saved;
 	    po_misc_or_fail (my_get_expression (&inst.reloc.exp, &str,
@@ -4968,11 +4974,19 @@ parse_operands (char *str, const aarch64_opcode *opcode)
 	  break;
 
 	case AARCH64_OPND_COND:
+	case AARCH64_OPND_COND1:
 	  info->cond = hash_find_n (aarch64_cond_hsh, str, 2);
 	  str += 2;
 	  if (info->cond == NULL)
 	    {
 	      set_syntax_error (_("invalid condition"));
+	      goto failure;
+	    }
+	  else if (operands[i] == AARCH64_OPND_COND1
+		   && (info->cond->value & 0xe) == 0xe)
+	    {
+	      /* Not allow AL or NV.  */
+	      set_default_error ();
 	      goto failure;
 	    }
 	  break;
@@ -5517,14 +5531,6 @@ md_assemble (char *str)
 	dump_opcode_operands (opcode);
 #endif /* DEBUG_AARCH64 */
 
-      /* Check that this instruction is supported for this CPU.  */
-      if (!opcode->avariant
-	  || !AARCH64_CPU_HAS_FEATURE (cpu_variant, *opcode->avariant))
-	{
-	  as_bad (_("selected processor does not support `%s'"), str);
-	  return;
-	}
-
       mapping_state (MAP_INSN);
 
       inst_base = &inst.base;
@@ -5549,6 +5555,14 @@ md_assemble (char *str)
 	  && programmer_friendly_fixup (&inst)
 	  && do_encode (inst_base->opcode, &inst.base, &inst_base->value))
 	{
+	  /* Check that this instruction is supported for this CPU.  */
+	  if (!opcode->avariant
+	      || !AARCH64_CPU_HAS_FEATURE (cpu_variant, *opcode->avariant))
+	    {
+	      as_bad (_("selected processor does not support `%s'"), str);
+	      return;
+	    }
+
 	  if (inst.reloc.type == BFD_RELOC_UNUSED
 	      || !inst.reloc.need_libopcodes_p)
 	    output_inst (NULL);
@@ -7123,6 +7137,7 @@ static const struct aarch64_cpu_option_table aarch64_cpus[] = {
   {"all", AARCH64_ANY, NULL},
   {"cortex-a53",	AARCH64_ARCH_V8, "Cortex-A53"},
   {"cortex-a57",	AARCH64_ARCH_V8, "Cortex-A57"},
+  {"xgene-1", AARCH64_ARCH_V8, "APM X-Gene 1"},
   {"generic", AARCH64_ARCH_V8, NULL},
 
   /* These two are example CPUs supported in GCC, once we have real

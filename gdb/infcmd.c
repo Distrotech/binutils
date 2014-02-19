@@ -1,6 +1,6 @@
 /* Memory-access and commands for "inferior" process, for GDB.
 
-   Copyright (C) 1986-2013 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,7 +20,7 @@
 #include "defs.h"
 #include "arch-utils.h"
 #include <signal.h>
-#include "gdb_string.h"
+#include <string.h>
 #include "symtab.h"
 #include "gdbtypes.h"
 #include "frame.h"
@@ -32,7 +32,6 @@
 #include "gdbcore.h"
 #include "target.h"
 #include "language.h"
-#include "symfile.h"
 #include "objfiles.h"
 #include "completer.h"
 #include "ui-out.h"

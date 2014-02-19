@@ -1,6 +1,6 @@
 /* Native-dependent code for NetBSD/sparc64.
 
-   Copyright (C) 2003-2013 Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -69,7 +69,8 @@ sparc64nbsd_supply_fpregset (const struct sparc_fpregset *fpregset,
 }
 
 static void
-sparc64nbsd_collect_fpregset (const struct regcache *regcache,
+sparc64nbsd_collect_fpregset (const struct sparc_fpregset *fpregset,
+			      const struct regcache *regcache,
 			      int regnum, void *fpregs)
 {
   int sparc32 = (gdbarch_ptr_bit (get_regcache_arch (regcache)) == 32);

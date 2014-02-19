@@ -1,6 +1,6 @@
 /* Target-dependent code for AMD64.
 
-   Copyright (C) 2001-2013 Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
    Contributed by Jiri Smid, SuSE Labs.
 
@@ -43,6 +43,7 @@
 
 #include "features/i386/amd64.c"
 #include "features/i386/amd64-avx.c"
+#include "features/i386/amd64-mpx.c"
 #include "features/i386/x32.c"
 #include "features/i386/x32-avx.c"
 
@@ -90,6 +91,11 @@ static const char *amd64_ymmh_names[] =
   "ymm4h", "ymm5h", "ymm6h", "ymm7h",
   "ymm8h", "ymm9h", "ymm10h", "ymm11h",
   "ymm12h", "ymm13h", "ymm14h", "ymm15h"
+};
+
+static const char *amd64_mpx_names[] =
+{
+  "bnd0raw", "bnd1raw", "bnd2raw", "bnd3raw", "bndcfgu", "bndstatus"
 };
 
 /* DWARF Register Number Mapping as defined in the System V psABI,
@@ -1339,6 +1345,24 @@ amd64_absolute_jmp_p (const struct amd64_insn *details)
   return 0;
 }
 
+/* Return non-zero if the instruction DETAILS is a jump, zero otherwise.  */
+
+static int
+amd64_jmp_p (const struct amd64_insn *details)
+{
+  const gdb_byte *insn = &details->raw_insn[details->opcode_offset];
+
+  /* jump short, relative.  */
+  if (insn[0] == 0xeb)
+    return 1;
+
+  /* jump near, relative.  */
+  if (insn[0] == 0xe9)
+    return 1;
+
+  return amd64_absolute_jmp_p (details);
+}
+
 static int
 amd64_absolute_call_p (const struct amd64_insn *details)
 {
@@ -1408,6 +1432,52 @@ amd64_syscall_p (const struct amd64_insn *details, int *lengthp)
     }
 
   return 0;
+}
+
+/* Classify the instruction at ADDR using PRED.
+   Throw an error if the memory can't be read.  */
+
+static int
+amd64_classify_insn_at (struct gdbarch *gdbarch, CORE_ADDR addr,
+			int (*pred) (const struct amd64_insn *))
+{
+  struct amd64_insn details;
+  gdb_byte *buf;
+  int len, classification;
+
+  len = gdbarch_max_insn_length (gdbarch);
+  buf = alloca (len);
+
+  read_code (addr, buf, len);
+  amd64_get_insn_details (buf, &details);
+
+  classification = pred (&details);
+
+  return classification;
+}
+
+/* The gdbarch insn_is_call method.  */
+
+static int
+amd64_insn_is_call (struct gdbarch *gdbarch, CORE_ADDR addr)
+{
+  return amd64_classify_insn_at (gdbarch, addr, amd64_call_p);
+}
+
+/* The gdbarch insn_is_ret method.  */
+
+static int
+amd64_insn_is_ret (struct gdbarch *gdbarch, CORE_ADDR addr)
+{
+  return amd64_classify_insn_at (gdbarch, addr, amd64_ret_p);
+}
+
+/* The gdbarch insn_is_jump method.  */
+
+static int
+amd64_insn_is_jump (struct gdbarch *gdbarch, CORE_ADDR addr)
+{
+  return amd64_classify_insn_at (gdbarch, addr, amd64_jmp_p);
 }
 
 /* Fix up the state of registers and memory after having single-stepped
@@ -1755,7 +1825,7 @@ amd64_analyze_stack_align (CORE_ADDR pc, CORE_ADDR current_pc,
   int reg, r;
   int offset, offset_and;
 
-  if (target_read_memory (pc, buf, sizeof buf))
+  if (target_read_code (pc, buf, sizeof buf))
     return pc;
 
   /* Check caller-saved saved register.  The first instruction has
@@ -2098,7 +2168,7 @@ amd64_analyze_prologue (struct gdbarch *gdbarch,
   else
     pc = amd64_analyze_stack_align (pc, current_pc, cache);
 
-  op = read_memory_unsigned_integer (pc, 1, byte_order);
+  op = read_code_unsigned_integer (pc, 1, byte_order);
 
   if (op == 0x55)		/* pushq %rbp */
     {
@@ -2111,7 +2181,7 @@ amd64_analyze_prologue (struct gdbarch *gdbarch,
       if (current_pc <= pc + 1)
         return current_pc;
 
-      read_memory (pc + 1, buf, 3);
+      read_code (pc + 1, buf, 3);
 
       /* Check for `movq %rsp, %rbp'.  */
       if (memcmp (buf, mov_rsp_rbp_1, 3) == 0
@@ -2179,7 +2249,7 @@ amd64_skip_xmm_prologue (CORE_ADDR pc, CORE_ADDR start_pc)
     return pc;
 
   /* START_PC can be from overlayed memory, ignored here.  */
-  if (target_read_memory (next_sal.pc - 4, buf, sizeof (buf)) != 0)
+  if (target_read_code (next_sal.pc - 4, buf, sizeof (buf)) != 0)
     return pc;
 
   /* test %al,%al */
@@ -2372,13 +2442,14 @@ amd64_frame_this_id (struct frame_info *this_frame, void **this_cache,
     amd64_frame_cache (this_frame, this_cache);
 
   if (!cache->base_p)
-    return;
-
-  /* This marks the outermost frame.  */
-  if (cache->base == 0)
-    return;
-
-  (*this_id) = frame_id_build (cache->base + 16, cache->pc);
+    (*this_id) = frame_id_build_unavailable_stack (cache->pc);
+  else if (cache->base == 0)
+    {
+      /* This marks the outermost frame.  */
+      return;
+    }
+  else
+    (*this_id) = frame_id_build (cache->base + 16, cache->pc);
 }
 
 static struct value *
@@ -2493,9 +2564,14 @@ amd64_sigtramp_frame_this_id (struct frame_info *this_frame,
     amd64_sigtramp_frame_cache (this_frame, this_cache);
 
   if (!cache->base_p)
-    return;
-
-  (*this_id) = frame_id_build (cache->base + 16, get_frame_pc (this_frame));
+    (*this_id) = frame_id_build_unavailable_stack (get_frame_pc (this_frame));
+  else if (cache->base == 0)
+    {
+      /* This marks the outermost frame.  */
+      return;
+    }
+  else
+    (*this_id) = frame_id_build (cache->base + 16, get_frame_pc (this_frame));
 }
 
 static struct value *
@@ -2664,9 +2740,9 @@ amd64_epilogue_frame_this_id (struct frame_info *this_frame,
 							       this_cache);
 
   if (!cache->base_p)
-    return;
-
-  (*this_id) = frame_id_build (cache->base + 8, cache->pc);
+    (*this_id) = frame_id_build_unavailable_stack (cache->pc);
+  else
+    (*this_id) = frame_id_build (cache->base + 8, cache->pc);
 }
 
 static const struct frame_unwind amd64_epilogue_frame_unwind =
@@ -2826,6 +2902,12 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
 {
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
   const struct target_desc *tdesc = info.target_desc;
+  static const char *const stap_integer_prefixes[] = { "$", NULL };
+  static const char *const stap_register_prefixes[] = { "%", NULL };
+  static const char *const stap_register_indirection_prefixes[] = { "(",
+								    NULL };
+  static const char *const stap_register_indirection_suffixes[] = { ")",
+								    NULL };
 
   /* AMD64 generally uses `fxsave' instead of `fsave' for saving its
      floating-point registers.  */
@@ -2843,6 +2925,13 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
       tdep->ymmh_register_names = amd64_ymmh_names;
       tdep->num_ymm_regs = 16;
       tdep->ymm0h_regnum = AMD64_YMM0H_REGNUM;
+    }
+
+  if (tdesc_find_feature (tdesc, "org.gnu.gdb.i386.mpx") != NULL)
+    {
+      tdep->mpx_register_names = amd64_mpx_names;
+      tdep->bndcfgu_regnum = AMD64_BNDCFGU_REGNUM;
+      tdep->bnd0r_regnum = AMD64_BND0R_REGNUM;
     }
 
   tdep->num_byte_regs = 20;
@@ -2931,14 +3020,19 @@ amd64_init_abi (struct gdbarch_info info, struct gdbarch *gdbarch)
   set_gdbarch_gen_return_address (gdbarch, amd64_gen_return_address);
 
   /* SystemTap variables and functions.  */
-  set_gdbarch_stap_integer_prefix (gdbarch, "$");
-  set_gdbarch_stap_register_prefix (gdbarch, "%");
-  set_gdbarch_stap_register_indirection_prefix (gdbarch, "(");
-  set_gdbarch_stap_register_indirection_suffix (gdbarch, ")");
+  set_gdbarch_stap_integer_prefixes (gdbarch, stap_integer_prefixes);
+  set_gdbarch_stap_register_prefixes (gdbarch, stap_register_prefixes);
+  set_gdbarch_stap_register_indirection_prefixes (gdbarch,
+					  stap_register_indirection_prefixes);
+  set_gdbarch_stap_register_indirection_suffixes (gdbarch,
+					  stap_register_indirection_suffixes);
   set_gdbarch_stap_is_single_operand (gdbarch,
 				      i386_stap_is_single_operand);
   set_gdbarch_stap_parse_special_token (gdbarch,
 					i386_stap_parse_special_token);
+  set_gdbarch_insn_is_call (gdbarch, amd64_insn_is_call);
+  set_gdbarch_insn_is_ret (gdbarch, amd64_insn_is_ret);
+  set_gdbarch_insn_is_jump (gdbarch, amd64_insn_is_jump);
 }
 
 
@@ -2986,6 +3080,7 @@ _initialize_amd64_tdep (void)
 {
   initialize_tdesc_amd64 ();
   initialize_tdesc_amd64_avx ();
+  initialize_tdesc_amd64_mpx ();
   initialize_tdesc_x32 ();
   initialize_tdesc_x32_avx ();
 }

@@ -1,5 +1,5 @@
 /* Cell SPU GNU/Linux support -- shared library handling.
-   Copyright (C) 2009-2013 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    Contributed by Ulrich Weigand <uweigand@de.ibm.com>.
 
@@ -21,9 +21,9 @@
 #include "defs.h"
 #include "solib-spu.h"
 #include "gdbcore.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "gdb_assert.h"
-#include "gdb_stat.h"
+#include <sys/stat.h>
 #include "arch-utils.h"
 #include "bfd.h"
 #include "symtab.h"
@@ -125,7 +125,7 @@ append_ocl_sos (struct so_list **link_ptr)
 		  struct so_list *new;
 
 		  /* Allocate so_list structure.  */
-		  new = XZALLOC (struct so_list);
+		  new = XCNEW (struct so_list);
 
 		  /* Encode FD and object ID in path name.  */
 		  xsnprintf (new->so_name, sizeof new->so_name, "@%s <%d>",
@@ -217,7 +217,7 @@ spu_current_sos (void)
 	continue;
 
       /* Allocate so_list structure.  */
-      new = XZALLOC (struct so_list);
+      new = XCNEW (struct so_list);
 
       /* Encode FD and object ID in path name.  Choose the name so as not
 	 to conflict with any (normal) SVR4 library path name.  */

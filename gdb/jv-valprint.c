@@ -1,6 +1,6 @@
 /* Support for printing Java values for GDB, the GNU debugger.
 
-   Copyright (C) 1997-2013 Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -29,7 +29,7 @@
 #include "jv-lang.h"
 #include "c-lang.h"
 #include "annotate.h"
-#include "gdb_string.h"
+#include <string.h>
 
 /* Local functions */
 

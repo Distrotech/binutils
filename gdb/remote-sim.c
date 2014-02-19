@@ -1,6 +1,6 @@
 /* Generic remote debugging interface for simulators.
 
-   Copyright (C) 1993-2013 Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support.
    Steve Chamberlain (sac@cygnus.com).
@@ -23,7 +23,7 @@
 #include "defs.h"
 #include "inferior.h"
 #include "value.h"
-#include "gdb_string.h"
+#include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -72,21 +72,23 @@ static void gdb_os_error (host_callback *, const char *, ...)
 
 static void gdbsim_kill (struct target_ops *);
 
-static void gdbsim_load (char *prog, int fromtty);
+static void gdbsim_load (struct target_ops *self, char *prog, int fromtty);
 
 static void gdbsim_open (char *args, int from_tty);
 
-static void gdbsim_close (void);
+static void gdbsim_close (struct target_ops *self);
 
-static void gdbsim_detach (struct target_ops *ops, char *args, int from_tty);
+static void gdbsim_detach (struct target_ops *ops, const char *args,
+			   int from_tty);
 
-static void gdbsim_prepare_to_store (struct regcache *regcache);
+static void gdbsim_prepare_to_store (struct target_ops *self,
+				     struct regcache *regcache);
 
 static void gdbsim_files_info (struct target_ops *target);
 
 static void gdbsim_mourn_inferior (struct target_ops *target);
 
-static void gdbsim_stop (ptid_t ptid);
+static void gdbsim_stop (struct target_ops *self, ptid_t ptid);
 
 void simulator_command (char *args, int from_tty);
 
@@ -205,7 +207,7 @@ get_sim_inferior_data (struct inferior *inf, int sim_instance_needed)
 
   if (sim_data == NULL)
     {
-      sim_data = XZALLOC(struct sim_inferior_data);
+      sim_data = XCNEW(struct sim_inferior_data);
       set_inferior_data (inf, sim_inferior_data_key, sim_data);
 
       /* Allocate a ptid for this inferior.  */
@@ -559,7 +561,7 @@ gdbsim_kill (struct target_ops *ops)
    GDB's symbol tables to match.  */
 
 static void
-gdbsim_load (char *args, int fromtty)
+gdbsim_load (struct target_ops *self, char *args, int fromtty)
 {
   char **argv;
   char *prog;
@@ -786,7 +788,7 @@ gdbsim_close_inferior (struct inferior *inf, void *arg)
 /* Close out all files and local state before this target loses control.  */
 
 static void
-gdbsim_close (void)
+gdbsim_close (struct target_ops *self)
 {
   struct sim_inferior_data *sim_data
     = get_sim_inferior_data (current_inferior (), SIM_INSTANCE_NOT_NEEDED);
@@ -817,7 +819,7 @@ gdbsim_close (void)
    Use this when you want to detach and do something else with your gdb.  */
 
 static void
-gdbsim_detach (struct target_ops *ops, char *args, int from_tty)
+gdbsim_detach (struct target_ops *ops, const char *args, int from_tty)
 {
   if (remote_debug)
     fprintf_unfiltered (gdb_stdlog, "gdbsim_detach: args \"%s\"\n", args);
@@ -917,7 +919,7 @@ gdbsim_stop_inferior (struct inferior *inf, void *arg)
 }
 
 static void
-gdbsim_stop (ptid_t ptid)
+gdbsim_stop (struct target_ops *self, ptid_t ptid)
 {
   struct sim_inferior_data *sim_data;
 
@@ -961,7 +963,7 @@ gdb_os_poll_quit (host_callback *p)
 static void
 gdbsim_cntrl_c (int signo)
 {
-  gdbsim_stop (minus_one_ptid);
+  gdbsim_stop (NULL, minus_one_ptid);
 }
 
 static ptid_t
@@ -1051,7 +1053,7 @@ gdbsim_wait (struct target_ops *ops,
    debugged.  */
 
 static void
-gdbsim_prepare_to_store (struct regcache *regcache)
+gdbsim_prepare_to_store (struct target_ops *self, struct regcache *regcache)
 {
   /* Do nothing, since we can store individual regs.  */
 }
@@ -1059,19 +1061,20 @@ gdbsim_prepare_to_store (struct regcache *regcache)
 /* Helper for gdbsim_xfer_partial that handles memory transfers.
    Arguments are like target_xfer_partial.  */
 
-static LONGEST
+static enum target_xfer_status
 gdbsim_xfer_memory (struct target_ops *target,
 		    gdb_byte *readbuf, const gdb_byte *writebuf,
-		    ULONGEST memaddr, LONGEST len)
+		    ULONGEST memaddr, ULONGEST len, ULONGEST *xfered_len)
 {
   struct sim_inferior_data *sim_data
     = get_sim_inferior_data (current_inferior (), SIM_INSTANCE_NOT_NEEDED);
+  int l;
 
   /* If this target doesn't have memory yet, return 0 causing the
      request to be passed to a lower target, hopefully an exec
      file.  */
   if (!target->to_has_memory (target))
-    return 0;
+    return TARGET_XFER_EOF;
 
   if (!sim_data->program_loaded)
     error (_("No program loaded."));
@@ -1091,37 +1094,47 @@ gdbsim_xfer_memory (struct target_ops *target,
 			host_address_to_string (readbuf),
 			host_address_to_string (writebuf),
 			paddress (target_gdbarch (), memaddr),
-			plongest (len));
+			pulongest (len));
 
   if (writebuf)
     {
       if (remote_debug && len > 0)
 	dump_mem (writebuf, len);
-      len = sim_write (sim_data->gdbsim_desc, memaddr, writebuf, len);
+      l = sim_write (sim_data->gdbsim_desc, memaddr, writebuf, len);
     }
   else
     {
-      len = sim_read (sim_data->gdbsim_desc, memaddr, readbuf, len);
+      l = sim_read (sim_data->gdbsim_desc, memaddr, readbuf, len);
       if (remote_debug && len > 0)
 	dump_mem (readbuf, len);
     }
-  return len;
+  if (l > 0)
+    {
+      *xfered_len = (ULONGEST) l;
+      return TARGET_XFER_OK;
+    }
+  else if (l == 0)
+    return TARGET_XFER_EOF;
+  else
+    return TARGET_XFER_E_IO;
 }
 
 /* Target to_xfer_partial implementation.  */
 
-static LONGEST
+static enum target_xfer_status
 gdbsim_xfer_partial (struct target_ops *ops, enum target_object object,
 		     const char *annex, gdb_byte *readbuf,
-		     const gdb_byte *writebuf, ULONGEST offset, LONGEST len)
+		     const gdb_byte *writebuf, ULONGEST offset, ULONGEST len,
+		     ULONGEST *xfered_len)
 {
   switch (object)
     {
     case TARGET_OBJECT_MEMORY:
-      return gdbsim_xfer_memory (ops, readbuf, writebuf, offset, len);
+      return gdbsim_xfer_memory (ops, readbuf, writebuf, offset, len,
+				 xfered_len);
 
     default:
-      return -1;
+      return TARGET_XFER_E_IO;
     }
 }
 

@@ -1,4 +1,4 @@
-# Copyright 1988-2013 Free Software Foundation, Inc.
+# Copyright 1988-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -479,11 +479,17 @@ proc test_with_self { executable } {
 
 set GDB_FULLPATH [find_gdb $GDB]
 
+if {[is_remote host]} {
+    set xgdb x$tool
+} else {
+    set xgdb [standard_output_file x$tool]
+}
+
 # Remove any old copy lying around.
-remote_file host delete x$tool
+remote_file host delete $xgdb
 
 gdb_start
-set file [remote_download host $GDB_FULLPATH x$tool]
+set file [remote_download host $GDB_FULLPATH $xgdb]
 set result [test_with_self $file]
 gdb_exit
 catch "remote_file host delete $file"

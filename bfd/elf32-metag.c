@@ -1536,12 +1536,12 @@ elf_metag_relocate_section (bfd *output_bfd,
       else
 	{
 	  struct elf_link_hash_entry *eh;
-	  bfd_boolean unresolved_reloc, warned;
+	  bfd_boolean unresolved_reloc, warned, ignored;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, eh_syms,
 				   eh, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 
 	  name = eh->root.root.string;
 	  hh = (struct elf_metag_link_hash_entry *) eh;
@@ -3249,10 +3249,11 @@ elf_metag_finish_dynamic_symbol (bfd *output_bfd,
 /* Set the Meta ELF ABI version.  */
 
 static void
-elf_metag_post_process_headers (bfd * abfd, struct bfd_link_info * link_info ATTRIBUTE_UNUSED)
+elf_metag_post_process_headers (bfd * abfd, struct bfd_link_info * link_info)
 {
   Elf_Internal_Ehdr * i_ehdrp;	/* ELF file header, internal form.  */
 
+  _bfd_elf_post_process_headers (abfd, link_info);
   i_ehdrp = elf_elfheader (abfd);
   i_ehdrp->e_ident[EI_ABIVERSION] = METAG_ELF_ABI_VERSION;
 }

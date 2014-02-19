@@ -1,5 +1,5 @@
 /* GDB routines for manipulating the minimal symbol tables.
-   Copyright (C) 1992-2013 Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
    This file is part of GDB.
@@ -38,7 +38,7 @@
 
 #include "defs.h"
 #include <ctype.h>
-#include "gdb_string.h"
+#include <string.h>
 #include "symtab.h"
 #include "bfd.h"
 #include "filenames.h"
@@ -843,8 +843,6 @@ lookup_minimal_symbol_and_objfile (const char *name)
 /* Return leading symbol character for a BFD.  If BFD is NULL,
    return the leading symbol character from the main objfile.  */
 
-static int get_symbol_leading_char (bfd *);
-
 static int
 get_symbol_leading_char (bfd *abfd)
 {
@@ -937,7 +935,7 @@ prim_record_minimal_symbol_full (const char *name, int name_len, int copy_name,
 
   if (msym_bunch_index == BUNCH_SIZE)
     {
-      new = XCALLOC (1, struct msym_bunch);
+      new = XCNEW (struct msym_bunch);
       msym_bunch_index = 0;
       new->next = msym_bunch;
       msym_bunch = new;

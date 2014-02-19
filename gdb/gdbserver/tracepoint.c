@@ -1,5 +1,5 @@
 /* Tracepoint code for remote server for GDB.
-   Copyright (C) 2009-2013 Free Software Foundation, Inc.
+   Copyright (C) 2009-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -20,6 +20,7 @@
 #include "tracepoint.h"
 #include "gdbthread.h"
 #include "agent.h"
+#include "rsp-low.h"
 
 #include <ctype.h>
 #include <fcntl.h>
@@ -61,6 +62,8 @@
 
 */
 
+#ifdef IN_PROCESS_AGENT
+
 static void trace_vdebug (const char *, ...) ATTRIBUTE_PRINTF (1, 2);
 
 static void
@@ -80,6 +83,19 @@ trace_vdebug (const char *fmt, ...)
     if (level <= debug_threads)		\
       trace_vdebug ((fmt), ##args);		\
   } while (0)
+
+#else
+
+#define trace_debug_1(level, fmt, args...)	\
+  do {						\
+    if (level <= debug_threads)			\
+      {						\
+	debug_printf ((fmt), ##args);		\
+	debug_printf ("\n");			\
+      }						\
+  } while (0)
+
+#endif
 
 #define trace_debug(FMT, args...)		\
   trace_debug_1 (1, FMT, ##args)
@@ -338,7 +354,7 @@ tracepoint_look_up_symbols (void)
       if (look_up_one_symbol (symbol_list[i].name, addrp, 1) == 0)
 	{
 	  if (debug_threads)
-	    fprintf (stderr, "symbol `%s' not found\n", symbol_list[i].name);
+	    debug_printf ("symbol `%s' not found\n", symbol_list[i].name);
 	  return;
 	}
     }
@@ -2692,7 +2708,7 @@ cmd_qtdpsrc (char *own_buf)
   packet = unpack_varlen_hex (packet, &slen);
   ++packet; /* skip a colon */
   src = xmalloc (slen + 1);
-  nbytes = unhexify (src, packet, strlen (packet) / 2);
+  nbytes = hex2bin (packet, (gdb_byte *) src, strlen (packet) / 2);
   src[nbytes] = '\0';
 
   newlast = xmalloc (sizeof (struct source_string));
@@ -2734,7 +2750,7 @@ cmd_qtdv (char *own_buf)
 
   nbytes = strlen (packet) / 2;
   varname = xmalloc (nbytes + 1);
-  nbytes = unhexify (varname, packet, nbytes);
+  nbytes = hex2bin (packet, (gdb_byte *) varname, nbytes);
   varname[nbytes] = '\0';
 
   tsv = create_trace_state_variable (num, 1);
@@ -3607,17 +3623,17 @@ cmd_qtstatus (char *packet)
   str = (tracing_user_name ? tracing_user_name : "");
   slen = strlen (str);
   buf1 = (char *) alloca (slen * 2 + 1);
-  hexify (buf1, str, slen);
+  bin2hex ((gdb_byte *) str, buf1, slen);
 
   str = (tracing_notes ? tracing_notes : "");
   slen = strlen (str);
   buf2 = (char *) alloca (slen * 2 + 1);
-  hexify (buf2, str, slen);
+  bin2hex ((gdb_byte *) str, buf2, slen);
 
   str = (tracing_stop_note ? tracing_stop_note : "");
   slen = strlen (str);
   buf3 = (char *) alloca (slen * 2 + 1);
-  hexify (buf3, str, slen);
+  bin2hex ((gdb_byte *) str, buf3, slen);
 
   trace_debug ("Returning trace status as %d, stop reason %s",
 	       tracing, tracing_stop_reason);
@@ -3647,7 +3663,7 @@ cmd_qtstatus (char *packet)
       p = stop_reason_rsp = alloca (strlen ("terror:") + hexstr_len + 1);
       strcpy (p, "terror:");
       p += strlen (p);
-      convert_int_to_ascii ((gdb_byte *) result_name, p, strlen (result_name));
+      bin2hex ((gdb_byte *) result_name, p, strlen (result_name));
     }
 
   /* If this was a forced stop, include any stop note that was supplied.  */
@@ -3766,7 +3782,7 @@ response_source (char *packet,
 
   len = strlen (src->str);
   buf = alloca (len * 2 + 1);
-  convert_int_to_ascii ((gdb_byte *) src->str, buf, len);
+  bin2hex ((gdb_byte *) src->str, buf, len);
 
   sprintf (packet, "Z%x:%s:%s:%x:%x:%s",
 	   tpoint->number, paddress (tpoint->address),
@@ -3855,7 +3871,7 @@ response_tsv (char *packet, struct trace_state_variable *tsv)
     {
       namelen = strlen (tsv->name);
       buf = alloca (namelen * 2 + 1);
-      convert_int_to_ascii ((gdb_byte *) tsv->name, buf, namelen);
+      bin2hex ((gdb_byte *) tsv->name, buf, namelen);
     }
 
   sprintf (packet, "%x:%s:%x:%s", tsv->number, phex_nz (tsv->initial_value, 0),
@@ -4025,7 +4041,7 @@ cmd_qtbuffer (char *own_buf)
   if (num >= (PBUFSIZ - 16) / 2 )
     num = (PBUFSIZ - 16) / 2;
 
-  convert_int_to_ascii (tbp, own_buf, num);
+  bin2hex (tbp, own_buf, num);
 }
 
 static void
@@ -4092,7 +4108,7 @@ cmd_qtnotes (char *own_buf)
 	  packet = strchr (packet, ';');
 	  nbytes = (packet - saved) / 2;
 	  user = xmalloc (nbytes + 1);
-	  nbytes = unhexify (user, saved, nbytes);
+	  nbytes = hex2bin (saved, (gdb_byte *) user, nbytes);
 	  user[nbytes] = '\0';
 	  ++packet; /* skip the semicolon */
 	  trace_debug ("User is '%s'", user);
@@ -4106,7 +4122,7 @@ cmd_qtnotes (char *own_buf)
 	  packet = strchr (packet, ';');
 	  nbytes = (packet - saved) / 2;
 	  notes = xmalloc (nbytes + 1);
-	  nbytes = unhexify (notes, saved, nbytes);
+	  nbytes = hex2bin (saved, (gdb_byte *) notes, nbytes);
 	  notes[nbytes] = '\0';
 	  ++packet; /* skip the semicolon */
 	  trace_debug ("Notes is '%s'", notes);
@@ -4120,7 +4136,7 @@ cmd_qtnotes (char *own_buf)
 	  packet = strchr (packet, ';');
 	  nbytes = (packet - saved) / 2;
 	  stopnote = xmalloc (nbytes + 1);
-	  nbytes = unhexify (stopnote, saved, nbytes);
+	  nbytes = hex2bin (saved, (gdb_byte *) stopnote, nbytes);
 	  stopnote[nbytes] = '\0';
 	  ++packet; /* skip the semicolon */
 	  trace_debug ("tstop note is '%s'", stopnote);
@@ -6914,7 +6930,7 @@ cstr_to_hexstr (const char *str)
 {
   int len = strlen (str);
   char *hexstr = xmalloc (len * 2 + 1);
-  convert_int_to_ascii ((gdb_byte *) str, hexstr, len);
+  bin2hex ((gdb_byte *) str, hexstr, len);
   return hexstr;
 }
 

@@ -2,7 +2,7 @@
 
 # GDB script to list of problems using awk.
 #
-# Copyright (C) 2002-2013 Free Software Foundation, Inc.
+# Copyright (C) 2002-2014 Free Software Foundation, Inc.
 #
 # This file is part of GDB.
 #
@@ -306,14 +306,6 @@ Do not include assert.h, instead include \"gdb_assert.h\"";
     fail("assert.h")
 }
 
-BEGIN { doc["dirent.h"] = "\
-Do not include dirent.h, instead include gdb_dirent.h"
-    category["dirent.h"] = ari_regression
-}
-/^#[[:space:]]*include[[:space:]]*.dirent\.h./ {
-    fail("dirent.h")
-}
-
 BEGIN { doc["regex.h"] = "\
 Do not include regex.h, instead include gdb_regex.h"
     category["regex.h"] = ari_regression
@@ -338,16 +330,6 @@ Do not include gnu-regex.h, instead include gdb_regex.h"
 }
 /^#[[:space:]]*include[[:space:]]*.gnu-regex\.h./ {
     fail("gnu regex.h")
-}
-
-BEGIN { doc["stat.h"] = "\
-Do not include stat.h or sys/stat.h, instead include gdb_stat.h"
-    category["stat.h"] = ari_regression
-    fix("stat.h", "common/gdb_stat.h", 1)
-}
-/^#[[:space:]]*include[[:space:]]*.stat\.h./ \
-|| /^#[[:space:]]*include[[:space:]]*.sys\/stat\.h./ {
-    fail("stat.h")
 }
 
 BEGIN { doc["wait.h"] = "\

@@ -203,6 +203,16 @@ pr14265: pr14265.o
 pr14265.stdout: pr14265
 	$(TEST_NM) --format=bsd --numeric-sort $< > $@
 
+check_SCRIPTS += gc_dynamic_list_test.sh
+check_DATA += gc_dynamic_list_test.stdout
+MOSTLYCLEANFILES += gc_dynamic_list_test
+gc_dynamic_list_test.o: gc_dynamic_list_test.c
+	$(COMPILE) -c -ffunction-sections -o $@ $<
+gc_dynamic_list_test: gc_dynamic_list_test.o gcctestdir/ld $(srcdir)/gc_dynamic_list_test.t
+	$(LINK) -Bgcctestdir/ -Wl,--gc-sections -Wl,--dynamic-list,$(srcdir)/gc_dynamic_list_test.t gc_dynamic_list_test.o
+gc_dynamic_list_test.stdout: gc_dynamic_list_test
+	$(TEST_NM) gc_dynamic_list_test > $@
+
 check_SCRIPTS += icf_test.sh
 check_DATA += icf_test.map
 MOSTLYCLEANFILES += icf_test icf_test.map
@@ -699,6 +709,18 @@ weak_undef_lib.so: weak_undef_file1.o
 alt/weak_undef_lib.so: weak_undef_file2.o
 	test -d alt || mkdir -p alt
 	$(CXXLINK) -Bgcctestdir/ -shared weak_undef_file2.o
+
+check_PROGRAMS += weak_undef_test_2
+weak_undef_test_2_SOURCES = weak_undef_test_2.cc
+weak_undef_test_2_DEPENDENCIES = gcctestdir/ld libweak_undef_2.a
+weak_undef_test_2_LDFLAGS = -Bgcctestdir/ -u weak_undef_2
+weak_undef_test_2_LDADD = -L . -lweak_undef_2
+libweak_undef_2.a: weak_undef_file3.o weak_undef_file4.o
+	$(TEST_AR) rc $@ $^
+weak_undef_file3.o: weak_undef_file3.cc
+	$(CXXCOMPILE) -c -o $@ $<
+weak_undef_file4.o: weak_undef_file4.cc
+	$(CXXCOMPILE) -c -o $@ $<
 
 if FN_PTRS_IN_SO_WITHOUT_PIC
 check_PROGRAMS += weak_undef_nonpic_test
@@ -1464,6 +1486,22 @@ dynamic_list: basic_test.o gcctestdir/ld $(srcdir)/dynamic_list.t
 	  -Wl,--dynamic-list-cpp-typeinfo
 dynamic_list.stdout: dynamic_list
 	$(TEST_READELF) -W --dyn-syms dynamic_list > dynamic_list.stdout
+
+check_PROGRAMS += dynamic_list_2
+dynamic_list_2_SOURCES = dynamic_list_2.cc
+dynamic_list_2_DEPENDENCIES = gcctestdir/ld dynamic_list_lib1.so dynamic_list_lib2.so
+dynamic_list_2_LDFLAGS = -Bgcctestdir/ -L. -Wl,-R,. -Wl,--no-as-needed
+dynamic_list_2_LDADD = dynamic_list_lib1.so dynamic_list_lib2.so
+
+dynamic_list_lib1.so: gcctestdir/ld dynamic_list_lib1.o
+	$(CXXLINK) -Bgcctestdir/ -shared dynamic_list_lib1.o
+dynamic_list_lib1.o: dynamic_list_lib1.cc
+	$(CXXCOMPILE) -c -fpic -o $@ $<
+
+dynamic_list_lib2.so: gcctestdir/ld dynamic_list_lib2.o $(srcdir)/dynamic_list_2.t
+	$(CXXLINK) -Bgcctestdir/ -shared -Wl,--dynamic-list,$(srcdir)/dynamic_list_2.t dynamic_list_lib2.o
+dynamic_list_lib2.o: dynamic_list_lib2.cc
+	$(CXXCOMPILE) -c -fpic -o $@ $<
 
 check_PROGRAMS += thin_archive_test_1
 MOSTLYCLEANFILES += libthin1.a libthin3.a libthinall.a \
@@ -2254,6 +2292,19 @@ incremental_comdat_test_1: incr_comdat_test_1.o incr_comdat_test_2_v1.o incr_com
 	cp -f incr_comdat_test_2_v3.o incr_comdat_test_1_tmp.o
 	$(CXXLINK) -Wl,--incremental-update -Bgcctestdir/ incr_comdat_test_1.o incr_comdat_test_1_tmp.o
 
+endif DEFAULT_TARGET_X86_64
+
+if DEFAULT_TARGET_X86_64
+check_PROGRAMS += exception_x86_64_bnd_test
+exception_x86_64_bnd_test_SOURCES = exception_test_main.cc
+exception_x86_64_bnd_test_DEPENDENCIES = exception_x86_64_bnd_1.o \
+					 exception_x86_64_bnd_2.o
+exception_x86_64_bnd_test_LDFLAGS = $(exception_test_LDFLAGS)
+exception_x86_64_bnd_test_LDADD = $(exception_x86_64_bnd_test_DEPENDENCIES)
+exception_x86_64_bnd_1.o: exception_test_1.cc gcctestdir/as
+	$(CXXCOMPILE) -c -fpic -Bgcctestdir/ -Wa,-madd-bnd-prefix -o $@ $<
+exception_x86_64_bnd_2.o: exception_test_2.cc gcctestdir/as
+	$(CXXCOMPILE) -c -Bgcctestdir/ -Wa,-madd-bnd-prefix -o $@ $<
 endif DEFAULT_TARGET_X86_64
 
 endif GCC

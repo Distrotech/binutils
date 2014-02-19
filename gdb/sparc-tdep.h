@@ -1,6 +1,6 @@
 /* Target-dependent code for SPARC.
 
-   Copyright (C) 2003-2013 Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -193,6 +193,9 @@ extern struct sparc_frame_cache *
 extern struct sparc_frame_cache *
   sparc32_frame_cache (struct frame_info *this_frame, void **this_cache);
 
+extern int
+  sparc_in_function_epilogue_p (struct gdbarch *gdbarch, CORE_ADDR pc);
+
 
 
 extern int sparc_software_single_step (struct frame_info *frame);
@@ -219,6 +222,8 @@ extern void sparc32_supply_fpregset (const struct sparc_fpregset *fpregset,
 extern void sparc32_collect_fpregset (const struct sparc_fpregset *fpregset,
 				      const struct regcache *regcache,
 				      int regnum, void *fpregs);
+
+extern int sparc_is_annulled_branch_insn (CORE_ADDR pc);
 
 /* Functions and variables exported from sparc-sol2-tdep.c.  */
 

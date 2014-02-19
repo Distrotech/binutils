@@ -189,19 +189,19 @@ DESCRIPTION
 .#define bfd_mach_i386_i386		(1 << 2)
 .#define bfd_mach_x86_64		(1 << 3)
 .#define bfd_mach_x64_32		(1 << 4)
-.#define bfd_mach_i386_nacl		(1 << 5)
 .#define bfd_mach_i386_i386_intel_syntax (bfd_mach_i386_i386 | bfd_mach_i386_intel_syntax)
 .#define bfd_mach_x86_64_intel_syntax	(bfd_mach_x86_64 | bfd_mach_i386_intel_syntax)
 .#define bfd_mach_x64_32_intel_syntax	(bfd_mach_x64_32 | bfd_mach_i386_intel_syntax)
-.#define bfd_mach_i386_i386_nacl	(bfd_mach_i386_i386 | bfd_mach_i386_nacl)
-.#define bfd_mach_x86_64_nacl		(bfd_mach_x86_64 | bfd_mach_i386_nacl)
-.#define bfd_mach_x64_32_nacl		(bfd_mach_x64_32 | bfd_mach_i386_nacl)
 .  bfd_arch_l1om,   {* Intel L1OM *}
 .#define bfd_mach_l1om			(1 << 5)
 .#define bfd_mach_l1om_intel_syntax	(bfd_mach_l1om | bfd_mach_i386_intel_syntax)
 .  bfd_arch_k1om,   {* Intel K1OM *}
 .#define bfd_mach_k1om			(1 << 6)
 .#define bfd_mach_k1om_intel_syntax	(bfd_mach_k1om | bfd_mach_i386_intel_syntax)
+.#define bfd_mach_i386_nacl		(1 << 7)
+.#define bfd_mach_i386_i386_nacl	(bfd_mach_i386_i386 | bfd_mach_i386_nacl)
+.#define bfd_mach_x86_64_nacl		(bfd_mach_x86_64 | bfd_mach_i386_nacl)
+.#define bfd_mach_x64_32_nacl		(bfd_mach_x64_32 | bfd_mach_i386_nacl)
 .  bfd_arch_we32k,     {* AT&T WE32xxx *}
 .  bfd_arch_tahoe,     {* CCI/Harris Tahoe *}
 .  bfd_arch_i860,      {* Intel 860 *}
@@ -316,6 +316,12 @@ DESCRIPTION
 .#define bfd_mach_arm_ep9312	11
 .#define bfd_mach_arm_iWMMXt	12
 .#define bfd_mach_arm_iWMMXt2	13
+.  bfd_arch_nds32,     {* Andes NDS32 *}
+.#define bfd_mach_n1            1
+.#define bfd_mach_n1h           2
+.#define bfd_mach_n1h_v2        3
+.#define bfd_mach_n1h_v3        4
+.#define bfd_mach_n1h_v3m       5
 .  bfd_arch_ns32k,     {* National Semiconductors ns32000 *}
 .  bfd_arch_w65,       {* WDC 65816 *}
 .  bfd_arch_tic30,     {* Texas Instruments TMS320C30 *}
@@ -574,6 +580,7 @@ extern const bfd_arch_info_type bfd_mn10300_arch;
 extern const bfd_arch_info_type bfd_moxie_arch;
 extern const bfd_arch_info_type bfd_msp430_arch;
 extern const bfd_arch_info_type bfd_mt_arch;
+extern const bfd_arch_info_type bfd_nds32_arch;
 extern const bfd_arch_info_type bfd_nios2_arch;
 extern const bfd_arch_info_type bfd_ns32k_arch;
 extern const bfd_arch_info_type bfd_openrisc_arch;
@@ -663,6 +670,7 @@ static const bfd_arch_info_type * const bfd_archures_list[] =
     &bfd_moxie_arch,
     &bfd_msp430_arch,
     &bfd_mt_arch,
+    &bfd_nds32_arch,
     &bfd_nios2_arch,
     &bfd_ns32k_arch,
     &bfd_openrisc_arch,

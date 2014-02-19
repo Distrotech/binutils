@@ -7493,9 +7493,11 @@ arm_movt_immediate (bfd_vma value)
 
    ROOT_PLT points to the offset of the PLT entry from the start of its
    section (.iplt or .plt).  ARM_PLT points to the symbol's ARM-specific
-   bookkeeping information.  */
+   bookkeeping information.
 
-static void
+   Returns FALSE if there was a problem.  */
+
+static bfd_boolean
 elf32_arm_populate_plt_entry (bfd *output_bfd, struct bfd_link_info *info,
 			      union gotplt_union *root_plt,
 			      struct arm_plt_info *arm_plt,
@@ -7685,6 +7687,16 @@ elf32_arm_populate_plt_entry (bfd *output_bfd, struct bfd_link_info *info,
 			| (tail_displacement & 0x00ffffff),
 			ptr + 12);
 	}
+      else if (using_thumb_only (htab))
+	{
+	  /* PR ld/16017: Do not generate ARM instructions for
+	     the PLT if compiling for a thumb-only target.
+
+	     FIXME: We ought to be able to generate thumb PLT instructions...  */
+	  _bfd_error_handler (_("%B: Warning: thumb mode PLT generation not currently supported"),
+			      output_bfd);
+	  return FALSE;
+	}
       else
 	{
 	  /* Calculate the displacement between the PLT slot and the
@@ -7750,6 +7762,8 @@ elf32_arm_populate_plt_entry (bfd *output_bfd, struct bfd_link_info *info,
       loc = srel->contents + plt_index * RELOC_SIZE (htab);
       SWAP_RELOC_OUT (htab) (output_bfd, &rel, loc);
     }
+
+  return TRUE;
 }
 
 /* Some relocations map to different relocations depending on the
@@ -8165,9 +8179,11 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
 	    plt_offset--;
 	  else
 	    {
-	      elf32_arm_populate_plt_entry (output_bfd, info, root_plt, arm_plt,
-					    -1, dynreloc_value);
-	      root_plt->offset |= 1;
+	      if (elf32_arm_populate_plt_entry (output_bfd, info, root_plt, arm_plt,
+						-1, dynreloc_value))
+		root_plt->offset |= 1;
+	      else
+		return bfd_reloc_notsupported;
 	    }
 
 	  /* Static relocations always resolve to the .iplt entry.  */
@@ -8593,6 +8609,9 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
       return bfd_reloc_ok;
 
     case R_ARM_ABS8:
+      /* PR 16202: Refectch the addend using the correct size.  */
+      if (globals->use_rel)
+	addend = bfd_get_8 (input_bfd, hit_data);
       value += addend;
 
       /* There is no way to tell whether the user intended to use a signed or
@@ -8605,6 +8624,9 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
       return bfd_reloc_ok;
 
     case R_ARM_ABS16:
+      /* PR 16202: Refectch the addend using the correct size.  */
+      if (globals->use_rel)
+	addend = bfd_get_16 (input_bfd, hit_data);
       value += addend;
 
       /* See comment for R_ARM_ABS8.  */
@@ -10510,12 +10532,12 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 	}
       else
 	{
-	  bfd_boolean warned;
+	  bfd_boolean warned, ignored;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 
 	  sym_type = h->type;
 	}
@@ -11142,14 +11164,7 @@ elf32_arm_copy_private_bfd_data (bfd *ibfd, bfd *obfd)
   elf_elfheader (obfd)->e_flags = in_flags;
   elf_flags_init (obfd) = TRUE;
 
-  /* Also copy the EI_OSABI field.  */
-  elf_elfheader (obfd)->e_ident[EI_OSABI] =
-    elf_elfheader (ibfd)->e_ident[EI_OSABI];
-
-  /* Copy object attributes.  */
-  _bfd_elf_copy_obj_attributes (ibfd, obfd);
-
-  return TRUE;
+  return _bfd_elf_copy_private_bfd_data (ibfd, obfd);
 }
 
 /* Values for Tag_ABI_PCS_R9_use.  */
@@ -14017,8 +14032,9 @@ elf32_arm_finish_dynamic_symbol (bfd * output_bfd,
       if (!eh->is_iplt)
 	{
 	  BFD_ASSERT (h->dynindx != -1);
-	  elf32_arm_populate_plt_entry (output_bfd, info, &h->plt, &eh->plt,
-					h->dynindx, 0);
+	  if (! elf32_arm_populate_plt_entry (output_bfd, info, &h->plt, &eh->plt,
+					      h->dynindx, 0))
+	    return FALSE;
 	}
 
       if (!h->def_regular)
@@ -14496,7 +14512,7 @@ elf32_arm_post_process_headers (bfd * abfd, struct bfd_link_info * link_info ATT
   if (EF_ARM_EABI_VERSION (i_ehdrp->e_flags) == EF_ARM_EABI_UNKNOWN)
     i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_ARM;
   else
-    i_ehdrp->e_ident[EI_OSABI] = 0;
+    _bfd_elf_post_process_headers (abfd, link_info);
   i_ehdrp->e_ident[EI_ABIVERSION] = ARM_ELF_ABI_VERSION;
 
   if (link_info)

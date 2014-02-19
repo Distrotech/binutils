@@ -1,6 +1,6 @@
 /* Definitions for symbol file management in GDB.
 
-   Copyright (C) 1992-2013 Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -101,11 +101,17 @@ struct objfile_data;
 
 struct entry_info
   {
-    /* The relocated value we should use for this objfile entry point.  */
+    /* The unrelocated value we should use for this objfile entry point.  */
     CORE_ADDR entry_point;
+
+    /* The index of the section in which the entry point appears.  */
+    int the_bfd_section_index;
 
     /* Set to 1 iff ENTRY_POINT contains a valid value.  */
     unsigned entry_point_p : 1;
+
+    /* Set to 1 iff this object was initialized.  */
+    unsigned initialized : 1;
   };
 
 /* Sections in an objfile.  The section offsets are stored in the
@@ -192,6 +198,18 @@ struct objfile_per_bfd_storage
      name, and the second is the demangled name or just a zero byte
      if the name doesn't demangle.  */
   struct htab *demangled_names_hash;
+
+  /* The per-objfile information about the entry point, the scope (file/func)
+     containing the entry point, and the scope of the user's main() func.  */
+
+  struct entry_info ei;
+
+  /* The name and language of any "main" found in this objfile.  The
+     name can be NULL, which means that the information was not
+     recorded.  */
+
+  const char *name_of_main;
+  enum language language_of_main;
 };
 
 /* Master structure for keeping track of each file from which
@@ -212,8 +230,10 @@ struct objfile
 
     struct objfile *next;
 
-    /* The object file's name, tilde-expanded and absolute.  This
-       pointer is never NULL.  This does not have to be freed; it is
+    /* The object file's original name as specified by the user,
+       made absolute, and tilde-expanded.  However, it is not canonicalized
+       (i.e., it has not been passed through gdb_realpath).
+       This pointer is never NULL.  This does not have to be freed; it is
        guaranteed to have a lifetime at least as long as the objfile.  */
 
     char *original_name;
@@ -312,11 +332,6 @@ struct objfile
        object module reader of this type.  */
 
     const struct sym_fns *sf;
-
-    /* The per-objfile information about the entry point, the scope (file/func)
-       containing the entry point, and the scope of the user's main() func.  */
-
-    struct entry_info ei;
 
     /* Per objfile data-pointers required by other GDB modules.  */
 
@@ -452,8 +467,6 @@ extern struct objfile *objfile_separate_debug_iterate (const struct objfile *,
                                                        const struct objfile *);
 
 extern void put_objfile_before (struct objfile *, struct objfile *);
-
-extern void objfile_to_front (struct objfile *);
 
 extern void add_separate_debug_objfile (struct objfile *, struct objfile *);
 
@@ -684,5 +697,10 @@ extern void default_iterate_over_objfiles_in_search_order
 void set_objfile_per_bfd (struct objfile *obj);
 
 const char *objfile_name (const struct objfile *objfile);
+
+/* Set the objfile's notion of the "main" name and language.  */
+
+extern void set_objfile_main_name (struct objfile *objfile,
+				   const char *name, enum language lang);
 
 #endif /* !defined (OBJFILES_H) */

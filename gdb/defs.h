@@ -1,7 +1,7 @@
 /* *INDENT-OFF* */ /* ATTRIBUTE_PRINTF confuses indent, avoid running it
 		      for now.  */
 /* Basic, host-specific, and target-specific definitions for GDB.
-   Copyright (C) 1986-2013 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -48,9 +48,7 @@
    included, so it's ok to blank out gstdint.h.  */
 #define GCC_GENERATED_STDINT_H 1
 
-#ifdef HAVE_STDDEF_H
 #include <stddef.h>
-#endif
 
 #include <unistd.h>
 
@@ -161,13 +159,9 @@ extern char *debug_file_directory;
    handler.  Otherwise, SIGINT simply sets a flag; code that might
    take a long time, and which ought to be interruptible, checks this
    flag using the QUIT macro.
-   
-   If GDB is built with Python support, it uses Python's low-level
-   interface to implement the flag.  This approach makes it possible
-   for Python and GDB SIGINT handling to coexist seamlessly.
 
-   If GDB is built without Python, it instead uses its traditional
-   variables.  */
+   These functions use the extension_language_ops API to allow extension
+   language(s) and GDB SIGINT handling to coexist seamlessly.  */
 
 /* Clear the quit flag.  */
 extern void clear_quit_flag (void);
@@ -374,10 +368,6 @@ typedef int (*find_memory_region_ftype) (CORE_ADDR addr, unsigned long size,
 					 int read, int write, int exec,
 					 int modified, void *data);
 
-/* Take over the 'find_mapped_memory' vector from exec.c.  */
-extern void exec_set_find_memory_regions
-  (int (*func) (find_memory_region_ftype func, void *data));
-
 /* Possible lvalue types.  Like enum language, this should be in
    value.h, but needs to be here for the same reason.  */
 
@@ -417,6 +407,7 @@ enum command_control_type
     if_control,
     commands_control,
     python_control,
+    guile_control,
     while_stepping_control,
     invalid_control
   };
@@ -555,13 +546,6 @@ enum val_prettyformat
 
 extern int longest_to_int (LONGEST);
 
-/* Utility macros to allocate typed memory.  Avoids errors like:
-   struct foo *foo = xmalloc (sizeof struct bar); and memset (foo,
-   sizeof (struct foo), 0).  */
-#define XZALLOC(TYPE) ((TYPE*) xzalloc (sizeof (TYPE)))
-#define XMALLOC(TYPE) ((TYPE*) xmalloc (sizeof (TYPE)))
-#define XCALLOC(NMEMB, TYPE) ((TYPE*) xcalloc ((NMEMB), sizeof (TYPE)))
-
 #include "common-utils.h"
 
 /* List of known OS ABIs.  If you change this, make sure to update the
@@ -606,13 +590,7 @@ enum gdb_osabi
 
 /* From other system libraries */
 
-#ifdef HAVE_STDDEF_H
-#include <stddef.h>
-#endif
-
-#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
-#endif
 
 
 #ifndef atof
@@ -725,7 +703,6 @@ extern int (*deprecated_query_hook) (const char *, va_list)
      ATTRIBUTE_FPTR_PRINTF(1,0);
 extern void (*deprecated_warning_hook) (const char *, va_list)
      ATTRIBUTE_FPTR_PRINTF(1,0);
-extern void (*deprecated_flush_hook) (struct ui_file * stream);
 extern void (*deprecated_interactive_hook) (void);
 extern void (*deprecated_readline_begin_hook) (char *, ...)
      ATTRIBUTE_FPTR_PRINTF_1;
@@ -742,14 +719,8 @@ extern void (*deprecated_detach_hook) (void);
 extern void (*deprecated_call_command_hook) (struct cmd_list_element * c,
 					     char *cmd, int from_tty);
 
-extern void (*deprecated_set_hook) (struct cmd_list_element * c);
-
 extern int (*deprecated_ui_load_progress_hook) (const char *section,
 						unsigned long num);
-
-/* Inhibit window interface if non-zero.  */
-
-extern int use_windows;
 
 /* If this definition isn't overridden by the header files, assume
    that isatty and fileno exist on this system.  */

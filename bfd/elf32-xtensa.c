@@ -1,5 +1,5 @@
 /* Xtensa-specific support for 32-bit ELF.
-   Copyright 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
+   Copyright 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012, 2014
    Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -2161,9 +2161,9 @@ vsprint_msg (const char *origmsg, const char *fmt, int arglen, ...)
   static char *message = NULL;
   bfd_size_type orig_len, len = 0;
   bfd_boolean is_append;
+  va_list ap;
 
-  VA_OPEN (ap, arglen);
-  VA_FIXEDARG (ap, const char *, origmsg);
+  va_start (ap, arglen);
 
   is_append = (origmsg == message);
 
@@ -2180,7 +2180,7 @@ vsprint_msg (const char *origmsg, const char *fmt, int arglen, ...)
 	memcpy (message, origmsg, orig_len);
       vsprintf (message + orig_len, fmt, ap);
     }
-  VA_CLOSE (ap);
+  va_end (ap);
   return message;
 }
 
@@ -2638,10 +2638,12 @@ elf_xtensa_relocate_section (bfd *output_bfd,
 	}
       else
 	{
+	  bfd_boolean ignored;
+
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 
 	  if (relocation == 0
 	      && !unresolved_reloc

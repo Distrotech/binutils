@@ -1,5 +1,5 @@
 /* Helper routines for C++ support in GDB.
-   Copyright (C) 2002-2013 Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
    Namespace support contributed by David Carlton.
@@ -219,6 +219,11 @@ extern struct symbol *cp_lookup_nested_symbol (struct type *parent_type,
 					       const struct block *block);
 
 struct type *cp_lookup_transparent_type (const char *name);
+
+/* See description in cp-namespace.c.  */
+
+struct type *find_type_baseclass_by_name (struct type *parent_type,
+					  const char *name);
 
 /* Functions from cp-name-parser.y.  */
 

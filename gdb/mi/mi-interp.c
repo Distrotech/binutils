@@ -1,6 +1,6 @@
 /* MI Interpreter Definitions and Commands for GDB, the GNU debugger.
 
-   Copyright (C) 2002-2013 Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -18,7 +18,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "interps.h"
 #include "event-top.h"
 #include "event-loop.h"
@@ -83,7 +83,7 @@ static int report_initial_inferior (struct inferior *inf, void *closure);
 static void *
 mi_interpreter_init (struct interp *interp, int top_level)
 {
-  struct mi_interp *mi = XMALLOC (struct mi_interp);
+  struct mi_interp *mi = XNEW (struct mi_interp);
   const char *name;
   int mi_version;
 
@@ -230,11 +230,6 @@ mi_cmd_interpreter_exec (char *command, char **argv, int argc)
   if (interp_to_use == NULL)
     error (_("-interpreter-exec: could not find interpreter \"%s\""),
 	   argv[0]);
-
-  if (!interp_exec_p (interp_to_use))
-    error (_("-interpreter-exec: interpreter \"%s\" "
-	     "does not support command execution"),
-	      argv[0]);
 
   /* Insert the MI out hooks, making sure to also call the
      interpreter's hooks if it has any.  */

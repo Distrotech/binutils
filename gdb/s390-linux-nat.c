@@ -1,5 +1,5 @@
 /* S390 native-dependent code for GDB, the GNU debugger.
-   Copyright (C) 2001-2013 Free Software Foundation, Inc.
+   Copyright (C) 2001-2014 Free Software Foundation, Inc.
 
    Contributed by D.J. Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
    for IBM Deutschland Entwicklung GmbH, IBM Corporation.
@@ -433,7 +433,7 @@ struct watch_area
 static struct watch_area *watch_base = NULL;
 
 static int
-s390_stopped_by_watchpoint (void)
+s390_stopped_by_watchpoint (struct target_ops *ops)
 {
   per_lowcore_bits per_lowcore;
   ptrace_area parea;
@@ -508,7 +508,8 @@ s390_fix_watch_points (struct lwp_info *lp)
 }
 
 static int
-s390_insert_watchpoint (CORE_ADDR addr, int len, int type,
+s390_insert_watchpoint (struct target_ops *self,
+			CORE_ADDR addr, int len, int type,
 			struct expression *cond)
 {
   struct lwp_info *lp;
@@ -529,7 +530,8 @@ s390_insert_watchpoint (CORE_ADDR addr, int len, int type,
 }
 
 static int
-s390_remove_watchpoint (CORE_ADDR addr, int len, int type,
+s390_remove_watchpoint (struct target_ops *self,
+			CORE_ADDR addr, int len, int type,
 			struct expression *cond)
 {
   struct lwp_info *lp;
@@ -557,13 +559,15 @@ s390_remove_watchpoint (CORE_ADDR addr, int len, int type,
 }
 
 static int
-s390_can_use_hw_breakpoint (int type, int cnt, int othertype)
+s390_can_use_hw_breakpoint (struct target_ops *self,
+			    int type, int cnt, int othertype)
 {
   return type == bp_hardware_watchpoint;
 }
 
 static int
-s390_region_ok_for_hw_watchpoint (CORE_ADDR addr, int cnt)
+s390_region_ok_for_hw_watchpoint (struct target_ops *self,
+				  CORE_ADDR addr, int cnt)
 {
   return 1;
 }
@@ -632,8 +636,6 @@ s390_read_description (struct target_ops *ops)
     = check_regset (tid, NT_S390_LAST_BREAK, 8);
   have_regset_system_call
     = check_regset (tid, NT_S390_SYSTEM_CALL, 4);
-  have_regset_tdb
-    = check_regset (tid, NT_S390_TDB, s390_sizeof_tdbregset);
 
 #ifdef __s390x__
   /* If GDB itself is compiled as 64-bit, we are running on a machine in
@@ -641,6 +643,9 @@ s390_read_description (struct target_ops *ops)
      mode, report s390x architecture.  If the target is running in 31-bit
      addressing mode, but the kernel supports using 64-bit registers in
      that mode, report s390 architecture with 64-bit GPRs.  */
+
+  have_regset_tdb = (s390_get_hwcap () & HWCAP_S390_TE) ?
+    check_regset (tid, NT_S390_TDB, s390_sizeof_tdbregset) : 0;
 
   if (s390_target_wordsize () == 8)
     return (have_regset_tdb ? tdesc_s390x_te_linux64 :

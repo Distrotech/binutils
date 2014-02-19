@@ -466,10 +466,12 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "vxworks1-xgot-el"
 } elseif { [istarget mips*-*-*] } {
     set addr32 [expr [istarget mipstx39*-*-*] || [istarget mips-*-linux*] || [istarget mipsel-*-linux*]]
-    set has_newabi [expr [istarget *-*-irix6*] || [istarget mips*-*-linux*] || [istarget mips*-sde-elf*]]
+    set has_newabi [expr [istarget *-*-irix6*] || [istarget mips*-*-linux*] \
+                         || [istarget mips*-sde-elf*] || [istarget mips*-mti-elf*]]
 
     if { [istarget "mips*-*-*linux*"]
 	 || [istarget "mips*-sde-elf*"]
+	 || [istarget "mips*-mti-elf*"]
 	 || [istarget "mips*-*-*bsd*"] } then {
 	set tmips "t"
     } else {
@@ -529,6 +531,10 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "eret-1"
     run_dump_test "eret-2"
     run_dump_test "eret-3"
+    run_dump_test_arches "fix-rm7000-1" \
+					[mips_arch_list_matching mips3 !singlefloat]
+    run_dump_test_arches "fix-rm7000-2" \
+					[mips_arch_list_matching mips3 !singlefloat]
     run_dump_test_arches "24k-branch-delay-1" \
 					[mips_arch_list_matching mips1]
     run_dump_test_arches "24k-triple-stores-1" \
@@ -964,6 +970,18 @@ if { [istarget mips*-*-vxworks*] } {
     run_dump_test "cp0sel-names-mips64"
     run_dump_test "cp0sel-names-mips64r2"
     run_dump_test "cp0sel-names-sb1"
+
+    run_dump_test "cp1-names-numeric"
+    run_dump_test "cp1-names-r3000"
+    run_dump_test "cp1-names-r4000" \
+		  { { {name} {(r4000)} } { {objdump} {-M cp0-names=r4000} } }
+    run_dump_test "cp1-names-r4000" \
+		  { { {name} {(r4400)} } { {objdump} {-M cp0-names=r4400} } }
+    run_dump_test "cp1-names-mips32"
+    run_dump_test "cp1-names-mips32r2"
+    run_dump_test "cp1-names-mips64"
+    run_dump_test "cp1-names-mips64r2"
+    run_dump_test "cp1-names-sb1"
 
     run_dump_test "hwr-names-numeric"
     run_dump_test "hwr-names-mips32r2"

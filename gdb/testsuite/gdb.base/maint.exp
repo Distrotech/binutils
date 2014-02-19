@@ -1,4 +1,4 @@
-# Copyright 1998-2013 Free Software Foundation, Inc.
+# Copyright 1998-2014 Free Software Foundation, Inc.
 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -181,9 +181,18 @@ set keep_looking 1
 while {$keep_looking} {
     gdb_expect  {
 
-	-re ".*Object file.*maint($EXEEXT)?:  Objfile at $hex, bfd at $hex, \[0-9\]* minsyms\[\r\t \]+\n" { set header 1 }
-	-re ".*Psymtabs:\[\r\t \]+\n" { set psymtabs 1 }
-	-re ".*Symtabs:\[\r\t \]+\n" { set symtabs 1 }
+	-re "\r\n" {
+	    set output $expect_out(buffer)
+	    if {[regexp ".*Object file.*maint($EXEEXT)?:  Objfile at ${hex}" $output]} {
+		set header 1
+	    }
+	    if {[regexp ".*Psymtabs:\[\r\t \]+\n" $output]} {
+		set psymtabs 1
+	    }
+	    if {[regexp ".*Symtabs:\[\r\t \]+\n" $output]} {
+		set symtabs 1
+	    }
+	}
 
 	-re ".*$gdb_prompt $" { 
 	    set keep_looking 0
@@ -278,11 +287,11 @@ gdb_expect  {
 
 # Check that maint print msymbols allows relative pathnames
 set mydir [pwd]
-gdb_test "cd ${objdir}" \
-    "Working directory [string_to_regexp ${objdir}]\..*" \
+gdb_test "cd [standard_output_file {}]" \
+    "Working directory .*\..*" \
     "cd to objdir"
 
-gdb_test_multiple "maint print msymbols msymbols_output2 ${subdir}/${testfile}" "maint print msymbols" {
+gdb_test_multiple "maint print msymbols msymbols_output2 ${testfile}" "maint print msymbols" {
     -re "^maint print msymbols msymbols_output2 \[^\n\]*\r\n$gdb_prompt $" {
     	gdb_test_multiple "shell ls msymbols_output2" "maint print msymbols" {
 	    -re "msymbols_output2\r\n$gdb_prompt $" {

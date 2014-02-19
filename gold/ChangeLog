@@ -1,3 +1,240 @@
+2014-02-10  Alan Modra  <amodra@gmail.com>
+
+	* po/gold.pot: Regenerate.
+
+2014-02-06  Cary Coutant  <ccoutant@google.com>
+
+	Fix problem where -u is ignored when a weak undef is seen.
+
+	* archive.cc (Library_base::should_include_member): Reorder
+	code to check for -u option if a weak undef has already been seen.
+	* testsuite/Makefile.am (weak_undef_test_2): New test case.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/weak_undef_file3.cc: New file.
+	* testsuite/weak_undef_file4.cc: New file.
+	* testsuite/weak_undef_test_2.cc: New file.
+
+2014-02-05  Cary Coutant  <ccoutant@google.com>
+
+	Fix issues with gold undefined symbol diagnostics.
+
+	PR binutils/15435
+	* errors.cc (Errors::undefined_symbol): Move undef vtable symbol
+	check to here.
+	* target-reloc.h (is_strong_undefined): New function.
+	(relocate_section): Move undef vtable symbol check from here.
+	Check for is_strong_undefined.
+
+2014-02-05  Cary Coutant  <ccoutant@google.com>
+    
+	Fix problems with the --dynamic-list option.
+
+	PR gold/13577
+	* options.cc (General_options::parse_dynamic_list):
+	Set have_dynamic_list_.
+	(General_options::General_options): Initialize have_dynamic_list_.
+	(General_options::finalize): Turn off -Bsymbolic and
+	-Bsymbolic-functions if --dynamic-list provided.
+	* options.h (General_options::have_dynamic_list): New function.
+	(General_options::have_dynamic_list_): New data member.
+	* symtab.h (Symbol::is_preemptible): Handle --dynamic-list
+	correctly.
+   
+	PR gold/16530
+	* symtab.cc (Symbol_table::add_from_relobj): If symbol is named
+	in --dynamic-list, mark it.
+   
+	* testsuite/Makefile.am (gc_dynamic_list_test.sh): New test case.
+	(dynamic_list_2): New test case.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/dynamic_list_2.cc: New file.
+	* testsuite/dynamic_list_2.t: New file.
+	* testsuite/dynamic_list_lib1.cc: New file.
+	* testsuite/dynamic_list_lib2.cc: New file.
+	* testsuite/gc_dynamic_list_test.c: New file.
+	* testsuite/gc_dynamic_list_test.sh: New file.
+	* testsuite/gc_dynamic_list_test.t: New file.
+
+2014-01-28  Cary Coutant  <ccoutant@google.com>
+
+	Add .gdb_index version 7 support.
+
+	* gold/dwarf_reader.cc: include <utility> (for make_pair).
+	(Dwarf_abbrev_table::do_read_abbrevs): Check for compressed
+	debug sections.
+	(Dwarf_ranges_table::read_ranges_table): Likewise.
+	(Dwarf_pubnames_table::read_section): Check for GNU-style
+	sections, and for compressed debug sections.
+	(Dwarf_pubnames_table::read_header): Compute end address of table.
+	(Dwarf_pubnames_table::next_name): Return flag_byte.  Check
+	for end of list by offset, not by offset == 0.
+	(Dwarf_info_reader::do_read_string_table): Check for compressed
+	debug sections.
+	* gold/dwarf_reader.h (Dwarf_pubnames_table::Dwarf_pubnames_table):
+	Initialize new data members.
+	(Dwarf_pubnames_table::next_name): return flag_byte.
+	(Dwarf_pubnames_table::end_of_table_): New data member.
+	(Dwarf_pubnames_table::is_gnu_style_): New data member.
+	* gold/gdb-index.cc (gdb_index_version): Update to version 7.
+	(Gdb_index_info_reader::read_pubtable): Read flag_byte.
+	(Gdb_index_info_reader::read_pubnames_and_pubtypes): Don't
+	read skeleton type unit DIEs.
+	(Gdb_index::add_symbol): Add flag_byte; adjust all callers.
+	(Gdb_index::do_write): Write flag_byte.
+	* gold/gdb-index.h (Gdb_index::add_symbol): Add flags parameter.
+	(Gdb_index::Cu_vector): Store flags along with cu indexes.
+	* gold/testsuite/gdb_index_test_3.sh: Allow versions 4-7.
+	* gold/testsuite/gdb_index_test_comm.sh: Likewise.
+
+2014-01-08  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* version.cc (print_version): Update copyright year to 2014.
+
+2013-12-19  Dimitry Andric  <dimitry@andric.com>
+
+	* stringpool.cc (Stringpool_template::reserve): Add
+	HAVE_UNORDERED_MAP case.
+	* stringpool.cc (Stringpool_template::print_stats): Likewise.
+
+2013-12-18  Cary Coutant  <ccoutant@google.com>
+
+	* configure.ac: Check for <unordered_set> and <unordered_map>.
+	* config.in: Regenerate.
+	* configure: Regenerate.
+	* system.h: Use <unordered_set> and <unordered_map> if available.
+
+2013-12-10  Roland McGrath  <mcgrathr@google.com>
+
+	* Makefile.am (install-exec-local): Prefix $(INSTALL_PROGRAM) uses
+	with $(INSTALL_PROGRAM_ENV).
+	* Makefile.in: Regenerate.
+
+2013-11-22  Cary Coutant  <ccoutant@google.com>
+
+	* configure.ac: Add check for which library is needed for
+	dlopen.
+	* configure: Regenerate.
+
+2013-11-22  Cary Coutant  <ccoutant@google.com>
+
+	* testsuite/Makefile.am (exception_x86_64_bnd_test): Use in-tree
+	assembler.
+	* testsuite/Makefile.in: Regenerate.
+
+2013-11-17  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* x86_64.cc (Target_x86_64<size>::Scan::get_reference_flags):
+	Handle R_X86_64_PC32_BND and R_X86_64_PLT32_BND just like
+	R_X86_64_PC32 and R_X86_64_PLT32, respectively.
+	(Target_x86_64<size>::Scan::local): Likewise.
+	(Target_x86_64<size>::Scan::global): Likewise.
+	(Target_x86_64<size>::Relocate::relocate): Likewise.
+	(Target_x86_64<size>::Relocatable_size_for_reloc::get_size_for_reloc):
+	Likewise.
+	(Target_x86_64<size>::Scan::check_non_pic(): Handle
+	R_X86_64_PC32_BND.
+
+	* testsuite/Makefile.am (check_PROGRAMS): Add
+	exception_x86_64_bnd_test.
+	(exception_x86_64_bnd_test_SOURCES): New macro.
+	(exception_x86_64_bnd_test_DEPENDENCIES): Likewise.
+	(exception_x86_64_bnd_test_LDFLAGS): Likewise.
+	(exception_x86_64_bnd_test_LDADD): Likewise.
+	(exception_x86_64_bnd_1.o): New rule.
+	(exception_x86_64_bnd_2.o): Likewise.
+	* testsuite/Makefile.in: Regenerated.
+
+2013-11-15  Alan Modra  <amodra@gmail.com>
+
+	* powerpc.cc (Target_powerpc::glink_section): Provide non-const
+	accessor.
+	(Target_powerpc::Branch_info::make_stub): Make global entry stubs.
+	Only call ppc64_local_entry_offset for 64-bit.  Restrict
+	symval_for_branch lookup to ELFv1.
+	(Stub_table::add_plt_call_entry): Use unsigned int off.
+	(Output_data_glink::Address, invalid_address): New.
+	(Output_data_glink::add_eh_frame): Move out of line.  Add
+	support for ELFv2.
+	(Output_data_glink::add_global_entry, find_global_entry,
+	global_entry_address): New functions.
+	(Output_data_glink::global_entry_stubs_, end_branch_table_,
+	ge_size): New variables.
+	(Output_data_glink::set_final_data_size): Add global entry
+	stub sizing.
+	(Output_data_glink::do_write): Write global entry stubs.
+	(Target_powerpc::Scan::reloc_needs_plt_for_ifunc): Add target
+	parameter.  Return true for ELFv2.  Adjust callers.
+	(Target_powerpc::Scan::local, global): Restrict opd lookup to
+	ELFv1.  Similarly for ifunc and dynamic relocation processing
+	specific to ELFv1.  Recognize that symbols are defined on
+	their plt entries for ELFv2.
+	(Target_powerpc::symval_for_branch): Assert if called for
+	ELFv2 or ppc32.
+	(Target_powerpc::Relocate::relocate): Use global entry plt
+	stub for symbol value if such exists on ELFv2.
+	(Target_powerpc::Relocate::relocate): Don't call
+	symval_for_branch when ELFv2.  Do adjust for local entry
+	offset when ELFv2.
+	(Target_powerpc::do_dynsym_value): Set symbols to global entry
+	plt stub for ELFv2.
+	(Target_powerpc::do_plt_address_for_global): Similarly.
+
+2013-11-14  Cary Coutant  <ccoutant@google.com>
+
+	Revert patch -- this did not fix the problem, and there is
+	no race there.
+
+	2013-11-14  Cary Coutant  <ccoutant@google.com>
+
+	    PR gold/14860
+	    * ehframe.cc (Eh_frame_hdr::Eh_frame_hdr): Initialize lock_.
+	    (Ehframe_hdr::set_final_data_size): Allocate a Lock.
+	    * ehframe.h (Eh_frame_hdr::record_fde): Hold the lock while
+	    updating fde_offsets_.
+	    (Eh_frame_hdr::lock_): New data member.
+
+2013-11-14  Cary Coutant  <ccoutant@google.com>
+
+	* dwp.cc (Dwo_file_entry): New type.
+	(File_list): Use Dwo_file_entry.
+	(Dwo_file::verify): New function.
+	(Dwo_file::verify_dwo_list): New function.
+	(Dwo_file::sized_verify_dwo_list): New function.
+	(Dwo_name_info_reader::visit_compilation_unit): Add dwo_id to file
+	list.
+	(Dwp_options): New enum type.
+	(dwp_options): Add --verify-only.
+	(usage): Likewise.
+	(main): Likewise.
+	* dwp.h (gold_info): Add declaration.
+
+2013-11-14  Cary Coutant  <ccoutant@google.com>
+
+	PR gold/14860
+	* ehframe.cc (Eh_frame_hdr::Eh_frame_hdr): Initialize lock_.
+	(Ehframe_hdr::set_final_data_size): Allocate a Lock.
+	* ehframe.h (Eh_frame_hdr::record_fde): Hold the lock while
+	updating fde_offsets_.
+	(Eh_frame_hdr::lock_): New data member.
+
+2013-11-06  Cary Coutant  <ccoutant@google.com>
+
+	PR gold/15758
+	* object.cc (Sized_relobj_file::do_layout): Handle .eh_frame sections
+	before reloc sections.
+
+2013-11-04  Alan Modra  <amodra@gmail.com>
+
+	* symtab.h (Symbol::Reference_flags): Add FUNC_DESC_ABI.
+	(Symbol::needs_dynamic_reloc): Test new flag.
+	* powerpc.cc (needs_dynamic_reloc, use_plt_offset): Delete.
+	(Target_powerpc::Scan::get_reference_flags): Add target param.
+	Return FUNC_DESC_ABI for 64-bit ELFv1.
+	(Target_powerpc::Branch_info::make_stub): Adjust get_reference_flags
+	call.
+	(Target_powerpc::Scan::global): Use Symbol::needs_dynamic_reloc.
+	(Target_powerpc::Relocate::relocate): Use Symbol::use_plt_offset.
+
 2013-10-31  Cary Coutant  <ccoutant@google.com>
 
 	Restore support for dwp v2 DWARF package file format.

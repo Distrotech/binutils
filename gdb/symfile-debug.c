@@ -1,6 +1,6 @@
 /* Debug logging for the symbol file functions for the GNU debugger, GDB.
 
-   Copyright (C) 2013 Free Software Foundation, Inc.
+   Copyright (C) 2013-2014 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
@@ -283,12 +283,11 @@ debug_qf_map_matching_symbols (struct objfile *objfile,
 }
 
 static void
-debug_qf_expand_symtabs_matching (struct objfile *objfile,
-				  int (*file_matcher) (const char *, void *,
-						       int basenames),
-				  int (*name_matcher) (const char *, void *),
-				  enum search_domain kind,
-				  void *data)
+debug_qf_expand_symtabs_matching
+  (struct objfile *objfile,
+   expand_symtabs_file_matcher_ftype *file_matcher,
+   expand_symtabs_symbol_matcher_ftype *symbol_matcher,
+   enum search_domain kind, void *data)
 {
   const struct debug_sym_fns_data *debug_data =
     objfile_data (objfile, symfile_debug_objfile_data_key);
@@ -297,13 +296,13 @@ debug_qf_expand_symtabs_matching (struct objfile *objfile,
 		    "qf->expand_symtabs_matching (%s, %s, %s, %s, %s)\n",
 		    debug_objfile_name (objfile),
 		    host_address_to_string (file_matcher),
-		    host_address_to_string (name_matcher),
+		    host_address_to_string (symbol_matcher),
 		    search_domain_name (kind),
 		    host_address_to_string (data));
 
   debug_data->real_sf->qf->expand_symtabs_matching (objfile,
 						    file_matcher,
-						    name_matcher,
+						    symbol_matcher,
 						    kind, data);
 }
 
@@ -392,82 +391,6 @@ debug_sym_get_probes (struct objfile *objfile)
   return retval;
 }
 
-static unsigned
-debug_sym_get_probe_argument_count (struct probe *probe)
-{
-  struct objfile *objfile = probe->objfile;
-  const struct debug_sym_fns_data *debug_data =
-    objfile_data (objfile, symfile_debug_objfile_data_key);
-  unsigned retval;
-
-  retval = debug_data->real_sf->sym_probe_fns->sym_get_probe_argument_count
-    (probe);
-
-  fprintf_filtered (gdb_stdlog,
-		    "probes->sym_get_probe_argument_count (%s) = %u\n",
-		    host_address_to_string (probe), retval);
-
-  return retval;
-}
-
-static int
-debug_can_evaluate_probe_arguments (struct probe *probe)
-{
-  struct objfile *objfile = probe->objfile;
-  const struct debug_sym_fns_data *debug_data =
-    objfile_data (objfile, symfile_debug_objfile_data_key);
-  int retval;
-
-  retval = debug_data->real_sf->sym_probe_fns->can_evaluate_probe_arguments
-    (probe);
-
-  fprintf_filtered (gdb_stdlog,
-		    "probes->can_evaluate_probe_arguments (%s) = %d\n",
-		    host_address_to_string (probe), retval);
-
-  return retval;
-}
-
-static struct value *
-debug_sym_evaluate_probe_argument (struct probe *probe, unsigned n)
-{
-  struct objfile *objfile = probe->objfile;
-  const struct debug_sym_fns_data *debug_data =
-    objfile_data (objfile, symfile_debug_objfile_data_key);
-  struct value *retval;
-
-  fprintf_filtered (gdb_stdlog,
-		    "probes->sym_evaluate_probe_argument (%s, %u)\n",
-		    host_address_to_string (probe), n);
-
-  retval = debug_data->real_sf->sym_probe_fns->sym_evaluate_probe_argument
-    (probe, n);
-
-  fprintf_filtered (gdb_stdlog,
-		    "probes->sym_evaluate_probe_argument (...) = %s\n",
-		    host_address_to_string (retval));
-
-  return retval;
-}
-
-static void
-debug_sym_compile_to_ax (struct probe *probe, struct agent_expr *expr,
-			 struct axs_value *value, unsigned n)
-{
-  struct objfile *objfile = probe->objfile;
-  const struct debug_sym_fns_data *debug_data =
-    objfile_data (objfile, symfile_debug_objfile_data_key);
-
-  fprintf_filtered (gdb_stdlog,
-		    "probes->sym_compile_to_ax (%s, %s, %s, %u)\n",
-		    host_address_to_string (probe),
-		    host_address_to_string (expr),
-		    host_address_to_string (value), n);
-
-  debug_data->real_sf->sym_probe_fns->sym_compile_to_ax
-    (probe, expr, value, n);
-}
-
 static void
 debug_sym_relocate_probe (struct objfile *objfile,
 			  const struct section_offsets *new_offsets,
@@ -489,10 +412,6 @@ debug_sym_relocate_probe (struct objfile *objfile,
 static const struct sym_probe_fns debug_sym_probe_fns =
 {
   debug_sym_get_probes,
-  debug_sym_get_probe_argument_count,
-  debug_can_evaluate_probe_arguments,
-  debug_sym_evaluate_probe_argument,
-  debug_sym_compile_to_ax,
   debug_sym_relocate_probe
 };
 
@@ -655,7 +574,7 @@ install_symfile_debug_logging (struct objfile *objfile)
   real_sf = objfile->sf;
 
   /* Alas we have to preserve NULL entries in REAL_SF.  */
-  debug_data = XZALLOC (struct debug_sym_fns_data);
+  debug_data = XCNEW (struct debug_sym_fns_data);
 
 #define COPY_SF_PTR(from, to, name, func)	\
   do {						\

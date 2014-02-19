@@ -1,5 +1,5 @@
 /* Target operations for the remote server for GDB.
-   Copyright (C) 2002-2013 Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
 
@@ -350,18 +350,21 @@ struct target_ops
   int (*supports_agent) (void);
 
   /* Check whether the target supports branch tracing.  */
-  int (*supports_btrace) (void);
+  int (*supports_btrace) (struct target_ops *);
 
   /* Enable branch tracing for @ptid and allocate a branch trace target
      information struct for reading and for disabling branch trace.  */
   struct btrace_target_info *(*enable_btrace) (ptid_t ptid);
 
-  /* Disable branch tracing.  */
+  /* Disable branch tracing.
+     Returns zero on success, non-zero otherwise.  */
   int (*disable_btrace) (struct btrace_target_info *tinfo);
 
   /* Read branch trace data into buffer.  We use an int to specify the type
-     to break a cyclic dependency.  */
-  void (*read_btrace) (struct btrace_target_info *, struct buffer *, int type);
+     to break a cyclic dependency.
+     Return 0 on success; print an error message into BUFFER and return -1,
+     otherwise.  */
+  int (*read_btrace) (struct btrace_target_info *, struct buffer *, int type);
 
   /* Return true if target supports range stepping.  */
   int (*supports_range_stepping) (void);
@@ -488,8 +491,9 @@ int kill_inferior (int);
   (the_target->supports_agent ? \
    (*the_target->supports_agent) () : 0)
 
-#define target_supports_btrace() \
-  (the_target->supports_btrace ? (*the_target->supports_btrace) () : 0)
+#define target_supports_btrace()			\
+  (the_target->supports_btrace				\
+   ? (*the_target->supports_btrace) (the_target) : 0)
 
 #define target_enable_btrace(ptid) \
   (*the_target->enable_btrace) (ptid)

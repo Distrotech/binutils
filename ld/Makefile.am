@@ -1,17 +1,17 @@
 ## Process this file with automake to generate Makefile.in
 #
-#   Copyright 2012 Free Software Foundation
+#   Copyright 2012-2014 Free Software Foundation
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; see the file COPYING3.  If not see
 # <http://www.gnu.org/licenses/>.
@@ -88,6 +88,7 @@ POD2MAN = pod2man --center="GNU Development Tools" \
 HOSTING_CRT0 = @HOSTING_CRT0@
 HOSTING_SCRT0 = @HOSTING_SCRT0@
 HOSTING_LIBS = @HOSTING_LIBS@
+HOSTING_SLIBS = @HOSTING_SLIBS@
 HOSTING_EMU = -m $(EMUL)
 
 # Setup the testing framework, if you have one
@@ -336,66 +337,14 @@ ALL_EMULATION_SOURCES = \
 	emcorepe.c \
 	emn10200.c \
 	emn10300.c \
-	emsp430x110.c \
-	emsp430x1101.c \
-	emsp430x1111.c \
-	emsp430x112.c \
-	emsp430x1121.c \
-	emsp430x1122.c \
-	emsp430x1132.c \
-	emsp430x122.c \
-	emsp430x1222.c \
-	emsp430x123.c \
-	emsp430x1232.c \
-	emsp430x133.c \
-	emsp430x1331.c \
-	emsp430x135.c \
-	emsp430x1351.c \
-	emsp430x147.c \
-	emsp430x148.c \
-	emsp430x149.c \
-	emsp430x155.c \
-	emsp430x156.c \
-	emsp430x157.c \
-	emsp430x1610.c \
-	emsp430x1611.c \
-	emsp430x1612.c \
-	emsp430x167.c \
-	emsp430x168.c \
-	emsp430x169.c \
-	emsp430x2101.c \
-	emsp430x2111.c \
-	emsp430x2121.c \
-	emsp430x2131.c \
-	emsp430x311.c \
-	emsp430x312.c \
-	emsp430x313.c \
-	emsp430x314.c \
-	emsp430x315.c \
-	emsp430x323.c \
-	emsp430x325.c \
-	emsp430x336.c \
-	emsp430x337.c \
-	emsp430x412.c \
-	emsp430x413.c \
-	emsp430x415.c \
-	emsp430x417.c \
-	emsp430x435.c \
-	emsp430x436.c \
-	emsp430x437.c \
-	emsp430x447.c \
-	emsp430x448.c \
-	emsp430x449.c \
-	emsp430xE423.c \
-	emsp430xE425.c \
-	emsp430xE427.c \
-	emsp430xG437.c \
-	emsp430xG438.c \
-	emsp430xG439.c \
-	emsp430xW423.c \
-	emsp430xW425.c \
-	emsp430xW427.c \
+	emsp430.c \
 	emsp430X.c \
+	ends32elf.c \
+	ends32elf16m.c \
+	ends32elf_linux.c \
+	ends32belf.c \
+	ends32belf16m.c \
+	ends32belf_linux.c \
 	enews.c \
 	ens32knbsd.c \
 	eor32.c \
@@ -468,6 +417,8 @@ ALL_64_EMULATION_SOURCES = \
 	eaarch64elf32b.c \
 	eaarch64linux.c \
 	eaarch64linuxb.c \
+	eaarch64linux32.c \
+	eaarch64linux32b.c \
 	eelf32_x86_64.c \
 	eelf32_x86_64_nacl.c \
 	eelf32b4300.c \
@@ -1510,252 +1461,49 @@ emn10300.c: $(srcdir)/emulparams/mn10300.sh \
   $(srcdir)/emulparams/mn10200.sh \
   $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} mn10300 "$(tdir_mn10300)"
-emsp430x110.c: $(srcdir)/emulparams/msp430all.sh \
+emsp430.c: $(srcdir)/emulparams/msp430all.sh \
   $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
   ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x110 "$(tdir_msp430x110)" msp430all
-emsp430x1101.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1101 "$(tdir_msp430x1101)" msp430all
-emsp430x1111.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1111 "$(tdir_msp430x1111)" msp430all
-emsp430x112.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x112 "$(tdir_msp430x112)" msp430all
-emsp430x1121.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1121 "$(tdir_msp430x1121)" msp430all
-emsp430x1122.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1122 "$(tdir_msp430x1122)" msp430all
-emsp430x1132.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1132 "$(tdir_msp430x1132)" msp430all
-emsp430x122.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x122 "$(tdir_msp430x122)" msp430all
-emsp430x1222.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1222 "$(tdir_msp430x1222)" msp430all
-emsp430x123.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x123 "$(tdir_msp430x123)" msp430all
-emsp430x1232.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1232 "$(tdir_msp430x1232)" msp430all
-emsp430x133.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x133 "$(tdir_msp430x133)" msp430all
-emsp430x1331.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1331 "$(tdir_msp430x1331)" msp430all
-emsp430x135.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x135 "$(tdir_msp430x135)" msp430all
-emsp430x1351.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1351 "$(tdir_msp430x1351)" msp430all
-emsp430x147.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x147 "$(tdir_msp430x147)" msp430all
-emsp430x148.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x148 "$(tdir_msp430x148)" msp430all
-emsp430x149.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x149 "$(tdir_msp430x149)" msp430all
-emsp430x155.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x155 "$(tdir_msp430x155)" msp430all
-emsp430x156.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x156 "$(tdir_msp430x156)" msp430all
-emsp430x157.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x157 "$(tdir_msp430x157)" msp430all
-emsp430x1610.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1610 "$(tdir_msp430x1610)" msp430all
-emsp430x1611.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1611 "$(tdir_msp430x1611)" msp430all
-emsp430x1612.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x1612 "$(tdir_msp430x1612)" msp430all
-emsp430x167.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x167 "$(tdir_msp430x167)" msp430all
-emsp430x168.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x168 "$(tdir_msp430x168)" msp430all
-emsp430x169.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x169 "$(tdir_msp430x169)" msp430all
-emsp430x2101.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x2101 "$(tdir_msp430x2101)" msp430all
-emsp430x2111.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x2111 "$(tdir_msp430x2111)" msp430all
-emsp430x2121.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x2121 "$(tdir_msp430x2121)" msp430all
-emsp430x2131.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x2131 "$(tdir_msp430x2131)" msp430all
-emsp430x311.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430_3.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x311 "$(tdir_msp430x311)" msp430all
-emsp430x312.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430_3.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x312 "$(tdir_msp430x312)" msp430all
-emsp430x313.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430_3.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x313 "$(tdir_msp430x313)" msp430all
-emsp430x314.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430_3.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x314 "$(tdir_msp430x314)" msp430all
-emsp430x315.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430_3.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x315 "$(tdir_msp430x315)" msp430all
-emsp430x323.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430_3.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x323 "$(tdir_msp430x323)" msp430all
-emsp430x325.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430_3.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x325 "$(tdir_msp430x325)" msp430all
-emsp430x336.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430_3.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x336 "$(tdir_msp430x336)" msp430all
-emsp430x337.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430_3.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x337 "$(tdir_msp430x337)" msp430all
-emsp430x412.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x412 "$(tdir_msp430x412)" msp430all
-emsp430x413.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x413 "$(tdir_msp430x413)" msp430all
-emsp430x415.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x415 "$(tdir_msp430x415)" msp430all
-emsp430x417.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x417 "$(tdir_msp430x417)" msp430all
-emsp430x435.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x435 "$(tdir_msp430x435)" msp430all
-emsp430x436.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x436 "$(tdir_msp430x436)" msp430all
-emsp430x437.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x437 "$(tdir_msp430x437)" msp430all
-emsp430x447.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x447 "$(tdir_msp430x447)" msp430all
-emsp430x448.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x448 "$(tdir_msp430x448)" msp430all
-emsp430x449.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430x449 "$(tdir_msp430x449)" msp430all
-emsp430xE423.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430xE423 "$(tdir_msp430xE423)" msp430all
-emsp430xE425.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430xE425 "$(tdir_msp430xE425)" msp430all
-emsp430xE427.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430xE427 "$(tdir_msp430xE427)" msp430all
-emsp430xG437.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430xG437 "$(tdir_msp430xG437)" msp430all
-emsp430xG438.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430xG438 "$(tdir_msp430xG438)" msp430all
-emsp430xG439.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430xG439 "$(tdir_msp430xG439)" msp430all
-emsp430xW423.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430xW423 "$(tdir_msp430xW423)" msp430all
-emsp430xW425.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430xW425 "$(tdir_msp430xW425)" msp430all
-emsp430xW427.c: $(srcdir)/emulparams/msp430all.sh \
-  $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
-  ${GEN_DEPENDS}
-	${GENSCRIPTS} msp430xW427 "$(tdir_msp430xW427)" msp430all
+	${GENSCRIPTS} msp430 "$(tdir_msp430)" msp430all
 emsp430X.c: $(srcdir)/emulparams/msp430all.sh \
   $(ELF_GEN_DEPS) $(srcdir)/scripttempl/elf32msp430.sc \
   ${GEN_DEPENDS}
 	${GENSCRIPTS} msp430X "$(tdir_msp430X)" msp430all
+ends32elf.c: $(srcdir)/emulparams/nds32elf.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} nds32elf "$(tdir_nds32)"
+ends32elf16m.c: $(srcdir)/emulparams/nds32elf16m.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} nds32elf16m "$(tdir_nds32)"
+ends32belf.c: $(srcdir)/emulparams/nds32belf.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} nds32belf "$(tdir_nds32belf)"
+ends32belf16m.c: $(srcdir)/emulparams/nds32belf16m.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} nds32belf16m "$(tdir_nds32belf)"
+ends32elf_linux.c: $(srcdir)/emulparams/nds32elf_linux.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} nds32elf_linux "$(tdir_nds32elf_linux)"
+ends32belf_linux.c: $(srcdir)/emulparams/nds32belf_linux.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/nds32elf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} nds32belf_linux "$(tdir_nds32belf_linux)"
 enews.c: $(srcdir)/emulparams/news.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} news "$(tdir_news)"
 enios2elf.c: $(srcdir)/emulparams/nios2elf.sh \
-  $(ELF_DEPS) $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+  $(srcdir)/emultempl/elf32.em $(srcdir)/emultempl/nios2elf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} nios2elf "$(tdir_nios2elf)"
+enios2linux.c: $(srcdir)/emulparams/nios2linux.sh \
+  $(srcdir)/emultempl/elf32.em $(srcdir)/emultempl/nios2elf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} nios2linux "$(tdir_nios2linux)"
 ens32knbsd.c:	$(srcdir)/emulparams/ns32knbsd.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/emultempl/netbsd.em \
   $(srcdir)/scripttempl/aout.sc ${GEN_DEPENDS}
@@ -1784,6 +1532,14 @@ eaarch64linuxb.c: $(srcdir)/emulparams/aarch64linuxb.sh $(srcdir)/emulparams/aar
   $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
   $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} aarch64linuxb "$(tdir_aarch64linuxb)"
+eaarch64linux32.c: $(srcdir)/emulparams/aarch64linux32.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} aarch64linux32 "$(tdir_aarch64linux32)"
+eaarch64linux32b.c: $(srcdir)/emulparams/aarch64linux32b.sh $(srcdir)/emulparams/aarch64linux32.sh \
+  $(ELF_DEPS) $(srcdir)/emultempl/aarch64elf.em \
+  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+	${GENSCRIPTS} aarch64linux32b "$(tdir_aarch64linux32b)"
 eor32.c: $(srcdir)/emulparams/or32.sh \
   $(srcdir)/emultempl/generic.em $(srcdir)/scripttempl/or32.sc ${GEN_DEPENDS}
 	${GENSCRIPTS} or32 "$(tdir_or32)"
@@ -2304,17 +2060,17 @@ install-exec-local: ld-new$(EXEEXT) install-binPROGRAMS
 	if test "$(bindir)" != "$(tooldir)/bin"; then \
 	  rm -f $(DESTDIR)$(tooldir)/bin/$(installed_linker)$(EXEEXT); \
 	  ln $(DESTDIR)$(bindir)/$$n$(EXEEXT) $(DESTDIR)$(tooldir)/bin/$(installed_linker)$(EXEEXT) >/dev/null 2>/dev/null \
-	  || $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(tooldir)/bin/$(installed_linker)$(EXEEXT); \
+	  || $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(tooldir)/bin/$(installed_linker)$(EXEEXT); \
 	fi; \
 	if test "x$(install_as_default)" = "xyes"; then \
 	  ld=`echo ld | sed '$(transform)'`; \
 	  rm -f $(DESTDIR)$(bindir)/$$ld$(EXEEXT); \
 	  ln $(DESTDIR)$(bindir)/$$n$(EXEEXT) $(DESTDIR)$(bindir)/$$ld$(EXEEXT) >/dev/null 2>/dev/null \
-	  || $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(bindir)/$$ld$(EXEEXT); \
+	  || $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(bindir)/$$ld$(EXEEXT); \
 	  if test "$(bindir)" != "$(tooldir)/bin"; then \
 	    rm -f $(DESTDIR)$(tooldir)/bin/ld$(EXEEXT); \
 	    ln $(DESTDIR)$(bindir)/$$n$(EXEEXT) $(DESTDIR)$(tooldir)/bin/ld$(EXEEXT) >/dev/null 2>/dev/null \
-	    || $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(tooldir)/bin/ld$(EXEEXT); \
+	    || $(INSTALL_PROGRAM_ENV) $(LIBTOOL) --mode=install $(INSTALL_PROGRAM) ld-new$(EXEEXT) $(DESTDIR)$(tooldir)/bin/ld$(EXEEXT); \
 	  fi; \
 	fi
 

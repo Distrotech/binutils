@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2013 Free Software Foundation, Inc.
+/* Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -444,7 +444,7 @@ resync_thread_list (struct target_ops *ops)
 /* The "to_detach" method of the dec_thread_ops.  */
 
 static void
-dec_thread_detach (struct target_ops *ops, char *args, int from_tty)
+dec_thread_detach (struct target_ops *ops, const char *args, int from_tty)
 {   
   struct target_ops *beneath = find_target_beneath (ops);
 
@@ -687,12 +687,13 @@ dec_thread_new_objfile_observer (struct objfile *objfile)
 /* The "to_get_ada_task_ptid" method of the dec_thread_ops.  */
 
 static ptid_t
-dec_thread_get_ada_task_ptid (long lwp, long thread)
+dec_thread_get_ada_task_ptid (struct target_ops *self, long lwp, long thread)
 {
   int i;
   struct dec_thread_info *info;
 
-  debug ("dec_thread_get_ada_task_ptid (lwp=0x%lx, thread=0x%lx)",
+  debug ("dec_thread_get_ada_task_ptid (struct target_ops *self,
+  lwp=0x%lx, thread=0x%lx)",
          lwp, thread);
 
   for (i = 0; VEC_iterate (dec_thread_info_s, dec_thread_list, i, info);

@@ -1,5 +1,5 @@
 /* MI Command Set - breakpoint and watchpoint commands.
-   Copyright (C) 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Cygnus Solutions (a Red Hat company).
 
    This file is part of GDB.
@@ -23,7 +23,7 @@
 #include "ui-out.h"
 #include "mi-out.h"
 #include "breakpoint.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "mi-getopt.h"
 #include "gdb.h"
 #include "exceptions.h"

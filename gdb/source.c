@@ -1,5 +1,5 @@
 /* List lines of source files for GDB, the GNU debugger.
-   Copyright (C) 1986-2013 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -30,8 +30,8 @@
 #include "filestuff.h"
 
 #include <sys/types.h>
-#include "gdb_string.h"
-#include "gdb_stat.h"
+#include <string.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include "gdbcore.h"
 #include "gdb_regex.h"
@@ -574,17 +574,33 @@ add_path (char *dirname, char **which_path, int parse_separators)
 	char tinybuf[2];
 
 	p = *which_path;
-	/* FIXME: we should use realpath() or its work-alike
-	   before comparing.  Then all the code above which
-	   removes excess slashes and dots could simply go away.  */
-	if (!filename_cmp (p, name))
+	while (1)
 	  {
-	    /* Found it in the search path, remove old copy.  */
-	    if (p > *which_path)
-	      p--;		/* Back over leading separator.  */
-	    if (prefix > p - *which_path)
-	      goto skip_dup;	/* Same dir twice in one cmd.  */
-	    memmove (p, &p[len + 1], strlen (&p[len + 1]) + 1);	/* Copy from next \0 or  : */
+	    /* FIXME: we should use realpath() or its work-alike
+	       before comparing.  Then all the code above which
+	       removes excess slashes and dots could simply go away.  */
+	    if (!filename_ncmp (p, name, len)
+		&& (p[len] == '\0' || p[len] == DIRNAME_SEPARATOR))
+	      {
+		/* Found it in the search path, remove old copy.  */
+		if (p > *which_path)
+		  {
+		    /* Back over leading separator.  */
+		    p--;
+		  }
+		if (prefix > p - *which_path)
+		  {
+		    /* Same dir twice in one cmd.  */
+		    goto skip_dup;
+		  }
+		/* Copy from next '\0' or ':'.  */
+		memmove (p, &p[len + 1], strlen (&p[len + 1]) + 1);
+	      }
+	    p = strchr (p, DIRNAME_SEPARATOR);
+	    if (p != 0)
+	      ++p;
+	    else
+	      break;
 	  }
 
 	tinybuf[0] = DIRNAME_SEPARATOR;
@@ -853,28 +869,10 @@ done:
       /* If a file was opened, canonicalize its filename.  */
       if (fd < 0)
 	*filename_opened = NULL;
+      else if ((opts & OPF_RETURN_REALPATH) != 0)
+	*filename_opened = gdb_realpath (filename);
       else
-	{
-	  char *(*realpath_fptr) (const char *);
-
-	  realpath_fptr = ((opts & OPF_RETURN_REALPATH) != 0
-			   ? gdb_realpath : xstrdup);
-
-	  if (IS_ABSOLUTE_PATH (filename))
-	    *filename_opened = realpath_fptr (filename);
-	  else
-	    {
-	      /* Beware the // my son, the Emacs barfs, the botch that catch...  */
-
-	      char *f = concat (current_directory,
-				IS_DIR_SEPARATOR (current_directory[strlen (current_directory) - 1])
-				? "" : SLASH_STRING,
-				filename, (char *)NULL);
-
-	      *filename_opened = realpath_fptr (f);
-	      xfree (f);
-	    }
-	}
+	*filename_opened = gdb_abspath (filename);
     }
 
   return fd;

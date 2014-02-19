@@ -1,6 +1,6 @@
 /* Output generating routines for GDB CLI.
 
-   Copyright (C) 1999-2013 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
    Contributed by Cygnus Solutions.
    Written by Fernando Nasser for Cygnus.
@@ -23,7 +23,7 @@
 #include "defs.h"
 #include "ui-out.h"
 #include "cli-out.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "gdb_assert.h"
 #include "vec.h"
 
@@ -393,7 +393,7 @@ struct ui_out *
 cli_out_new (struct ui_file *stream)
 {
   int flags = ui_source_list;
-  cli_out_data *data = XMALLOC (cli_out_data);
+  cli_out_data *data = XNEW (cli_out_data);
 
   cli_out_data_ctor (data, stream);
   return ui_out_new (&cli_ui_out_impl, data, flags);

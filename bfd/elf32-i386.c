@@ -2237,7 +2237,7 @@ elf_i386_allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 	  /* If this is the first .plt entry, make room for the special
 	     first entry.  */
 	  if (s->size == 0)
-	    s->size += plt_entry_size;
+	    s->size = plt_entry_size;
 
 	  h->plt.offset = s->size;
 
@@ -3330,11 +3330,12 @@ elf_i386_relocate_section (bfd *output_bfd,
       else
 	{
 	  bfd_boolean warned ATTRIBUTE_UNUSED;
+	  bfd_boolean ignored ATTRIBUTE_UNUSED;
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
 				   h, sec, relocation,
-				   unresolved_reloc, warned);
+				   unresolved_reloc, warned, ignored);
 	  st_size = h->size;
 	}
 
@@ -5093,8 +5094,6 @@ elf_i386_add_symbol_hook (bfd * abfd,
 #define elf_backend_plt_sym_val		      elf_i386_plt_sym_val
 #define elf_backend_hash_symbol		      elf_i386_hash_symbol
 #define elf_backend_add_symbol_hook           elf_i386_add_symbol_hook
-#undef	elf_backend_post_process_headers
-#define	elf_backend_post_process_headers	_bfd_elf_set_osabi
 
 #define elf_backend_section_from_bfd_section \
   _bfd_elf_sharable_section_from_bfd_section
@@ -5127,7 +5126,7 @@ elf_i386_add_symbol_hook (bfd * abfd,
 static void
 elf_i386_fbsd_post_process_headers (bfd *abfd, struct bfd_link_info *info)
 {
-  _bfd_elf_set_osabi (abfd, info);
+  _bfd_elf_post_process_headers (abfd, info);
 
 #ifdef OLD_FREEBSD_ABI_LABEL
   /* The ABI label supported by FreeBSD <= 4.0 is quite nonstandard.  */
@@ -5189,7 +5188,6 @@ elf_i386_fbsd_post_process_headers (bfd *abfd, struct bfd_link_info *info)
 #undef	elf_backend_want_plt_sym
 #define elf_backend_want_plt_sym	0
 #undef	elf_backend_post_process_headers
-#define	elf_backend_post_process_headers	_bfd_elf_set_osabi
 #undef	elf_backend_static_tls_alignment
 
 /* NaCl uses substantially different PLT entries for the same effects.  */
@@ -5334,9 +5332,19 @@ static const struct elf_i386_backend_data elf_i386_nacl_arch_bed =
     0,                                  /* is_vxworks */
   };
 
+static bfd_boolean
+elf32_i386_nacl_elf_object_p (bfd *abfd)
+{
+  /* Set the right machine number for a NaCl i386 ELF32 file.  */
+  bfd_default_set_arch_mach (abfd, bfd_arch_i386, bfd_mach_i386_i386_nacl);
+  return TRUE;
+}
+
 #undef	elf_backend_arch_data
 #define elf_backend_arch_data	&elf_i386_nacl_arch_bed
 
+#undef	elf_backend_object_p
+#define elf_backend_object_p			elf32_i386_nacl_elf_object_p
 #undef	elf_backend_modify_segment_map
 #define	elf_backend_modify_segment_map		nacl_modify_segment_map
 #undef	elf_backend_modify_program_headers
@@ -5347,6 +5355,7 @@ static const struct elf_i386_backend_data elf_i386_nacl_arch_bed =
 #include "elf32-target.h"
 
 /* Restore defaults.  */
+#undef	elf_backend_object_p
 #undef	elf_backend_modify_segment_map
 #undef	elf_backend_modify_program_headers
 #undef	elf_backend_final_write_processing
@@ -5372,7 +5381,6 @@ static const struct elf_i386_backend_data elf_i386_vxworks_arch_bed =
 #define	elf_backend_arch_data	&elf_i386_vxworks_arch_bed
 
 #undef elf_backend_relocs_compatible
-#undef elf_backend_post_process_headers
 #undef elf_backend_add_symbol_hook
 #define elf_backend_add_symbol_hook \
   elf_vxworks_add_symbol_hook

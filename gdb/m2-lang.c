@@ -1,6 +1,6 @@
 /* Modula 2 language support routines for GDB, the GNU debugger.
 
-   Copyright (C) 1992-2013 Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -357,6 +357,7 @@ const struct exp_descriptor exp_descriptor_modula2 =
 const struct language_defn m2_language_defn =
 {
   "modula-2",
+  "Modula-2",
   language_m2,
   range_check_on,
   case_sensitive_on,

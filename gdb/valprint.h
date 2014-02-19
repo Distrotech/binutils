@@ -1,6 +1,6 @@
 /* Declarations for value printing routines for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2013 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -162,6 +162,9 @@ extern int read_string (CORE_ADDR addr, int len, int width,
 
 extern void val_print_optimized_out (const struct value *val,
 				     struct ui_file *stream);
+
+/* Prints "<not saved>" to STREAM.  */
+extern void val_print_not_saved (struct ui_file *stream);
 
 extern void val_print_unavailable (struct ui_file *stream);
 

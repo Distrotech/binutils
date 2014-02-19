@@ -1,6 +1,6 @@
 /* Multi-process/thread control for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2013 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    Contributed by Lynx Real-Time Systems, Inc.  Los Gatos, CA.
 
@@ -32,7 +32,7 @@
 #include "gdbcmd.h"
 #include "regcache.h"
 #include "gdb.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "btrace.h"
 
 #include <ctype.h>

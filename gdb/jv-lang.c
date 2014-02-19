@@ -1,6 +1,6 @@
 /* Java language support routines for GDB, the GNU debugger.
 
-   Copyright (C) 1997-2013 Free Software Foundation, Inc.
+   Copyright (C) 1997-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -23,11 +23,9 @@
 #include "expression.h"
 #include "parser-defs.h"
 #include "language.h"
-#include "gdbtypes.h"
-#include "symtab.h"
 #include "symfile.h"
 #include "objfiles.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "value.h"
 #include "c-lang.h"
 #include "jv-lang.h"
@@ -1163,6 +1161,7 @@ const struct exp_descriptor exp_descriptor_java =
 const struct language_defn java_language_defn =
 {
   "java",			/* Language name */
+  "Java",
   language_java,
   range_check_off,
   case_sensitive_on,

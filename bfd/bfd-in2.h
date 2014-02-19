@@ -299,9 +299,6 @@ typedef struct bfd_section *sec_ptr;
 
 #define bfd_is_com_section(ptr) (((ptr)->flags & SEC_IS_COMMON) != 0)
 
-#define bfd_set_section_vma(bfd, ptr, val) (((ptr)->vma = (ptr)->lma = (val)), ((ptr)->user_set_vma = TRUE), TRUE)
-#define bfd_set_section_alignment(bfd, ptr, val) (((ptr)->alignment_power = (val)),TRUE)
-#define bfd_set_section_userdata(bfd, ptr, val) (((ptr)->userdata = (val)),TRUE)
 /* Find the address one past the end of SEC.  */
 #define bfd_get_section_limit(bfd, sec) \
   (((bfd)->direction != write_direction && (sec)->rawsize != 0	\
@@ -523,8 +520,6 @@ extern void warn_deprecated (const char *, const char *, int, const char *);
 #define bfd_get_dynamic_symcount(abfd) ((abfd)->dynsymcount)
 
 #define bfd_get_symbol_leading_char(abfd) ((abfd)->xvec->symbol_leading_char)
-
-#define bfd_set_cacheable(abfd,bool) (((abfd)->cacheable = bool), TRUE)
 
 extern bfd_boolean bfd_cache_close
   (bfd *abfd);
@@ -1029,7 +1024,7 @@ bfd *bfd_openr (const char *filename, const char *target);
 
 bfd *bfd_fdopenr (const char *filename, const char *target, int fd);
 
-bfd *bfd_openstreamr (const char *, const char *, void *);
+bfd *bfd_openstreamr (const char * filename, const char * target, void * stream);
 
 bfd *bfd_openr_iovec (const char *filename, const char *target,
     void *(*open_func) (struct bfd *nbfd,
@@ -1442,6 +1437,7 @@ typedef struct bfd_section
 #define SEC_INFO_TYPE_MERGE     2
 #define SEC_INFO_TYPE_EH_FRAME  3
 #define SEC_INFO_TYPE_JUST_SYMS 4
+#define SEC_INFO_TYPE_TARGET    5
 
   /* Nonzero if this section uses RELA relocations, rather than REL.  */
   unsigned int use_rela_p:1;
@@ -1595,6 +1591,32 @@ struct relax_table {
   /* Number of bytes to be deleted.  */
   int size;
 };
+
+/* Note: the following are provided as inline functions rather than macros
+   because not all callers use the return value.  A macro implementation
+   would use a comma expression, eg: "((ptr)->foo = val, TRUE)" and some
+   compilers will complain about comma expressions that have no effect.  */
+static inline bfd_boolean
+bfd_set_section_userdata (bfd * abfd ATTRIBUTE_UNUSED, asection * ptr, void * val)
+{
+  ptr->userdata = val;
+  return TRUE;
+}
+
+static inline bfd_boolean
+bfd_set_section_vma (bfd * abfd ATTRIBUTE_UNUSED, asection * ptr, bfd_vma val)
+{
+  ptr->vma = ptr->lma = val;
+  ptr->user_set_vma = TRUE;
+  return TRUE;
+}
+
+static inline bfd_boolean
+bfd_set_section_alignment (bfd * abfd ATTRIBUTE_UNUSED, asection * ptr, unsigned int val)
+{
+  ptr->alignment_power = val;
+  return TRUE;
+}
 
 /* These sections are global, and are managed by BFD.  The application
    and target back end are not permitted to change the values in
@@ -1946,19 +1968,19 @@ enum bfd_architecture
 #define bfd_mach_i386_i386             (1 << 2)
 #define bfd_mach_x86_64                (1 << 3)
 #define bfd_mach_x64_32                (1 << 4)
-#define bfd_mach_i386_nacl             (1 << 5)
 #define bfd_mach_i386_i386_intel_syntax (bfd_mach_i386_i386 | bfd_mach_i386_intel_syntax)
 #define bfd_mach_x86_64_intel_syntax   (bfd_mach_x86_64 | bfd_mach_i386_intel_syntax)
 #define bfd_mach_x64_32_intel_syntax   (bfd_mach_x64_32 | bfd_mach_i386_intel_syntax)
-#define bfd_mach_i386_i386_nacl        (bfd_mach_i386_i386 | bfd_mach_i386_nacl)
-#define bfd_mach_x86_64_nacl           (bfd_mach_x86_64 | bfd_mach_i386_nacl)
-#define bfd_mach_x64_32_nacl           (bfd_mach_x64_32 | bfd_mach_i386_nacl)
   bfd_arch_l1om,   /* Intel L1OM */
 #define bfd_mach_l1om                  (1 << 5)
 #define bfd_mach_l1om_intel_syntax     (bfd_mach_l1om | bfd_mach_i386_intel_syntax)
   bfd_arch_k1om,   /* Intel K1OM */
 #define bfd_mach_k1om                  (1 << 6)
 #define bfd_mach_k1om_intel_syntax     (bfd_mach_k1om | bfd_mach_i386_intel_syntax)
+#define bfd_mach_i386_nacl             (1 << 7)
+#define bfd_mach_i386_i386_nacl        (bfd_mach_i386_i386 | bfd_mach_i386_nacl)
+#define bfd_mach_x86_64_nacl           (bfd_mach_x86_64 | bfd_mach_i386_nacl)
+#define bfd_mach_x64_32_nacl           (bfd_mach_x64_32 | bfd_mach_i386_nacl)
   bfd_arch_we32k,     /* AT&T WE32xxx */
   bfd_arch_tahoe,     /* CCI/Harris Tahoe */
   bfd_arch_i860,      /* Intel 860 */
@@ -2073,6 +2095,12 @@ enum bfd_architecture
 #define bfd_mach_arm_ep9312    11
 #define bfd_mach_arm_iWMMXt    12
 #define bfd_mach_arm_iWMMXt2   13
+  bfd_arch_nds32,     /* Andes NDS32 */
+#define bfd_mach_n1            1
+#define bfd_mach_n1h           2
+#define bfd_mach_n1h_v2        3
+#define bfd_mach_n1h_v3        4
+#define bfd_mach_n1h_v3m       5
   bfd_arch_ns32k,     /* National Semiconductors ns32000 */
   bfd_arch_w65,       /* WDC 65816 */
   bfd_arch_tic30,     /* Texas Instruments TMS320C30 */
@@ -3125,6 +3153,8 @@ instruction.  */
   BFD_RELOC_X86_64_TLSDESC_CALL,
   BFD_RELOC_X86_64_TLSDESC,
   BFD_RELOC_X86_64_IRELATIVE,
+  BFD_RELOC_X86_64_PC32_BND,
+  BFD_RELOC_X86_64_PLT32_BND,
 
 /* ns32k relocations  */
   BFD_RELOC_NS32K_IMM_8,
@@ -3793,6 +3823,178 @@ add3, load, and store instructions.  */
   BFD_RELOC_M32R_GOTPC_HI_ULO,
   BFD_RELOC_M32R_GOTPC_HI_SLO,
   BFD_RELOC_M32R_GOTPC_LO,
+
+/* NDS32 relocs.
+This is a 20 bit absolute address.  */
+  BFD_RELOC_NDS32_20,
+
+/* This is a 9-bit pc-relative reloc with the right 1 bit assumed to be 0.  */
+  BFD_RELOC_NDS32_9_PCREL,
+
+/* This is a 9-bit pc-relative reloc with the right 1 bit assumed to be 0.  */
+  BFD_RELOC_NDS32_WORD_9_PCREL,
+
+/* This is an 15-bit reloc with the right 1 bit assumed to be 0.  */
+  BFD_RELOC_NDS32_15_PCREL,
+
+/* This is an 17-bit reloc with the right 1 bit assumed to be 0.  */
+  BFD_RELOC_NDS32_17_PCREL,
+
+/* This is a 25-bit reloc with the right 1 bit assumed to be 0.  */
+  BFD_RELOC_NDS32_25_PCREL,
+
+/* This is a 20-bit reloc containing the high 20 bits of an address
+used with the lower 12 bits  */
+  BFD_RELOC_NDS32_HI20,
+
+/* This is a 12-bit reloc containing the lower 12 bits of an address
+then shift right by 3. This is used with ldi,sdi...  */
+  BFD_RELOC_NDS32_LO12S3,
+
+/* This is a 12-bit reloc containing the lower 12 bits of an address
+then shift left by 2. This is used with lwi,swi...  */
+  BFD_RELOC_NDS32_LO12S2,
+
+/* This is a 12-bit reloc containing the lower 12 bits of an address
+then shift left by 1. This is used with lhi,shi...  */
+  BFD_RELOC_NDS32_LO12S1,
+
+/* This is a 12-bit reloc containing the lower 12 bits of an address
+then shift left by 0. This is used with lbisbi...  */
+  BFD_RELOC_NDS32_LO12S0,
+
+/* This is a 12-bit reloc containing the lower 12 bits of an address
+then shift left by 0. This is only used with branch relaxations  */
+  BFD_RELOC_NDS32_LO12S0_ORI,
+
+/* This is a 15-bit reloc containing the small data area 18-bit signed offset
+and shift left by 3 for use in ldi, sdi...  */
+  BFD_RELOC_NDS32_SDA15S3,
+
+/* This is a 15-bit reloc containing the small data area 17-bit signed offset
+and shift left by 2 for use in lwi, swi...  */
+  BFD_RELOC_NDS32_SDA15S2,
+
+/* This is a 15-bit reloc containing the small data area 16-bit signed offset
+and shift left by 1 for use in lhi, shi...  */
+  BFD_RELOC_NDS32_SDA15S1,
+
+/* This is a 15-bit reloc containing the small data area 15-bit signed offset
+and shift left by 0 for use in lbi, sbi...  */
+  BFD_RELOC_NDS32_SDA15S0,
+
+/* This is a 16-bit reloc containing the small data area 16-bit signed offset
+and shift left by 3  */
+  BFD_RELOC_NDS32_SDA16S3,
+
+/* This is a 17-bit reloc containing the small data area 17-bit signed offset
+and shift left by 2 for use in lwi.gp, swi.gp...  */
+  BFD_RELOC_NDS32_SDA17S2,
+
+/* This is a 18-bit reloc containing the small data area 18-bit signed offset
+and shift left by 1 for use in lhi.gp, shi.gp...  */
+  BFD_RELOC_NDS32_SDA18S1,
+
+/* This is a 19-bit reloc containing the small data area 19-bit signed offset
+and shift left by 0 for use in lbi.gp, sbi.gp...  */
+  BFD_RELOC_NDS32_SDA19S0,
+
+/* for PIC  */
+  BFD_RELOC_NDS32_GOT20,
+  BFD_RELOC_NDS32_9_PLTREL,
+  BFD_RELOC_NDS32_25_PLTREL,
+  BFD_RELOC_NDS32_COPY,
+  BFD_RELOC_NDS32_GLOB_DAT,
+  BFD_RELOC_NDS32_JMP_SLOT,
+  BFD_RELOC_NDS32_RELATIVE,
+  BFD_RELOC_NDS32_GOTOFF,
+  BFD_RELOC_NDS32_GOTOFF_HI20,
+  BFD_RELOC_NDS32_GOTOFF_LO12,
+  BFD_RELOC_NDS32_GOTPC20,
+  BFD_RELOC_NDS32_GOT_HI20,
+  BFD_RELOC_NDS32_GOT_LO12,
+  BFD_RELOC_NDS32_GOTPC_HI20,
+  BFD_RELOC_NDS32_GOTPC_LO12,
+
+/* for relax  */
+  BFD_RELOC_NDS32_INSN16,
+  BFD_RELOC_NDS32_LABEL,
+  BFD_RELOC_NDS32_LONGCALL1,
+  BFD_RELOC_NDS32_LONGCALL2,
+  BFD_RELOC_NDS32_LONGCALL3,
+  BFD_RELOC_NDS32_LONGJUMP1,
+  BFD_RELOC_NDS32_LONGJUMP2,
+  BFD_RELOC_NDS32_LONGJUMP3,
+  BFD_RELOC_NDS32_LOADSTORE,
+  BFD_RELOC_NDS32_9_FIXED,
+  BFD_RELOC_NDS32_15_FIXED,
+  BFD_RELOC_NDS32_17_FIXED,
+  BFD_RELOC_NDS32_25_FIXED,
+
+/* for PIC  */
+  BFD_RELOC_NDS32_PLTREL_HI20,
+  BFD_RELOC_NDS32_PLTREL_LO12,
+  BFD_RELOC_NDS32_PLT_GOTREL_HI20,
+  BFD_RELOC_NDS32_PLT_GOTREL_LO12,
+
+/* for floating point  */
+  BFD_RELOC_NDS32_SDA12S2_DP,
+  BFD_RELOC_NDS32_SDA12S2_SP,
+  BFD_RELOC_NDS32_LO12S2_DP,
+  BFD_RELOC_NDS32_LO12S2_SP,
+
+/* for dwarf2 debug_line.  */
+  BFD_RELOC_NDS32_DWARF2_OP1,
+  BFD_RELOC_NDS32_DWARF2_OP2,
+  BFD_RELOC_NDS32_DWARF2_LEB,
+
+/* for eliminate 16-bit instructions  */
+  BFD_RELOC_NDS32_UPDATE_TA,
+
+/* for PIC object relaxation  */
+  BFD_RELOC_NDS32_PLT_GOTREL_LO20,
+  BFD_RELOC_NDS32_PLT_GOTREL_LO15,
+  BFD_RELOC_NDS32_PLT_GOTREL_LO19,
+  BFD_RELOC_NDS32_GOT_LO15,
+  BFD_RELOC_NDS32_GOT_LO19,
+  BFD_RELOC_NDS32_GOTOFF_LO15,
+  BFD_RELOC_NDS32_GOTOFF_LO19,
+  BFD_RELOC_NDS32_GOT15S2,
+  BFD_RELOC_NDS32_GOT17S2,
+
+/* NDS32 relocs.
+This is a 5 bit absolute address.  */
+  BFD_RELOC_NDS32_5,
+
+/* This is a 10-bit unsigned pc-relative reloc with the right 1 bit assumed to be 0.  */
+  BFD_RELOC_NDS32_10_UPCREL,
+
+/* If fp were omitted, fp can used as another gp.  */
+  BFD_RELOC_NDS32_SDA_FP7U2_RELA,
+
+/* relaxation relative relocation types  */
+  BFD_RELOC_NDS32_RELAX_ENTRY,
+  BFD_RELOC_NDS32_GOT_SUFF,
+  BFD_RELOC_NDS32_GOTOFF_SUFF,
+  BFD_RELOC_NDS32_PLT_GOT_SUFF,
+  BFD_RELOC_NDS32_MULCALL_SUFF,
+  BFD_RELOC_NDS32_PTR,
+  BFD_RELOC_NDS32_PTR_COUNT,
+  BFD_RELOC_NDS32_PTR_RESOLVED,
+  BFD_RELOC_NDS32_PLTBLOCK,
+  BFD_RELOC_NDS32_RELAX_REGION_BEGIN,
+  BFD_RELOC_NDS32_RELAX_REGION_END,
+  BFD_RELOC_NDS32_MINUEND,
+  BFD_RELOC_NDS32_SUBTRAHEND,
+  BFD_RELOC_NDS32_DIFF8,
+  BFD_RELOC_NDS32_DIFF16,
+  BFD_RELOC_NDS32_DIFF32,
+  BFD_RELOC_NDS32_DIFF_ULEB128,
+  BFD_RELOC_NDS32_25_ABS,
+  BFD_RELOC_NDS32_DATA,
+  BFD_RELOC_NDS32_TRAN,
+  BFD_RELOC_NDS32_17IFC_PCREL,
+  BFD_RELOC_NDS32_10IFCU_PCREL,
 
 /* This is a 9-bit reloc  */
   BFD_RELOC_V850_9_PCREL,
@@ -5024,6 +5226,11 @@ a matching LO8XG part.  */
   BFD_RELOC_NIOS2_JUMP_SLOT,
   BFD_RELOC_NIOS2_RELATIVE,
   BFD_RELOC_NIOS2_GOTOFF,
+  BFD_RELOC_NIOS2_CALL26_NOAT,
+  BFD_RELOC_NIOS2_GOT_LO,
+  BFD_RELOC_NIOS2_GOT_HA,
+  BFD_RELOC_NIOS2_CALL_LO,
+  BFD_RELOC_NIOS2_CALL_HA,
 
 /* IQ2000 Relocations.  */
   BFD_RELOC_IQ2000_OFFSET_16,
@@ -6234,6 +6441,14 @@ struct bfd
      this object.  Used by VMS linkers.  */
   unsigned int selective_search : 1;
 };
+
+/* See note beside bfd_set_section_userdata.  */
+static inline bfd_boolean
+bfd_set_cacheable (bfd * abfd, bfd_boolean val)
+{
+  abfd->cacheable = val;
+  return TRUE;
+}
 
 typedef enum bfd_error
 {

@@ -1,6 +1,6 @@
 /* Native-dependent code for SPARC.
 
-   Copyright (C) 2003-2013 Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -24,7 +24,7 @@
 
 #include "gdb_assert.h"
 #include <signal.h>
-#include "gdb_string.h"
+#include <string.h>
 #include <sys/ptrace.h>
 #include "gdb_wait.h"
 #ifdef HAVE_MACHINE_REG_H
@@ -256,12 +256,14 @@ sparc_store_inferior_registers (struct target_ops *ops,
 }
 
 
-/* Fetch StackGhost Per-Process XOR cookie.  */
+/* Implement the to_xfer_partial target_ops method for
+   TARGET_OBJECT_WCOOKIE.  Fetch StackGhost Per-Process XOR cookie.  */
 
-static LONGEST
+static enum target_xfer_status
 sparc_xfer_wcookie (struct target_ops *ops, enum target_object object,
 		    const char *annex, gdb_byte *readbuf,
-		    const gdb_byte *writebuf, ULONGEST offset, LONGEST len)
+		    const gdb_byte *writebuf, ULONGEST offset, ULONGEST len,
+		    ULONGEST *xfered_len)
 {
   unsigned long wcookie = 0;
   char *buf = (char *)&wcookie;
@@ -270,9 +272,9 @@ sparc_xfer_wcookie (struct target_ops *ops, enum target_object object,
   gdb_assert (readbuf && writebuf == NULL);
 
   if (offset == sizeof (unsigned long))
-    return 0;			/* Signal EOF.  */
+    return TARGET_XFER_EOF;			/* Signal EOF.  */
   if (offset > sizeof (unsigned long))
-    return -1;
+    return TARGET_XFER_E_IO;
 
 #ifdef PT_WCOOKIE
   /* If PT_WCOOKIE is defined (by <sys/ptrace.h>), assume we're
@@ -310,24 +312,24 @@ sparc_xfer_wcookie (struct target_ops *ops, enum target_object object,
     len = sizeof (unsigned long) - offset;
 
   memcpy (readbuf, buf + offset, len);
-  return len;
+  *xfered_len = (ULONGEST) len;
+  return TARGET_XFER_OK;
 }
 
-LONGEST (*inf_ptrace_xfer_partial) (struct target_ops *, enum target_object,
-				    const char *, gdb_byte *, const gdb_byte *,
-				    ULONGEST, LONGEST);
+target_xfer_partial_ftype *inf_ptrace_xfer_partial;
 
-static LONGEST
+static enum target_xfer_status
 sparc_xfer_partial (struct target_ops *ops, enum target_object object,
 		    const char *annex, gdb_byte *readbuf,
-		    const gdb_byte *writebuf, ULONGEST offset, LONGEST len)
+		    const gdb_byte *writebuf, ULONGEST offset, ULONGEST len,
+		    ULONGEST *xfered_len)
 {
   if (object == TARGET_OBJECT_WCOOKIE)
     return sparc_xfer_wcookie (ops, object, annex, readbuf, writebuf, 
-			       offset, len);
+			       offset, len, xfered_len);
 
   return inf_ptrace_xfer_partial (ops, object, annex, readbuf, writebuf,
-				  offset, len);
+				  offset, len, xfered_len);
 }
 
 /* Create a prototype generic SPARC target.  The client can override

@@ -1,6 +1,6 @@
 /* GNU/Linux/x86-64 specific low level interface, for the remote server
    for GDB.
-   Copyright (C) 2002-2013 Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -26,9 +26,14 @@
 #include "i387-fp.h"
 #include "i386-low.h"
 #include "i386-xstate.h"
-#include "elf/common.h"
 
 #include "gdb_proc_service.h"
+/* Don't include elf/common.h if linux/elf.h got included by
+   gdb_proc_service.h.  */
+#ifndef ELFMAG0
+#include "elf/common.h"
+#endif
+
 #include "agent.h"
 #include "tdesc.h"
 #include "tracepoint.h"
@@ -43,6 +48,10 @@ extern const struct target_desc *tdesc_amd64_linux;
 void init_registers_amd64_avx_linux (void);
 extern const struct target_desc *tdesc_amd64_avx_linux;
 
+/* Defined in auto-generated file amd64-mpx-linux.c.  */
+void init_registers_amd64_mpx_linux (void);
+extern const struct target_desc *tdesc_amd64_mpx_linux;
+
 /* Defined in auto-generated file x32-linux.c.  */
 void init_registers_x32_linux (void);
 extern const struct target_desc *tdesc_x32_linux;
@@ -50,6 +59,7 @@ extern const struct target_desc *tdesc_x32_linux;
 /* Defined in auto-generated file x32-avx-linux.c.  */
 void init_registers_x32_avx_linux (void);
 extern const struct target_desc *tdesc_x32_avx_linux;
+
 #endif
 
 /* Defined in auto-generated file i386-linux.c.  */
@@ -63,6 +73,10 @@ extern const struct target_desc *tdesc_i386_mmx_linux;
 /* Defined in auto-generated file i386-avx-linux.c.  */
 void init_registers_i386_avx_linux (void);
 extern const struct target_desc *tdesc_i386_avx_linux;
+
+/* Defined in auto-generated file i386-mpx-linux.c.  */
+void init_registers_i386_mpx_linux (void);
+extern const struct target_desc *tdesc_i386_mpx_linux;
 
 #ifdef __x86_64__
 static struct target_desc *tdesc_amd64_linux_no_xml;
@@ -163,8 +177,11 @@ static const int x86_64_regmap[] =
   -1, -1, -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1, -1, -1, -1,
-  ORIG_RAX * 8
+  -1,
+  -1, -1, -1, -1, -1, -1, -1, -1,
+  ORIG_RAX * 8,
+  -1, -1, -1, -1,			/* MPX registers BND0 ... BND3.  */
+  -1, -1				/* MPX registers BNDCFGU, BNDSTATUS.  */
 };
 
 #define X86_64_NUM_REGS (sizeof (x86_64_regmap) / sizeof (x86_64_regmap[0]))
@@ -1233,7 +1250,7 @@ x86_linux_read_description (void)
 {
   unsigned int machine;
   int is_elf64;
-  int avx;
+  int xcr0_features;
   int tid;
   static uint64_t xcr0;
   struct regset_info *regset;
@@ -1312,36 +1329,69 @@ x86_linux_read_description (void)
     }
 
   /* Check the native XCR0 only if PTRACE_GETREGSET is available.  */
-  avx = (have_ptrace_getregset
-	 && (xcr0 & I386_XSTATE_AVX_MASK) == I386_XSTATE_AVX_MASK);
+  xcr0_features = (have_ptrace_getregset
+         && (xcr0 & I386_XSTATE_ALL_MASK));
 
-  /* AVX is the highest feature we support.  */
-  if (avx)
+  if (xcr0_features)
     x86_xcr0 = xcr0;
 
   if (machine == EM_X86_64)
     {
 #ifdef __x86_64__
-      if (avx)
+      if (is_elf64)
 	{
-	  if (!is_elf64)
-	    return tdesc_x32_avx_linux;
+	  if (xcr0_features)
+	    {
+	      switch (xcr0 & I386_XSTATE_ALL_MASK)
+	        {
+		case I386_XSTATE_MPX_MASK:
+		  return tdesc_amd64_mpx_linux;
+
+		case I386_XSTATE_AVX_MASK:
+		  return tdesc_amd64_avx_linux;
+
+		default:
+		  return tdesc_amd64_linux;
+		}
+	    }
 	  else
-	    return tdesc_amd64_avx_linux;
+	    return tdesc_amd64_linux;
 	}
       else
 	{
-	  if (!is_elf64)
-	    return tdesc_x32_linux;
+	  if (xcr0_features)
+	    {
+	      switch (xcr0 & I386_XSTATE_ALL_MASK)
+	        {
+		case I386_XSTATE_MPX_MASK: /* No MPX on x32.  */
+		case I386_XSTATE_AVX_MASK:
+		  return tdesc_x32_avx_linux;
+
+		default:
+		  return tdesc_x32_linux;
+		}
+	    }
 	  else
-	    return tdesc_amd64_linux;
+	    return tdesc_x32_linux;
 	}
 #endif
     }
   else
     {
-      if (avx)
-	return tdesc_i386_avx_linux;
+      if (xcr0_features)
+	{
+	  switch (xcr0 & I386_XSTATE_ALL_MASK)
+	    {
+	    case (I386_XSTATE_MPX_MASK):
+	      return tdesc_i386_mpx_linux;
+
+	    case (I386_XSTATE_AVX_MASK):
+	      return tdesc_i386_avx_linux;
+
+	    default:
+	      return tdesc_i386_linux;
+	    }
+	}
       else
 	return tdesc_i386_linux;
     }
@@ -1977,8 +2027,8 @@ add_insns (unsigned char *start, int len)
   CORE_ADDR buildaddr = current_insn_ptr;
 
   if (debug_threads)
-    fprintf (stderr, "Adding %d bytes of insn at %s\n",
-	     len, paddress (buildaddr));
+    debug_printf ("Adding %d bytes of insn at %s\n",
+		  len, paddress (buildaddr));
 
   append_insns (&buildaddr, len, start);
   current_insn_ptr = buildaddr;
@@ -3338,6 +3388,8 @@ initialize_low_arch (void)
 #ifdef __x86_64__
   init_registers_amd64_linux ();
   init_registers_amd64_avx_linux ();
+  init_registers_amd64_mpx_linux ();
+
   init_registers_x32_linux ();
   init_registers_x32_avx_linux ();
 
@@ -3348,6 +3400,7 @@ initialize_low_arch (void)
   init_registers_i386_linux ();
   init_registers_i386_mmx_linux ();
   init_registers_i386_avx_linux ();
+  init_registers_i386_mpx_linux ();
 
   tdesc_i386_linux_no_xml = xmalloc (sizeof (struct target_desc));
   copy_target_description (tdesc_i386_linux_no_xml, tdesc_i386_linux);

@@ -1,6 +1,6 @@
 /* Manages interpreters for GDB, the GNU debugger.
 
-   Copyright (C) 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
 
    Written by Jim Ingham <jingham@apple.com> of Apple Computer, Inc.
 
@@ -36,7 +36,7 @@
 #include "event-top.h"
 #include "interps.h"
 #include "completer.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "gdb_assert.h"
 #include "top.h"		/* For command_loop.  */
 #include "exceptions.h"
@@ -93,7 +93,7 @@ interp_new (const char *name, const struct interp_procs *procs)
 {
   struct interp *new_interp;
 
-  new_interp = XMALLOC (struct interp);
+  new_interp = XNEW (struct interp);
 
   new_interp->name = xstrdup (name);
   new_interp->data = NULL;
@@ -347,20 +347,13 @@ interp_set_quiet (struct interp *interp, int quiet)
 
 /* interp_exec - This executes COMMAND_STR in the current 
    interpreter.  */
-int
-interp_exec_p (struct interp *interp)
-{
-  return interp->procs->exec_proc != NULL;
-}
 
 struct gdb_exception
 interp_exec (struct interp *interp, const char *command_str)
 {
-  if (interp->procs->exec_proc != NULL)
-    {
-      return interp->procs->exec_proc (interp->data, command_str);
-    }
-  return exception_none;
+  gdb_assert (interp->procs->exec_proc != NULL);
+
+  return interp->procs->exec_proc (interp->data, command_str);
 }
 
 /* A convenience routine that nulls out all the common command hooks.

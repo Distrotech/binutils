@@ -1,6 +1,6 @@
 /* Native-dependent code for FreeBSD.
 
-   Copyright (C) 2002-2013 Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -25,7 +25,7 @@
 #include "gdbthread.h"
 
 #include "gdb_assert.h"
-#include "gdb_string.h"
+#include <string.h>
 #include <sys/types.h>
 #include <sys/procfs.h>
 #include <sys/sysctl.h>
@@ -37,7 +37,7 @@
    the child process identified by PID.  */
 
 char *
-fbsd_pid_to_exec_file (int pid)
+fbsd_pid_to_exec_file (struct target_ops *self, int pid)
 {
   size_t len = PATH_MAX;
   char *buf = xcalloc (len, sizeof (char));
@@ -91,7 +91,8 @@ fbsd_read_mapping (FILE *mapfile, unsigned long *start, unsigned long *end,
    argument to FUNC.  */
 
 int
-fbsd_find_memory_regions (find_memory_region_ftype func, void *obfd)
+fbsd_find_memory_regions (struct target_ops *self,
+			  find_memory_region_ftype func, void *obfd)
 {
   pid_t pid = ptid_get_pid (inferior_ptid);
   char *mapfilename;
@@ -166,7 +167,7 @@ find_stop_signal (void)
    allocated memory.  */
 
 char *
-fbsd_make_corefile_notes (bfd *obfd, int *note_size)
+fbsd_make_corefile_notes (struct target_ops *self, bfd *obfd, int *note_size)
 {
   const struct regcache *regcache = get_current_regcache ();
   struct gdbarch *gdbarch = get_regcache_arch (regcache);

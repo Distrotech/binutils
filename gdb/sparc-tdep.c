@@ -1,6 +1,6 @@
 /* Target-dependent code for SPARC.
 
-   Copyright (C) 2003-2013 Free Software Foundation, Inc.
+   Copyright (C) 2003-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -36,7 +36,7 @@
 #include "value.h"
 
 #include "gdb_assert.h"
-#include "gdb_string.h"
+#include <string.h>
 
 #include "sparc-tdep.h"
 #include "sparc-ravenscar-thread.h"
@@ -88,6 +88,9 @@ struct regset;
 #define X_DISP19(i) ((((i) & 0x7ffff) ^ 0x40000) - 0x40000)
 #define X_DISP10(i) ((((((i) >> 11) && 0x300) | (((i) >> 5) & 0xff)) ^ 0x200) - 0x200)
 #define X_SIMM13(i) ((((i) & 0x1fff) ^ 0x1000) - 0x1000)
+/* Macros to identify some instructions.  */
+/* RETURN (RETT in V8) */
+#define X_RETTURN(i) ((X_OP (i) == 0x2) && (X_OP3 (i) == 0x39))
 
 /* Fetch the instruction at PC.  Instructions are always big-endian
    even if the processor operates in little-endian mode.  */
@@ -119,6 +122,37 @@ sparc_is_unimp_insn (CORE_ADDR pc)
   const unsigned long insn = sparc_fetch_instruction (pc);
   
   return ((insn & 0xc1c00000) == 0);
+}
+
+/* Return non-zero if the instruction corresponding to PC is an
+   "annulled" branch, i.e. the annul bit is set.  */
+
+int
+sparc_is_annulled_branch_insn (CORE_ADDR pc)
+{
+  /* The branch instructions featuring an annul bit can be identified
+     by the following bit patterns:
+
+     OP=0
+      OP2=1: Branch on Integer Condition Codes with Prediction (BPcc).
+      OP2=2: Branch on Integer Condition Codes (Bcc).
+      OP2=5: Branch on FP Condition Codes with Prediction (FBfcc).
+      OP2=6: Branch on FP Condition Codes (FBcc).
+      OP2=3 && Bit28=0:
+             Branch on Integer Register with Prediction (BPr).
+
+     This leaves out ILLTRAP (OP2=0), SETHI/NOP (OP2=4) and the V8
+     coprocessor branch instructions (Op2=7).  */
+
+  const unsigned long insn = sparc_fetch_instruction (pc);
+  const unsigned op2 = X_OP2 (insn);
+
+  if ((X_OP (insn) == 0)
+      && ((op2 == 1) || (op2 == 2) || (op2 == 5) || (op2 == 6)
+	  || ((op2 == 3) && ((insn & 0x10000000) == 0))))
+    return X_A (insn);
+  else
+    return 0;
 }
 
 /* OpenBSD/sparc includes StackGhost, which according to the author's
@@ -419,6 +453,29 @@ sparc32_pseudo_register_write (struct gdbarch *gdbarch,
   regnum = SPARC_F0_REGNUM + 2 * (regnum - SPARC32_D0_REGNUM);
   regcache_raw_write (regcache, regnum, buf);
   regcache_raw_write (regcache, regnum + 1, buf + 4);
+}
+
+/* Implement "in_function_epilogue_p".  */
+
+int
+sparc_in_function_epilogue_p (struct gdbarch *gdbarch, CORE_ADDR pc)
+{
+  /* This function must return true if we are one instruction after an
+     instruction that destroyed the stack frame of the current
+     function.  The SPARC instructions used to restore the callers
+     stack frame are RESTORE and RETURN/RETT.
+
+     Of these RETURN/RETT is a branch instruction and thus we return
+     true if we are in its delay slot.
+
+     RESTORE is almost always found in the delay slot of a branch
+     instruction that transfers control to the caller, such as JMPL.
+     Thus the next instruction is in the caller frame and we don't
+     need to do anything about it.  */
+
+  unsigned int insn = sparc_fetch_instruction (pc - 4);
+
+  return X_RETTURN (insn);
 }
 
 
@@ -1538,7 +1595,6 @@ sparc_analyze_control_transfer (struct frame_info *frame,
 	  if (X_A (insn))
 	    *npc = 0;
 
-	  gdb_assert (offset != 0);
 	  return pc + offset;
 	}
     }
@@ -1623,7 +1679,7 @@ sparc32_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
     return arches->gdbarch;
 
   /* Allocate space for the new architecture.  */
-  tdep = XZALLOC (struct gdbarch_tdep);
+  tdep = XCNEW (struct gdbarch_tdep);
   gdbarch = gdbarch_alloc (&info, tdep);
 
   tdep->pc_regnum = SPARC32_PC_REGNUM;

@@ -1,6 +1,6 @@
 /* Renesas M32C target-dependent code for GDB, the GNU debugger.
 
-   Copyright (C) 2004-2013 Free Software Foundation, Inc.
+   Copyright (C) 2004-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -21,10 +21,7 @@
 
 #include <stdarg.h>
 
-#if defined (HAVE_STRING_H)
 #include <string.h>
-#endif
-
 #include "gdb_assert.h"
 #include "elf-bfd.h"
 #include "elf/m32c.h"

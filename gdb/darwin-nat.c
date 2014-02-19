@@ -1,5 +1,5 @@
 /* Darwin support for GDB, the GNU debugger.
-   Copyright (C) 2008-2013 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
 
    Contributed by AdaCore.
 
@@ -32,7 +32,7 @@
 #include "regcache.h"
 #include "event-top.h"
 #include "inf-loop.h"
-#include "gdb_stat.h"
+#include <sys/stat.h>
 #include "exceptions.h"
 #include "inf-child.h"
 #include "value.h"
@@ -87,7 +87,7 @@
 
 extern boolean_t exc_server (mach_msg_header_t *in, mach_msg_header_t *out);
 
-static void darwin_stop (ptid_t);
+static void darwin_stop (struct target_ops *self, ptid_t);
 
 static void darwin_resume_to (struct target_ops *ops, ptid_t ptid, int step,
                               enum gdb_signal signal);
@@ -350,7 +350,7 @@ darwin_check_new_threads (struct inferior *inf)
 	  struct thread_info *tp;
 	  struct private_thread_info *pti;
 
-	  pti = XZALLOC (struct private_thread_info);
+	  pti = XCNEW (struct private_thread_info);
 	  pti->gdb_port = new_id;
 	  pti->msg_state = DARWIN_RUNNING;
 
@@ -1011,14 +1011,14 @@ cancel_breakpoint (ptid_t ptid)
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
   CORE_ADDR pc;
 
-  pc = regcache_read_pc (regcache) - gdbarch_decr_pc_after_break (gdbarch);
+  pc = regcache_read_pc (regcache) - target_decr_pc_after_break (gdbarch);
   if (breakpoint_inserted_here_p (get_regcache_aspace (regcache), pc))
     {
       inferior_debug (4, "cancel_breakpoint for thread 0x%x\n",
 		      ptid_get_tid (ptid));
 
       /* Back up the PC if necessary.  */
-      if (gdbarch_decr_pc_after_break (gdbarch))
+      if (target_decr_pc_after_break (gdbarch))
 	regcache_write_pc (regcache, pc);
 
       return 1;
@@ -1144,7 +1144,7 @@ darwin_wait_to (struct target_ops *ops,
 }
 
 static void
-darwin_stop (ptid_t t)
+darwin_stop (struct target_ops *self, ptid_t t)
 {
   struct inferior *inf = current_inferior ();
 
@@ -1344,7 +1344,7 @@ darwin_attach_pid (struct inferior *inf)
   mach_port_t prev_not;
   exception_mask_t mask;
 
-  inf->private = XZALLOC (darwin_inferior);
+  inf->private = XCNEW (darwin_inferior);
 
   kret = task_for_pid (gdb_task, inf->pid, &inf->private->task);
   if (kret != KERN_SUCCESS)
@@ -1681,7 +1681,7 @@ darwin_attach (struct target_ops *ops, char *args, int from_tty)
    previously attached.  It *might* work if the program was
    started via fork.  */
 static void
-darwin_detach (struct target_ops *ops, char *args, int from_tty)
+darwin_detach (struct target_ops *ops, const char *args, int from_tty)
 {
   pid_t pid = ptid_get_pid (inferior_ptid);
   struct inferior *inf = current_inferior ();
@@ -1760,7 +1760,7 @@ darwin_thread_alive (struct target_ops *ops, ptid_t ptid)
 static int
 darwin_read_write_inferior (task_t task, CORE_ADDR addr,
 			    gdb_byte *rdaddr, const gdb_byte *wraddr,
-			    int length)
+			    ULONGEST length)
 {
   kern_return_t kret;
   mach_vm_address_t offset = addr & (mach_page_size - 1);
@@ -1772,8 +1772,8 @@ darwin_read_write_inferior (task_t task, CORE_ADDR addr,
   mach_vm_address_t region_address;
   mach_vm_size_t region_length;
 
-  inferior_debug (8, _("darwin_read_write_inferior(task=0x%x, %s, len=%d)\n"),
-		  task, core_addr_to_string (addr), length);
+  inferior_debug (8, _("darwin_read_write_inferior(task=0x%x, %s, len=%s)\n"),
+		  task, core_addr_to_string (addr), pulongest (length));
 
   /* Get memory from inferior with page aligned addresses.  */
   kret = mach_vm_read (task, low_address, aligned_length,
@@ -1892,9 +1892,9 @@ out:
 
 #ifdef TASK_DYLD_INFO_COUNT
 /* This is not available in Darwin 9.  */
-static int
+static enum target_xfer_status
 darwin_read_dyld_info (task_t task, CORE_ADDR addr, gdb_byte *rdaddr,
-		       int length)
+		       ULONGEST length, ULONGEST *xfered_len)
 {
   struct task_dyld_info task_dyld_info;
   mach_msg_type_number_t count = TASK_DYLD_INFO_COUNT;
@@ -1902,17 +1902,18 @@ darwin_read_dyld_info (task_t task, CORE_ADDR addr, gdb_byte *rdaddr,
   kern_return_t kret;
 
   if (addr >= sz)
-    return 0;
+    return TARGET_XFER_EOF;
 
   kret = task_info (task, TASK_DYLD_INFO, (task_info_t) &task_dyld_info, &count);
   MACH_CHECK_ERROR (kret);
   if (kret != KERN_SUCCESS)
-    return -1;
+    return TARGET_XFER_E_IO;
   /* Truncate.  */
   if (addr + length > sz)
     length = sz - addr;
   memcpy (rdaddr, (char *)&task_dyld_info + addr, length);
-  return length;
+  *xfered_len = (ULONGEST) length;
+  return TARGET_XFER_OK;
 }
 #endif
 
@@ -1922,32 +1923,44 @@ static LONGEST
 darwin_xfer_partial (struct target_ops *ops,
 		     enum target_object object, const char *annex,
 		     gdb_byte *readbuf, const gdb_byte *writebuf,
-		     ULONGEST offset, LONGEST len)
+		     ULONGEST offset, ULONGEST len, ULONGEST *xfered_len)
 {
   struct inferior *inf = current_inferior ();
 
   inferior_debug
-    (8, _("darwin_xfer_partial(%s, %d, rbuf=%s, wbuf=%s) pid=%u\n"),
-     core_addr_to_string (offset), (int)len,
+    (8, _("darwin_xfer_partial(%s, %s, rbuf=%s, wbuf=%s) pid=%u\n"),
+     core_addr_to_string (offset), pulongest (len),
      host_address_to_string (readbuf), host_address_to_string (writebuf),
      inf->pid);
 
   switch (object)
     {
     case TARGET_OBJECT_MEMORY:
-      return darwin_read_write_inferior (inf->private->task, offset,
-                                         readbuf, writebuf, len);
+      {
+	int l = darwin_read_write_inferior (inf->private->task, offset,
+					    readbuf, writebuf, len);
+
+	if (l == 0)
+	  return TARGET_XFER_EOF;
+	else
+	  {
+	    gdb_assert (l > 0);
+	    *xfered_len = (ULONGEST) l;
+	    return TARGET_XFER_OK;
+	  }
+      }
 #ifdef TASK_DYLD_INFO_COUNT
     case TARGET_OBJECT_DARWIN_DYLD_INFO:
       if (writebuf != NULL || readbuf == NULL)
         {
           /* Support only read.  */
-          return -1;
+          return TARGET_XFER_E_IO;
         }
-      return darwin_read_dyld_info (inf->private->task, offset, readbuf, len);
+      return darwin_read_dyld_info (inf->private->task, offset, readbuf, len,
+				    xfered_len);
 #endif
     default:
-      return -1;
+      return TARGET_XFER_E_IO;
     }
 
 }
@@ -1976,7 +1989,7 @@ set_enable_mach_exceptions (char *args, int from_tty,
 }
 
 static char *
-darwin_pid_to_exec_file (int pid)
+darwin_pid_to_exec_file (struct target_ops *self, int pid)
 {
   char *path;
   int res;
@@ -1992,7 +2005,7 @@ darwin_pid_to_exec_file (int pid)
 }
 
 static ptid_t
-darwin_get_ada_task_ptid (long lwp, long thread)
+darwin_get_ada_task_ptid (struct target_ops *self, long lwp, long thread)
 {
   int i;
   darwin_thread_t *t;
@@ -2059,7 +2072,7 @@ darwin_get_ada_task_ptid (long lwp, long thread)
 }
 
 static int
-darwin_supports_multi_process (void)
+darwin_supports_multi_process (struct target_ops *self)
 {
   return 1;
 }

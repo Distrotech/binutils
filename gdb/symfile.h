@@ -1,6 +1,6 @@
 /* Definitions for reading symbol files into GDB.
 
-   Copyright (C) 1990-2013 Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -124,6 +124,18 @@ struct symfile_segment_data
 
 typedef void (symbol_filename_ftype) (const char *filename,
 				      const char *fullname, void *data);
+
+/* Callback for quick_symbol_functions->expand_symtabs_matching
+   to match a file name.  */
+
+typedef int (expand_symtabs_file_matcher_ftype) (const char *filename,
+						 void *data, int basenames);
+
+/* Callback for quick_symbol_functions->expand_symtabs_matching
+   to match a symbol name.  */
+
+typedef int (expand_symtabs_symbol_matcher_ftype) (const char *name,
+						   void *data);
 
 /* The "quick" symbol functions exist so that symbol readers can
    avoiding an initial read of all the symbols.  For example, symbol
@@ -256,11 +268,11 @@ struct quick_symbol_functions
 
      Otherwise, if KIND does not match this symbol is skipped.
 
-     If even KIND matches, then NAME_MATCHER is called for each symbol
+     If even KIND matches, then SYMBOL_MATCHER is called for each symbol
      defined in the file.  The symbol "search" name and DATA are passed
-     to NAME_MATCHER.
+     to SYMBOL_MATCHER.
 
-     If NAME_MATCHER returns zero, then this symbol is skipped.
+     If SYMBOL_MATCHER returns zero, then this symbol is skipped.
 
      Otherwise, this symbol's symbol table is expanded.
 
@@ -268,8 +280,8 @@ struct quick_symbol_functions
      functions.  */
   void (*expand_symtabs_matching)
     (struct objfile *objfile,
-     int (*file_matcher) (const char *, void *, int basenames),
-     int (*name_matcher) (const char *, void *),
+     expand_symtabs_file_matcher_ftype *file_matcher,
+     expand_symtabs_symbol_matcher_ftype *symbol_matcher,
      enum search_domain kind,
      void *data);
 
@@ -304,40 +316,6 @@ struct sym_probe_fns
      The returned value does not have to be freed and it has lifetime of the
      OBJFILE.  */
   VEC (probe_p) *(*sym_get_probes) (struct objfile *);
-
-  /* Return the number of arguments available to PROBE.  PROBE will
-     have come from a call to this objfile's sym_get_probes method.
-     If you provide an implementation of sym_get_probes, you must
-     implement this method as well.  */
-  unsigned (*sym_get_probe_argument_count) (struct probe *probe);
-
-  /* Return 1 if the probe interface can evaluate the arguments of probe
-     PROBE, zero otherwise.  This function can be probe-specific, informing
-     whether only the arguments of PROBE can be evaluated, of generic,
-     informing whether the probe interface is able to evaluate any kind of
-     argument.  If you provide an implementation of sym_get_probes, you must
-     implement this method as well.  */
-  int (*can_evaluate_probe_arguments) (struct probe *probe);
-
-  /* Evaluate the Nth argument available to PROBE.  PROBE will have
-     come from a call to this objfile's sym_get_probes method.  N will
-     be between 0 and the number of arguments available to this probe.
-     FRAME is the frame in which the evaluation is done; the frame's
-     PC will match the address of the probe.  If you provide an
-     implementation of sym_get_probes, you must implement this method
-     as well.  */
-  struct value *(*sym_evaluate_probe_argument) (struct probe *probe,
-						unsigned n);
-
-  /* Compile the Nth probe argument to an agent expression.  PROBE
-     will have come from a call to this objfile's sym_get_probes
-     method.  N will be between 0 and the number of arguments
-     available to this probe.  EXPR and VALUE are the agent expression
-     that is being updated.  */
-  void (*sym_compile_to_ax) (struct probe *probe,
-			     struct agent_expr *expr,
-			     struct axs_value *value,
-			     unsigned n);
 
   /* Relocate the probe section of OBJFILE.  */
   void (*sym_relocate_probe) (struct objfile *objfile,
@@ -587,6 +565,13 @@ struct symfile_segment_data *get_symfile_segment_data (bfd *abfd);
 void free_symfile_segment_data (struct symfile_segment_data *data);
 
 extern struct cleanup *increment_reading_symtab (void);
+
+void expand_symtabs_matching (expand_symtabs_file_matcher_ftype *,
+			      expand_symtabs_symbol_matcher_ftype *,
+			      enum search_domain kind, void *data);
+
+void map_symbol_filenames (symbol_filename_ftype *fun, void *data,
+			   int need_fullname);
 
 /* From dwarf2read.c */
 

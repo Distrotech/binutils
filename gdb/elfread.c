@@ -1,6 +1,6 @@
 /* Read ELF (Executable and Linking Format) object files for GDB.
 
-   Copyright (C) 1991-2013 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    Written by Fred Fish at Cygnus Support.
 
@@ -21,7 +21,7 @@
 
 #include "defs.h"
 #include "bfd.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "elf-bfd.h"
 #include "elf/common.h"
 #include "elf/internal.h"
@@ -105,10 +105,10 @@ elf_symfile_segments (bfd *abfd)
   if (num_segments == 0)
     return NULL;
 
-  data = XZALLOC (struct symfile_segment_data);
+  data = XCNEW (struct symfile_segment_data);
   data->num_segments = num_segments;
-  data->segment_bases = XCALLOC (num_segments, CORE_ADDR);
-  data->segment_sizes = XCALLOC (num_segments, CORE_ADDR);
+  data->segment_bases = XCNEWVEC (CORE_ADDR, num_segments);
+  data->segment_sizes = XCNEWVEC (CORE_ADDR, num_segments);
 
   for (i = 0; i < num_segments; i++)
     {
@@ -117,7 +117,7 @@ elf_symfile_segments (bfd *abfd)
     }
 
   num_sections = bfd_count_sections (abfd);
-  data->segment_info = XCALLOC (num_sections, int);
+  data->segment_info = XCNEWVEC (int, num_sections);
 
   for (i = 0, sect = abfd->sections; sect != NULL; i++, sect = sect->next)
     {
@@ -646,7 +646,12 @@ elf_rel_plt_read (struct objfile *objfile, asymbol **dyn_symbol_table)
 
   got_plt = bfd_get_section_by_name (obfd, ".got.plt");
   if (got_plt == NULL)
-    return;
+    {
+      /* For platforms where there is no separate .got.plt.  */
+      got_plt = bfd_get_section_by_name (obfd, ".got");
+      if (got_plt == NULL)
+	return;
+    }
 
   /* This search algorithm is from _bfd_elf_canonicalize_dynamic_reloc.  */
   for (relplt = obfd->sections; relplt != NULL; relplt = relplt->next)
@@ -899,6 +904,7 @@ elf_gnu_ifunc_resolve_by_got (const char *name, CORE_ADDR *addr_p)
       addr = extract_typed_address (buf, ptr_type);
       addr = gdbarch_convert_from_func_ptr_addr (gdbarch, addr,
 						 &current_target);
+      addr = gdbarch_addr_bits_remove (gdbarch, addr);
 
       if (addr_p)
 	*addr_p = addr;
@@ -962,6 +968,7 @@ elf_gnu_ifunc_resolve_addr (struct gdbarch *gdbarch, CORE_ADDR pc)
   address = value_as_address (address_val);
   address = gdbarch_convert_from_func_ptr_addr (gdbarch, address,
 						&current_target);
+  address = gdbarch_addr_bits_remove (gdbarch, address);
 
   if (name_at_pc)
     elf_gnu_ifunc_record_cache (name_at_pc, address);
@@ -1070,6 +1077,7 @@ elf_gnu_ifunc_resolver_return_stop (struct breakpoint *b)
   resolved_pc = gdbarch_convert_from_func_ptr_addr (gdbarch,
 						    resolved_address,
 						    &current_target);
+  resolved_pc = gdbarch_addr_bits_remove (gdbarch, resolved_pc);
 
   gdb_assert (current_program_space == b->pspace || b->pspace == NULL);
   elf_gnu_ifunc_record_cache (b->addr_string, resolved_pc);
@@ -1505,44 +1513,6 @@ elf_get_probes (struct objfile *objfile)
   return probes_per_objfile;
 }
 
-/* Implementation of `sym_get_probe_argument_count', as documented in
-   symfile.h.  */
-
-static unsigned
-elf_get_probe_argument_count (struct probe *probe)
-{
-  return probe->pops->get_probe_argument_count (probe);
-}
-
-/* Implementation of `sym_can_evaluate_probe_arguments', as documented in
-   symfile.h.  */
-
-static int
-elf_can_evaluate_probe_arguments (struct probe *probe)
-{
-  return probe->pops->can_evaluate_probe_arguments (probe);
-}
-
-/* Implementation of `sym_evaluate_probe_argument', as documented in
-   symfile.h.  */
-
-static struct value *
-elf_evaluate_probe_argument (struct probe *probe, unsigned n)
-{
-  return probe->pops->evaluate_probe_argument (probe, n);
-}
-
-/* Implementation of `sym_compile_to_ax', as documented in symfile.h.  */
-
-static void
-elf_compile_to_ax (struct probe *probe,
-		   struct agent_expr *expr,
-		   struct axs_value *value,
-		   unsigned n)
-{
-  probe->pops->compile_to_ax (probe, expr, value, n);
-}
-
 /* Implementation of `sym_relocate_probe', as documented in symfile.h.  */
 
 static void
@@ -1581,10 +1551,6 @@ probe_key_free (struct objfile *objfile, void *d)
 static const struct sym_probe_fns elf_probe_fns =
 {
   elf_get_probes,		    /* sym_get_probes */
-  elf_get_probe_argument_count,	    /* sym_get_probe_argument_count */
-  elf_can_evaluate_probe_arguments, /* sym_can_evaluate_probe_arguments */
-  elf_evaluate_probe_argument,	    /* sym_evaluate_probe_argument */
-  elf_compile_to_ax,		    /* sym_compile_to_ax */
   elf_symfile_relocate_probe,	    /* sym_relocate_probe */
 };
 

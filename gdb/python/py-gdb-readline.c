@@ -1,6 +1,6 @@
 /* Readline support for Python.
 
-   Copyright (C) 2012-2013 Free Software Foundation, Inc.
+   Copyright (C) 2012-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -22,7 +22,7 @@
 #include "exceptions.h"
 #include "top.h"
 #include "cli/cli-utils.h"
-#include "gdb_string.h"
+#include <string.h>
 
 #include <stddef.h>
 

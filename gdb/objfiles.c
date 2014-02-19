@@ -1,6 +1,6 @@
 /* GDB routines for manipulating objfiles.
 
-   Copyright (C) 1992-2013 Free Software Foundation, Inc.
+   Copyright (C) 1992-2014 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
@@ -35,10 +35,10 @@
 
 #include "gdb_assert.h"
 #include <sys/types.h>
-#include "gdb_stat.h"
+#include <sys/stat.h>
 #include <fcntl.h>
 #include "gdb_obstack.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "hashtab.h"
 
 #include "breakpoint.h"
@@ -102,7 +102,7 @@ get_objfile_pspace_data (struct program_space *pspace)
   info = program_space_data (pspace, objfiles_pspace_data);
   if (info == NULL)
     {
-      info = XZALLOC (struct objfile_pspace_info);
+      info = XCNEW (struct objfile_pspace_info);
       set_program_space_data (pspace, objfiles_pspace_data, info);
     }
 
@@ -152,6 +152,7 @@ get_objfile_bfd_data (struct objfile *objfile, struct bfd *abfd)
       obstack_init (&storage->storage_obstack);
       storage->filename_cache = bcache_xmalloc (NULL, NULL);
       storage->macro_cache = bcache_xmalloc (NULL, NULL);
+      storage->language_of_main = language_unknown;
     }
 
   return storage;
@@ -184,6 +185,20 @@ void
 set_objfile_per_bfd (struct objfile *objfile)
 {
   objfile->per_bfd = get_objfile_bfd_data (objfile, objfile->obfd);
+}
+
+/* Set the objfile's per-BFD notion of the "main" name and
+   language.  */
+
+void
+set_objfile_main_name (struct objfile *objfile,
+		       const char *name, enum language lang)
+{
+  if (objfile->per_bfd->name_of_main == NULL
+      || strcmp (objfile->per_bfd->name_of_main, name) != 0)
+    objfile->per_bfd->name_of_main
+      = obstack_copy0 (&objfile->per_bfd->storage_obstack, name, strlen (name));
+  objfile->per_bfd->language_of_main = lang;
 }
 
 
@@ -272,6 +287,7 @@ struct objfile *
 allocate_objfile (bfd *abfd, const char *name, int flags)
 {
   struct objfile *objfile;
+  char *expanded_name;
 
   objfile = (struct objfile *) xzalloc (sizeof (struct objfile));
   objfile->psymbol_cache = psymbol_bcache_init ();
@@ -286,10 +302,20 @@ allocate_objfile (bfd *abfd, const char *name, int flags)
     {
       gdb_assert (abfd == NULL);
       gdb_assert ((flags & OBJF_NOT_FILENAME) != 0);
-      name = "<<anonymous objfile>>";
+      expanded_name = xstrdup ("<<anonymous objfile>>");
     }
-  objfile->original_name = obstack_copy0 (&objfile->objfile_obstack, name,
-					  strlen (name));
+  else if ((flags & OBJF_NOT_FILENAME) != 0)
+    expanded_name = xstrdup (name);
+  else
+    expanded_name = gdb_abspath (name);
+  objfile->original_name = obstack_copy0 (&objfile->objfile_obstack,
+					  expanded_name,
+					  strlen (expanded_name));
+  xfree (expanded_name);
+
+  /* Update the per-objfile information that comes from the bfd, ensuring
+     that any data that is reference is saved in the per-objfile data
+     region.  */
 
   /* Update the per-objfile information that comes from the bfd, ensuring
      that any data that is reference is saved in the per-objfile data
@@ -353,10 +379,12 @@ get_objfile_arch (struct objfile *objfile)
 int
 entry_point_address_query (CORE_ADDR *entry_p)
 {
-  if (symfile_objfile == NULL || !symfile_objfile->ei.entry_point_p)
+  if (symfile_objfile == NULL || !symfile_objfile->per_bfd->ei.entry_point_p)
     return 0;
 
-  *entry_p = symfile_objfile->ei.entry_point;
+  *entry_p = (symfile_objfile->per_bfd->ei.entry_point
+	      + ANOFFSET (symfile_objfile->section_offsets,
+			  symfile_objfile->per_bfd->ei.the_bfd_section_index));
 
   return 1;
 }
@@ -438,26 +466,6 @@ put_objfile_before (struct objfile *objfile, struct objfile *before_this)
 		  _("put_objfile_before: before objfile not in list"));
 }
 
-/* Put OBJFILE at the front of the list.  */
-
-void
-objfile_to_front (struct objfile *objfile)
-{
-  struct objfile **objp;
-  for (objp = &object_files; *objp != NULL; objp = &((*objp)->next))
-    {
-      if (*objp == objfile)
-	{
-	  /* Unhook it from where it is.  */
-	  *objp = objfile->next;
-	  /* Put it in the front.  */
-	  objfile->next = object_files;
-	  object_files = objfile;
-	  break;
-	}
-    }
-}
-
 /* Unlink OBJFILE from the list of known objfiles, if it is found in the
    list.
 
@@ -529,21 +537,7 @@ free_objfile_separate_debug (struct objfile *objfile)
     }
 }
 
-/* Destroy an objfile and all the symtabs and psymtabs under it.  Note
-   that as much as possible is allocated on the objfile_obstack 
-   so that the memory can be efficiently freed.
-
-   Things which we do NOT free because they are not in malloc'd memory
-   or not in memory specific to the objfile include:
-
-   objfile -> sf
-
-   FIXME:  If the objfile is using reusable symbol information (via mmalloc),
-   then we need to take into account the fact that more than one process
-   may be using the symbol information at the same time (when mmalloc is
-   extended to support cooperative locking).  When more than one process
-   is using the mapped symbol info, we need to be more careful about when
-   we free objects in the reusable area.  */
+/* Destroy an objfile and all the symtabs and psymtabs under it.  */
 
 void
 free_objfile (struct objfile *objfile)
@@ -816,22 +810,6 @@ objfile_relocate1 (struct objfile *objfile,
   /* Relocating different sections by different amounts may cause the symbols
      to be out of order.  */
   msymbols_sort (objfile);
-
-  if (objfile->ei.entry_point_p)
-    {
-      /* Relocate ei.entry_point with its section offset, use SECT_OFF_TEXT
-	 only as a fallback.  */
-      struct obj_section *s;
-      s = find_pc_section (objfile->ei.entry_point);
-      if (s)
-	{
-	  int idx = gdb_bfd_section_index (objfile->obfd, s->the_bfd_section);
-
-	  objfile->ei.entry_point += ANOFFSET (delta, idx);
-	}
-      else
-        objfile->ei.entry_point += ANOFFSET (delta, SECT_OFF_TEXT (objfile));
-    }
 
   {
     int i;

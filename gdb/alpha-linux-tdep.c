@@ -1,5 +1,5 @@
 /* Target-dependent code for GNU/Linux on Alpha.
-   Copyright (C) 2002-2013 Free Software Foundation, Inc.
+   Copyright (C) 2002-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -19,7 +19,7 @@
 #include "defs.h"
 #include "frame.h"
 #include "gdb_assert.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "osabi.h"
 #include "solib-svr4.h"
 #include "symtab.h"

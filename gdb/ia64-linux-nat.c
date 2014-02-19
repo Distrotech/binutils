@@ -1,7 +1,7 @@
 /* Functions specific to running gdb native on IA-64 running
    GNU/Linux.
 
-   Copyright (C) 1999-2013 Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -19,7 +19,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
-#include "gdb_string.h"
+#include <string.h>
 #include "inferior.h"
 #include "target.h"
 #include "gdbcore.h"
@@ -542,7 +542,8 @@ is_power_of_2 (int val)
 }
 
 static int
-ia64_linux_insert_watchpoint (CORE_ADDR addr, int len, int rw,
+ia64_linux_insert_watchpoint (struct target_ops *self,
+			      CORE_ADDR addr, int len, int rw,
 			      struct expression *cond)
 {
   struct lwp_info *lp;
@@ -596,7 +597,8 @@ ia64_linux_insert_watchpoint (CORE_ADDR addr, int len, int rw,
 }
 
 static int
-ia64_linux_remove_watchpoint (CORE_ADDR addr, int len, int type,
+ia64_linux_remove_watchpoint (struct target_ops *self,
+			      CORE_ADDR addr, int len, int type,
 			      struct expression *cond)
 {
   int idx;
@@ -669,14 +671,15 @@ ia64_linux_stopped_data_address (struct target_ops *ops, CORE_ADDR *addr_p)
 }
 
 static int
-ia64_linux_stopped_by_watchpoint (void)
+ia64_linux_stopped_by_watchpoint (struct target_ops *ops)
 {
   CORE_ADDR addr;
-  return ia64_linux_stopped_data_address (&current_target, &addr);
+  return ia64_linux_stopped_data_address (ops, &addr);
 }
 
 static int
-ia64_linux_can_use_hw_breakpoint (int type, int cnt, int othertype)
+ia64_linux_can_use_hw_breakpoint (struct target_ops *self,
+				  int type, int cnt, int othertype)
 {
   return 1;
 }
@@ -833,16 +836,14 @@ ia64_linux_store_registers (struct target_ops *ops,
 }
 
 
-static LONGEST (*super_xfer_partial) (struct target_ops *, enum target_object,
-				      const char *, gdb_byte *,
-				      const gdb_byte *, ULONGEST, LONGEST);
+static target_xfer_partial_ftype *super_xfer_partial;
 
 static LONGEST 
 ia64_linux_xfer_partial (struct target_ops *ops,
 			 enum target_object object,
 			 const char *annex,
 			 gdb_byte *readbuf, const gdb_byte *writebuf,
-			 ULONGEST offset, LONGEST len)
+			 ULONGEST offset, ULONGEST len)
 {
   if (object == TARGET_OBJECT_UNWIND_TABLE && writebuf == NULL && offset == 0)
     return syscall (__NR_getunwind, readbuf, len);

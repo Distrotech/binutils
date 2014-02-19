@@ -1,6 +1,6 @@
 /* Print and select stack frames for GDB, the GNU debugger.
 
-   Copyright (C) 1986-2013 Free Software Foundation, Inc.
+   Copyright (C) 1986-2014 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -50,10 +50,10 @@
 
 #include "gdb_assert.h"
 #include <ctype.h>
-#include "gdb_string.h"
+#include <string.h>
 
 #include "symfile.h"
-#include "python/python.h"
+#include "extension.h"
 
 void (*deprecated_selected_frame_level_changed_hook) (int);
 
@@ -1407,7 +1407,9 @@ frame_info (char *addr_exp, int from_tty)
   struct cleanup *back_to = make_cleanup (null_cleanup, NULL);
   CORE_ADDR frame_pc;
   int frame_pc_p;
-  CORE_ADDR caller_pc;
+  /* Initialize it to avoid "may be used uninitialized" warning.  */
+  CORE_ADDR caller_pc = 0;
+  volatile struct gdb_exception ex;
 
   fi = parse_frame_specification_1 (addr_exp, "No stack.", &selected_frame_p);
   gdbarch = get_frame_arch (fi);
@@ -1493,11 +1495,29 @@ frame_info (char *addr_exp, int from_tty)
 		     sal.line);
   puts_filtered ("; ");
   wrap_here ("    ");
-  printf_filtered ("saved %s ", pc_regname);
-  if (frame_unwind_caller_pc_if_available (fi, &caller_pc))
-    fputs_filtered (paddress (gdbarch, caller_pc), gdb_stdout);
+  printf_filtered ("saved %s = ", pc_regname);
+
+  TRY_CATCH (ex, RETURN_MASK_ERROR)
+    {
+      caller_pc = frame_unwind_caller_pc (fi);
+    }
+  if (ex.reason < 0)
+    {
+      switch (ex.error)
+	{
+	case NOT_AVAILABLE_ERROR:
+	  val_print_unavailable (gdb_stdout);
+	  break;
+	case OPTIMIZED_OUT_ERROR:
+	  val_print_not_saved (gdb_stdout);
+	  break;
+	default:
+	  fprintf_filtered (gdb_stdout, _("<error: %s>"), ex.message);
+	  break;
+	}
+    }
   else
-    fputs_filtered ("<unavailable>", gdb_stdout);
+    fputs_filtered (paddress (gdbarch, caller_pc), gdb_stdout);
   printf_filtered ("\n");
 
   if (calling_frame_info == NULL)
@@ -1688,7 +1708,7 @@ backtrace_command_1 (char *count_exp, int show_locals, int no_filters,
   int i;
   struct frame_info *trailing;
   int trailing_level, py_start = 0, py_end = 0;
-  enum py_bt_status result = PY_BT_ERROR;
+  enum ext_lang_bt_status result = EXT_LANG_BT_ERROR;
 
   if (!target_has_stack)
     error (_("No stack."));
@@ -1762,7 +1782,7 @@ backtrace_command_1 (char *count_exp, int show_locals, int no_filters,
   if (! no_filters)
     {
       int flags = PRINT_LEVEL | PRINT_FRAME_INFO | PRINT_ARGS;
-      enum py_frame_args arg_type;
+      enum ext_lang_frame_args arg_type;
 
       if (show_locals)
 	flags |= PRINT_LOCALS;
@@ -1774,13 +1794,14 @@ backtrace_command_1 (char *count_exp, int show_locals, int no_filters,
       else
 	arg_type = NO_VALUES;
 
-      result = apply_frame_filter (get_current_frame (), flags, arg_type,
-				   current_uiout, py_start, py_end);
-
+      result = apply_ext_lang_frame_filter (get_current_frame (), flags,
+					    arg_type, current_uiout,
+					    py_start, py_end);
     }
+
   /* Run the inbuilt backtrace if there are no filters registered, or
      "no-filters" has been specified from the command.  */
-  if (no_filters ||  result == PY_BT_NO_FILTERS)
+  if (no_filters ||  result == EXT_LANG_BT_NO_FILTERS)
     {
       for (i = 0, fi = trailing; fi && count--; i++, fi = get_prev_frame (fi))
 	{

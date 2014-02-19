@@ -4148,7 +4148,7 @@ bfd_mach_o_mkobject_init (bfd *abfd)
 {
   bfd_mach_o_data_struct *mdata = NULL;
 
-  mdata = bfd_alloc (abfd, sizeof (bfd_mach_o_data_struct));
+  mdata = bfd_zalloc (abfd, sizeof (bfd_mach_o_data_struct));
   if (mdata == NULL)
     return FALSE;
   abfd->tdata.mach_o_data = mdata;
@@ -4353,13 +4353,13 @@ bfd_mach_o_fat_member_init (bfd *abfd,
   if (ap)
     {
       /* Use the architecture name if known.  */
-      abfd->filename = ap->printable_name;
+      abfd->filename = xstrdup (ap->printable_name);
     }
   else
     {
       /* Forge a uniq id.  */
       const size_t namelen = 2 + 8 + 1 + 2 + 8 + 1;
-      char *name = bfd_alloc (abfd, namelen);
+      char *name = xmalloc (namelen);
       snprintf (name, namelen, "0x%lx-0x%lx",
                 entry->cputype, entry->cpusubtype);
       abfd->filename = name;

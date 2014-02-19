@@ -1,6 +1,6 @@
 /* CTF format support.
 
-   Copyright (C) 2012-2013 Free Software Foundation, Inc.
+   Copyright (C) 2012-2014 Free Software Foundation, Inc.
    Contributed by Hui Zhu <hui_zhu@mentor.com>
    Contributed by Yao Qi <yao@codesourcery.com>
 
@@ -23,9 +23,11 @@
 #include "ctf.h"
 #include "tracepoint.h"
 #include "regcache.h"
-#include "gdb_stat.h"
+#include <sys/stat.h>
 #include "exec.h"
 #include "completer.h"
+#include "inferior.h"
+#include "gdbthread.h"
 
 #include <ctype.h>
 
@@ -75,6 +77,8 @@
 #define CTF_EVENT_ID_STATUS 4
 #define CTF_EVENT_ID_TSV_DEF 5
 #define CTF_EVENT_ID_TP_DEF 6
+
+#define CTF_PID (2)
 
 /* The state kept while writing the CTF datastream file.  */
 
@@ -313,18 +317,7 @@ ctf_start (struct trace_file_writer *self, const char *dirname)
   struct ctf_trace_file_writer *writer
     = (struct ctf_trace_file_writer *) self;
   int i;
-  mode_t hmode = S_IRUSR | S_IWUSR | S_IXUSR
-#ifdef S_IRGRP
-    | S_IRGRP
-#endif
-#ifdef S_IXGRP
-    | S_IXGRP
-#endif
-    | S_IROTH /* Defined in common/gdb_stat.h if not defined.  */
-#ifdef S_IXOTH
-    | S_IXOTH
-#endif
-    ;
+  mode_t hmode = S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH;
 
   /* Create DIRNAME.  */
   if (mkdir (dirname, hmode) && errno != EEXIST)
@@ -1199,6 +1192,10 @@ ctf_open (char *dirname, int from_tty)
   trace_dirname = xstrdup (dirname);
   push_target (&ctf_ops);
 
+  inferior_appeared (current_inferior (), CTF_PID);
+  inferior_ptid = pid_to_ptid (CTF_PID);
+  add_thread_silent (inferior_ptid);
+
   merge_uploaded_trace_state_variables (&uploaded_tsvs);
   merge_uploaded_tracepoints (&uploaded_tps);
 }
@@ -1207,11 +1204,17 @@ ctf_open (char *dirname, int from_tty)
    CTF iterator and context.  */
 
 static void
-ctf_close (void)
+ctf_close (struct target_ops *self)
 {
+  int pid;
+
   ctf_destroy ();
   xfree (trace_dirname);
   trace_dirname = NULL;
+
+  pid = ptid_get_pid (inferior_ptid);
+  inferior_ptid = null_ptid;	/* Avoid confusion from thread stuff.  */
+  exit_inferior_silent (pid);
 
   trace_reset_local_state ();
 }
@@ -1356,11 +1359,11 @@ ctf_fetch_registers (struct target_ops *ops,
    OFFSET is within the range, read the contents from events to
    READBUF.  */
 
-static LONGEST
+static enum target_xfer_status
 ctf_xfer_partial (struct target_ops *ops, enum target_object object,
 		  const char *annex, gdb_byte *readbuf,
 		  const gdb_byte *writebuf, ULONGEST offset,
-		  LONGEST len)
+		  ULONGEST len, ULONGEST *xfered_len)
 {
   /* We're only doing regular memory for now.  */
   if (object != TARGET_OBJECT_MEMORY)
@@ -1446,7 +1449,13 @@ ctf_xfer_partial (struct target_ops *ops, enum target_object object,
 	      /* Restore the position.  */
 	      bt_iter_set_pos (bt_ctf_get_iter (ctf_iter), pos);
 
-	      return amt;
+	      if (amt == 0)
+		return TARGET_XFER_EOF;
+	      else
+		{
+		  *xfered_len = amt;
+		  return TARGET_XFER_OK;
+		}
 	    }
 
 	  if (bt_iter_next (bt_ctf_get_iter (ctf_iter)) < 0)
@@ -1484,13 +1493,20 @@ ctf_xfer_partial (struct target_ops *ops, enum target_object object,
 
 	      amt = bfd_get_section_contents (exec_bfd, s,
 					      readbuf, offset - vma, amt);
-	      return amt;
+
+	      if (amt == 0)
+		return TARGET_XFER_EOF;
+	      else
+		{
+		  *xfered_len = amt;
+		  return TARGET_XFER_OK;
+		}
 	    }
 	}
     }
 
   /* Indicate failure to find the requested memory block.  */
-  return -1;
+  return TARGET_XFER_E_IO;
 }
 
 /* This is the implementation of target_ops method
@@ -1500,7 +1516,8 @@ ctf_xfer_partial (struct target_ops *ops, enum target_object object,
    true, otherwise return false.  */
 
 static int
-ctf_get_trace_state_variable_value (int tsvnum, LONGEST *val)
+ctf_get_trace_state_variable_value (struct target_ops *self,
+				    int tsvnum, LONGEST *val)
 {
   struct bt_iter_pos *pos;
   int found = 0;
@@ -1617,7 +1634,7 @@ ctf_get_traceframe_address (void)
    number in it.  Return traceframe number when matched.  */
 
 static int
-ctf_trace_find (enum trace_find_type type, int num,
+ctf_trace_find (struct target_ops *self, enum trace_find_type type, int num,
 		CORE_ADDR addr1, CORE_ADDR addr2, int *tpp)
 {
   int ret = -1;
@@ -1736,13 +1753,22 @@ ctf_has_registers (struct target_ops *ops)
   return get_traceframe_number () != -1;
 }
 
+/* This is the implementation of target_ops method to_thread_alive.
+   CTF trace data has one thread faked by GDB.  */
+
+static int
+ctf_thread_alive (struct target_ops *ops, ptid_t ptid)
+{
+  return 1;
+}
+
 /* This is the implementation of target_ops method to_traceframe_info.
    Iterate the events whose name is "memory", in current
    frame, extract memory range information, and return them in
    traceframe_info.  */
 
 static struct traceframe_info *
-ctf_traceframe_info (void)
+ctf_traceframe_info (struct target_ops *self)
 {
   struct traceframe_info *info = XCNEW (struct traceframe_info);
   const char *name;
@@ -1812,7 +1838,7 @@ ctf_traceframe_info (void)
    The trace status for a file is that tracing can never be run.  */
 
 static int
-ctf_get_trace_status (struct trace_status *ts)
+ctf_get_trace_status (struct target_ops *self, struct trace_status *ts)
 {
   /* Other bits of trace status were collected as part of opening the
      trace files, so nothing to do here.  */
@@ -1842,6 +1868,7 @@ Specify the filename of the CTF directory.";
   ctf_ops.to_has_stack = ctf_has_stack;
   ctf_ops.to_has_registers = ctf_has_registers;
   ctf_ops.to_traceframe_info = ctf_traceframe_info;
+  ctf_ops.to_thread_alive = ctf_thread_alive;
   ctf_ops.to_magic = OPS_MAGIC;
 }
 
