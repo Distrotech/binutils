@@ -1,5 +1,10 @@
 bfd/
 
+2014-03-07  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* format.c (bfd_check_format_matches): Don't check the plugin
+	target twice.
+
 2013-02-15  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* ldlang.c (lang_finish): Take a bfd_boolean argument to support
