@@ -1,5 +1,11 @@
 bfd/
 
+2014-03-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/16746
+	* linker.c (_bfd_generic_link_add_one_symbol): Don't issue a
+	warning for reference in LTO IR which may be removed by LTO later.
+
 2014-03-07  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* format.c (bfd_check_format_matches): Don't check the plugin
@@ -270,6 +276,15 @@ ld/
 	* scripttempl/pep.sc: Likewise.
 
 ld/testsuite/
+
+2014-03-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR ld/16746
+	* ld-plugin/lto.exp: Add 4 tests for PR ld/16746.
+	* ld-plugin/pr16746a.c: New file.
+	* ld-plugin/pr16746b.c: Likewise.
+	* ld-plugin/pr16746c.c: Likewise.
+	* ld-plugin/pr16746d.c: Likewise.
 
 2014-03-07  H.J. Lu  <hongjiu.lu@intel.com>
 

@@ -1902,8 +1902,10 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	  break;
 
 	case WARNC:
-	  /* Issue a warning and cycle.  */
-	  if (h->u.i.warning != NULL)
+	  /* Issue a warning and cycle.  Don't issue a warning for
+	     reference in LTO IR which may be removed by LTO later. */
+	  if (h->u.i.warning != NULL
+	      && (abfd->flags & BFD_PLUGIN) == 0)
 	    {
 	      if (! (*info->callbacks->warning) (info, h->u.i.warning,
 						 h->root.string, abfd,
@@ -1928,6 +1930,11 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	  break;
 
 	case WARN:
+	  /* Don't issue a warning for reference in LTO IR which may be
+	     removed by LTO later.  Make a warning symbol instead.  */
+	  if ((hash_entry_bfd (h)->flags & BFD_PLUGIN) != 0)
+	    goto mwarn;
+
 	  /* Issue a warning.  */
 	  if (! (*info->callbacks->warning) (info, string, h->root.string,
 					     hash_entry_bfd (h), NULL, 0))
@@ -1949,6 +1956,7 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	    }
 	  /* Fall through.  */
 	case MWARN:
+mwarn:
 	  /* Make a warning symbol.  */
 	  {
 	    struct bfd_link_hash_entry *sub;
