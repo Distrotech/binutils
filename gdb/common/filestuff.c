@@ -350,10 +350,12 @@ gdb_fopen_cloexec (const char *filename, const char *opentype)
 /* See filestuff.h.  */
 
 int
-gdb_socketpair_cloexec (int namespace, int style, int protocol, int filedes[2])
+gdb_socketpair_cloexec (int the_namespace, int style, int protocol,
+			int filedes[2])
 {
 #ifdef HAVE_SOCKETPAIR
-  int result = socketpair (namespace, style | SOCK_CLOEXEC, protocol, filedes);
+  int result = socketpair (the_namespace, style | SOCK_CLOEXEC,
+			   protocol, filedes);
 
   if (result != -1)
     {
@@ -370,9 +372,9 @@ gdb_socketpair_cloexec (int namespace, int style, int protocol, int filedes[2])
 /* See filestuff.h.  */
 
 int
-gdb_socket_cloexec (int namespace, int style, int protocol)
+gdb_socket_cloexec (int the_namespace, int style, int protocol)
 {
-  int result = socket (namespace, style | SOCK_CLOEXEC, protocol);
+  int result = socket (the_namespace, style | SOCK_CLOEXEC, protocol);
 
   if (result != -1)
     socket_mark_cloexec (result);
