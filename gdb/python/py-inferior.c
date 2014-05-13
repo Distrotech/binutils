@@ -326,7 +326,9 @@ infpy_threads (PyObject *self, PyObject *args)
   INFPY_REQUIRE_VALID (inf_obj);
 
   TRY_CATCH (except, RETURN_MASK_ALL)
-    update_thread_list ();
+    {
+      update_thread_list ();
+    }
   GDB_PY_HANDLE_EXCEPTION (except);
 
   tuple = PyTuple_New (inf_obj->nthreads);

@@ -608,7 +608,9 @@ mi_breakpoint_created (struct breakpoint *b)
      ui_out_redirect.  */
   ui_out_redirect (mi_uiout, mi->event_channel);
   TRY_CATCH (e, RETURN_MASK_ERROR)
-    gdb_breakpoint_query (mi_uiout, b->number, NULL);
+    {
+      gdb_breakpoint_query (mi_uiout, b->number, NULL);
+    }
   ui_out_redirect (mi_uiout, NULL);
 
   gdb_flush (mi->event_channel);
@@ -662,7 +664,9 @@ mi_breakpoint_modified (struct breakpoint *b)
      ui_out_redirect.  */
   ui_out_redirect (mi_uiout, mi->event_channel);
   TRY_CATCH (e, RETURN_MASK_ERROR)
-    gdb_breakpoint_query (mi_uiout, b->number, NULL);
+    {
+      gdb_breakpoint_query (mi_uiout, b->number, NULL);
+    }
   ui_out_redirect (mi_uiout, NULL);
 
   gdb_flush (mi->event_channel);

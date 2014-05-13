@@ -107,7 +107,9 @@ record_btrace_enable_warn (struct thread_info *tp)
   volatile struct gdb_exception error;
 
   TRY_CATCH (error, RETURN_MASK_ERROR)
-    btrace_enable (tp);
+    {
+      btrace_enable (tp);
+    }
 
   if (error.message != NULL)
     warning ("%s", error.message);
@@ -878,7 +880,9 @@ record_btrace_insert_breakpoint (struct target_ops *ops,
 
   ret = 0;
   TRY_CATCH (except, RETURN_MASK_ALL)
-    ret = ops->beneath->to_insert_breakpoint (ops->beneath, gdbarch, bp_tgt);
+    {
+      ret = ops->beneath->to_insert_breakpoint (ops->beneath, gdbarch, bp_tgt);
+    }
 
   record_btrace_allow_memory_access = old;
 
@@ -905,7 +909,9 @@ record_btrace_remove_breakpoint (struct target_ops *ops,
 
   ret = 0;
   TRY_CATCH (except, RETURN_MASK_ALL)
-    ret = ops->beneath->to_remove_breakpoint (ops->beneath, gdbarch, bp_tgt);
+    {
+      ret = ops->beneath->to_remove_breakpoint (ops->beneath, gdbarch, bp_tgt);
+    }
 
   record_btrace_allow_memory_access = old;
 

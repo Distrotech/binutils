@@ -839,9 +839,11 @@ jit_reader_try_read_symtab (struct jit_code_entry *code_entry,
 
   status = 1;
   TRY_CATCH (e, RETURN_MASK_ALL)
-    if (target_read_memory (code_entry->symfile_addr, gdb_mem,
-                            code_entry->symfile_size))
-      status = 0;
+    {
+      if (target_read_memory (code_entry->symfile_addr, gdb_mem,
+			      code_entry->symfile_size))
+	status = 0;
+    }
   if (e.reason < 0)
     status = 0;
 

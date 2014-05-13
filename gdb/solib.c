@@ -1331,7 +1331,9 @@ reload_shared_libraries_1 (int from_tty)
 	  volatile struct gdb_exception e;
 
 	  TRY_CATCH (e, RETURN_MASK_ERROR)
-	    solib_map_sections (so);
+	    {
+	      solib_map_sections (so);
+	    }
 
 	  if (e.reason < 0)
 	    exception_fprintf (gdb_stderr, e,

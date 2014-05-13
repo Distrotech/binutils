@@ -12810,7 +12810,9 @@ update_global_location_list_nothrow (int inserting)
   volatile struct gdb_exception e;
 
   TRY_CATCH (e, RETURN_MASK_ERROR)
-    update_global_location_list (inserting);
+    {
+      update_global_location_list (inserting);
+    }
 }
 
 /* Clear BKP from a BPS.  */
