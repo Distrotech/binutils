@@ -1294,8 +1294,7 @@ attach_thread (ptid_t ptid, const td_thrhandle_t *th_p,
     }
 
   /* Construct the thread's private data.  */
-  priv = xmalloc (sizeof (struct private_thread_info));
-  memset (priv, 0, sizeof (struct private_thread_info));
+  priv = XCNEW (struct private_thread_info);
 
   /* A thread ID of zero may mean the thread library has not initialized
      yet.  But we shouldn't even get here if that's the case.  FIXME:
@@ -1949,7 +1948,7 @@ info_auto_load_libthread_db (char *args, int from_tty)
     if (info->filename != NULL)
       info_count++;
 
-  array = xmalloc (sizeof (*array) * info_count);
+  array = XNEWVEC (struct thread_db_info *, info_count);
   back_to = make_cleanup (xfree, array);
 
   info_count = 0;

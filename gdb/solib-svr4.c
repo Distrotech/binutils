@@ -1091,10 +1091,10 @@ svr4_copy_library_list (struct so_list *src)
     {
       struct so_list *newobj;
 
-      newobj = xmalloc (sizeof (struct so_list));
+      newobj = XNEW (struct so_list);
       memcpy (newobj, src, sizeof (struct so_list));
 
-      newobj->lm_info = xmalloc (sizeof (struct lm_info));
+      newobj->lm_info = XNEW (struct lm_info);
       memcpy (newobj->lm_info, src->lm_info, sizeof (struct lm_info));
 
       newobj->next = NULL;
