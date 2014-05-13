@@ -129,7 +129,7 @@ void									\
 queue_ ## TYPE ## _enque (QUEUE (TYPE) *q, TYPE v)			\
 {									\
   QUEUE_ELEM (TYPE) *p							\
-    = xmalloc (sizeof (QUEUE_ELEM (TYPE)));				\
+    = (QUEUE_ELEM (TYPE *)) xmalloc (sizeof (QUEUE_ELEM (TYPE)));	\
 									\
   gdb_assert (q != NULL);						\
   p->data = v;								\
