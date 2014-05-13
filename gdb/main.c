@@ -280,22 +280,24 @@ captured_command_loop (void *data)
   return 1;
 }
 
+enum cmdarg_kind {
+  /* Option type -x.  */
+  CMDARG_FILE,
+
+  /* Option type -ex.  */
+  CMDARG_COMMAND,
+
+  /* Option type -ix.  */
+  CMDARG_INIT_FILE,
+    
+  /* Option type -iex.  */
+  CMDARG_INIT_COMMAND
+};
+
 /* Arguments of --command option and its counterpart.  */
 typedef struct cmdarg {
   /* Type of this option.  */
-  enum {
-    /* Option type -x.  */
-    CMDARG_FILE,
-
-    /* Option type -ex.  */
-    CMDARG_COMMAND,
-
-    /* Option type -ix.  */
-    CMDARG_INIT_FILE,
-    
-    /* Option type -iex.  */
-    CMDARG_INIT_COMMAND
-  } type;
+  enum cmdarg_kind type;
 
   /* Value of this option - filename or the GDB command itself.  String memory
      is not owned by this structure despite it is 'const'.  */
