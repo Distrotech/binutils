@@ -212,7 +212,7 @@ lm_info_read (CORE_ADDR lm_addr)
     {
       struct type *ptr_type = builtin_type (target_gdbarch ())->builtin_data_ptr;
 
-      lm_info = xzalloc (sizeof (*lm_info));
+      lm_info = XCNEW (struct lm_info);
       lm_info->lm_addr = lm_addr;
 
       lm_info->l_addr_inferior = extract_typed_address (&lm[lmo->l_addr_offset],
@@ -1281,7 +1281,7 @@ svr4_default_sos (void)
 
   newobj = XCNEW (struct so_list);
 
-  newobj->lm_info = xzalloc (sizeof (struct lm_info));
+  newobj->lm_info = XCNEW (struct lm_info);
 
   /* Nothing will ever check the other fields if we set l_addr_p.  */
   newobj->lm_info->l_addr = info->debug_loader_offset;
