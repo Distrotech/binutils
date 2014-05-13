@@ -484,16 +484,16 @@ irix_current_sos (void)
 	  int errcode;
 	  char *name_buf;
 	  int name_size;
-	  struct so_list *new
+	  struct so_list *newobj
 	    = (struct so_list *) xmalloc (sizeof (struct so_list));
-	  struct cleanup *old_chain = make_cleanup (xfree, new);
+	  struct cleanup *old_chain = make_cleanup (xfree, newobj);
 
-	  memset (new, 0, sizeof (*new));
+	  memset (newobj, 0, sizeof (*newobj));
 
-	  new->lm_info = xmalloc (sizeof (struct lm_info));
-	  make_cleanup (xfree, new->lm_info);
+	  newobj->lm_info = xmalloc (sizeof (struct lm_info));
+	  make_cleanup (xfree, newobj->lm_info);
 
-	  *new->lm_info = lm;
+	  *newobj->lm_info = lm;
 
 	  /* Extract this shared object's name.  */
 	  name_size = lm.pathname_len;
@@ -515,15 +515,15 @@ irix_current_sos (void)
 		       safe_strerror (errcode));
 	  else
 	    {
-	      strncpy (new->so_name, name_buf, name_size);
-	      new->so_name[name_size] = '\0';
+	      strncpy (newobj->so_name, name_buf, name_size);
+	      newobj->so_name[name_size] = '\0';
 	      xfree (name_buf);
-	      strcpy (new->so_original_name, new->so_name);
+	      strcpy (newobj->so_original_name, newobj->so_name);
 	    }
 
-	  new->next = 0;
-	  *link_ptr = new;
-	  link_ptr = &new->next;
+	  newobj->next = 0;
+	  *link_ptr = newobj;
+	  link_ptr = &newobj->next;
 
 	  discard_cleanups (old_chain);
 	}

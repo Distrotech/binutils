@@ -250,7 +250,7 @@ struct quick_symbol_functions
      non-zero to indicate that the scan should be terminated.  */
 
   void (*map_matching_symbols) (struct objfile *,
-				const char *name, domain_enum namespace,
+				const char *name, domain_enum the_namespace,
 				int global,
 				int (*callback) (struct block *,
 						 struct symbol *, void *),

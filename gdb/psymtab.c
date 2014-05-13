@@ -1208,7 +1208,7 @@ psymtab_to_fullname (struct partial_symtab *ps)
     ever returns non-zero, and otherwise returns 0.  */
 
 static int
-map_block (const char *name, domain_enum namespace, struct objfile *objfile,
+map_block (const char *name, domain_enum the_namespace, struct objfile *objfile,
 	   struct block *block,
 	   int (*callback) (struct block *, struct symbol *, void *),
 	   void *data, symbol_compare_ftype *match)
@@ -1219,7 +1219,7 @@ map_block (const char *name, domain_enum namespace, struct objfile *objfile,
   for (sym = block_iter_match_first (block, name, match, &iter);
        sym != NULL; sym = block_iter_match_next (name, match, &iter))
     {
-      if (SYMBOL_DOMAIN (sym) == namespace)
+      if (SYMBOL_DOMAIN (sym) == the_namespace)
 	{
 	  if (callback (block, sym, data))
 	    return 1;
@@ -1234,7 +1234,7 @@ map_block (const char *name, domain_enum namespace, struct objfile *objfile,
 
 static void
 map_matching_symbols_psymtab (struct objfile *objfile,
-			      const char *name, domain_enum namespace,
+			      const char *name, domain_enum the_namespace,
 			      int global,
 			      int (*callback) (struct block *,
 					       struct symbol *, void *),
@@ -1249,7 +1249,7 @@ map_matching_symbols_psymtab (struct objfile *objfile,
     {
       QUIT;
       if (ps->readin
-	  || match_partial_symbol (objfile, ps, global, name, namespace, match,
+	  || match_partial_symbol (objfile, ps, global, name, the_namespace, match,
 				   ordered_compare))
 	{
 	  struct symtab *s = psymtab_to_symtab (objfile, ps);
@@ -1258,7 +1258,7 @@ map_matching_symbols_psymtab (struct objfile *objfile,
 	  if (s == NULL || !s->primary)
 	    continue;
 	  block = BLOCKVECTOR_BLOCK (BLOCKVECTOR (s), block_kind);
-	  if (map_block (name, namespace, objfile, block,
+	  if (map_block (name, the_namespace, objfile, block,
 			 callback, data, match))
 	    return;
 	  if (callback (block, NULL, data))
@@ -1491,12 +1491,12 @@ psymbol_hash (const void *addr, int length)
   struct partial_symbol *psymbol = (struct partial_symbol *) addr;
   unsigned int lang = psymbol->ginfo.language;
   unsigned int domain = PSYMBOL_DOMAIN (psymbol);
-  unsigned int class = PSYMBOL_CLASS (psymbol);
+  unsigned int theclass = PSYMBOL_CLASS (psymbol);
 
   h = hash_continue (&psymbol->ginfo.value, sizeof (psymbol->ginfo.value), h);
   h = hash_continue (&lang, sizeof (unsigned int), h);
   h = hash_continue (&domain, sizeof (unsigned int), h);
-  h = hash_continue (&class, sizeof (unsigned int), h);
+  h = hash_continue (&theclass, sizeof (unsigned int), h);
   h = hash_continue (psymbol->ginfo.name, strlen (psymbol->ginfo.name), h);
 
   return h;
@@ -1574,7 +1574,7 @@ psymbol_bcache_full (struct partial_symbol *sym,
 static const struct partial_symbol *
 add_psymbol_to_bcache (const char *name, int namelength, int copy_name,
 		       domain_enum domain,
-		       enum address_class class,
+		       enum address_class theclass,
 		       long val,	/* Value as a long */
 		       CORE_ADDR coreaddr,	/* Value as a CORE_ADDR */
 		       enum language language, struct objfile *objfile,
@@ -1599,7 +1599,7 @@ add_psymbol_to_bcache (const char *name, int namelength, int copy_name,
   SYMBOL_SECTION (&psymbol) = -1;
   SYMBOL_SET_LANGUAGE (&psymbol, language, &objfile->objfile_obstack);
   PSYMBOL_DOMAIN (&psymbol) = domain;
-  PSYMBOL_CLASS (&psymbol) = class;
+  PSYMBOL_CLASS (&psymbol) = theclass;
 
   SYMBOL_SET_NAMES (&psymbol, name, namelength, copy_name, objfile);
 
@@ -1659,7 +1659,7 @@ append_psymbol_to_list (struct psymbol_allocation_list *list,
 void
 add_psymbol_to_list (const char *name, int namelength, int copy_name,
 		     domain_enum domain,
-		     enum address_class class,
+		     enum address_class theclass,
 		     struct psymbol_allocation_list *list, 
 		     long val,	/* Value as a long */
 		     CORE_ADDR coreaddr,	/* Value as a CORE_ADDR */
@@ -1670,7 +1670,7 @@ add_psymbol_to_list (const char *name, int namelength, int copy_name,
   int added;
 
   /* Stash the partial symbol away in the cache.  */
-  psym = add_psymbol_to_bcache (name, namelength, copy_name, domain, class,
+  psym = add_psymbol_to_bcache (name, namelength, copy_name, domain, theclass,
 				val, coreaddr, language, objfile, &added);
 
   /* Do not duplicate global partial symbols.  */

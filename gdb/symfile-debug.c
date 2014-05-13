@@ -255,7 +255,7 @@ debug_qf_expand_symtabs_with_fullname (struct objfile *objfile,
 
 static void
 debug_qf_map_matching_symbols (struct objfile *objfile,
-			       const char *name, domain_enum namespace,
+			       const char *name, domain_enum the_namespace,
 			       int global,
 			       int (*callback) (struct block *,
 						struct symbol *, void *),
@@ -269,14 +269,14 @@ debug_qf_map_matching_symbols (struct objfile *objfile,
   fprintf_filtered (gdb_stdlog,
 		    "qf->map_matching_symbols (%s, \"%s\", %s, %d, %s, %s, %s, %s)\n",
 		    debug_objfile_name (objfile), name,
-		    domain_name (namespace), global,
+		    domain_name (the_namespace), global,
 		    host_address_to_string (callback),
 		    host_address_to_string (data),
 		    host_address_to_string (match),
 		    host_address_to_string (ordered_compare));
 
   debug_data->real_sf->qf->map_matching_symbols (objfile, name,
-						 namespace, global,
+						 the_namespace, global,
 						 callback, data,
 						 match,
 						 ordered_compare);
