@@ -1,3 +1,36 @@
+2013-10-12  Jan Beulich <jbeulich@suse.com>
+
+	* i386-dis.c (intel_operand_size): Move v_bnd_mode alongside the
+	default case.
+	(OP_E_register): Move v_bnd_mode alongside m_mode.
+	* i386-opc.tbl (bndcl, bndcu, bndcn): Split 32- and 64-bit variants.
+	Drop Reg16 and Disp16. Add NoRex64.
+	(bndmk, bndmov, bndldx, bndstx): Drop Disp16.
+	* i386-tbl.h: Re-generate.
+
+2013-10-10  Roland McGrath  <mcgrathr@google.com>
+
+	* i386-dis.c (oappend_maybe_intel): New function.
+	(OP_ST, OP_STi, append_seg, OP_I, OP_I64, OP_sI, OP_ESreg): Use it.
+	(OP_C, OP_T, CMP_Fixup, OP_EX_VexImmW): Likewise.
+	(VCMP_Fixup, VPCMP_Fixup, PCLMUL_Fixup): Likewise.
+
+2013-10-10  Roland McGrath  <mcgrathr@google.com>
+
+	* cr16-opc.c (REG): Cast NAME to 'reg' enum type to suppress
+	possible compiler warnings when the union's initializer is
+	actually meant for the 'preg' enum typed member.
+	* crx-opc.c (REG): Likewise.
+
+2013-10-10  Roland McGrath  <mcgrathr@google.com>
+
+	* v850-dis.c (v850_cacheop_codes, v850_prefop_codes):
+	Remove duplicate const qualifier.
+
+2013-09-20  Alan Modra  <amodra@gmail.com>
+
+	* configure: Regenerate.
+
 2013-09-17  Richard Sandiford  <rsandifo@linux.vnet.ibm.com>
 
 	* s390-opc.txt (clih): Make the immediate unsigned.

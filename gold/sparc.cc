@@ -59,7 +59,7 @@ class Target_sparc : public Sized_target<size, big_endian>
   Target_sparc()
     : Sized_target<size, big_endian>(&sparc_info),
       got_(NULL), plt_(NULL), rela_dyn_(NULL), rela_ifunc_(NULL),
-      copy_relocs_(elfcpp::R_SPARC_COPY), dynbss_(NULL),
+      copy_relocs_(elfcpp::R_SPARC_COPY),
       got_mod_index_offset_(-1U), tls_get_addr_sym_(NULL),
       elf_machine_(sparc_info.machine_code), elf_flags_(0),
       elf_flags_set_(false)
@@ -217,7 +217,7 @@ class Target_sparc : public Sized_target<size, big_endian>
 		     const elfcpp::Ehdr<size, big_endian>& ehdr);
 
   void
-  do_adjust_elf_header(unsigned char* view, int len) const;
+  do_adjust_elf_header(unsigned char* view, int len);
 
  private:
 
@@ -446,8 +446,6 @@ class Target_sparc : public Sized_target<size, big_endian>
   Reloc_section* rela_ifunc_;
   // Relocs saved to avoid a COPY reloc.
   Copy_relocs<elfcpp::SHT_RELA, size, big_endian> copy_relocs_;
-  // Space for variables copied with a COPY reloc.
-  Output_data_space* dynbss_;
   // Offset of the GOT entry for the TLS module index;
   unsigned int got_mod_index_offset_;
   // Cached pointer to __tls_get_addr symbol
@@ -4341,7 +4339,7 @@ template<int size, bool big_endian>
 void
 Target_sparc<size, big_endian>::do_adjust_elf_header(
     unsigned char* view,
-    int len) const
+    int len)
 {
   elfcpp::Ehdr_write<size, big_endian> oehdr(view);
 

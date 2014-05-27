@@ -1,3 +1,74 @@
+2013-10-14  Alan Modra  <amodra@gmail.com>
+
+	* output.h (Output_data_got::add_constant): Tidy.
+	(Output_data_got::add_constant_pair): New function.
+	* powerpc.cc (Output_data_got_powerpc): Override all Output_data_got
+	methods used so as to first call reserve_ent().
+
+2013-10-11  Roland McGrath  <mcgrathr@google.com>
+
+	* powerpc.cc (Output_data_got_powerpc): Remove unused methods
+	add_got_entry and add_got_entry_pair.
+
+	* configure.ac (TLS_GNU2_DIALECT): Use -Werror in test.
+	(HAVE_PUBNAMES): Likewise.
+	* configure: Regenerate.
+
+	* testsuite/Makefile.am: Replace '-T foo' with '-Wl,-T,foo' throughout.
+	* testsuite/Makefile.in: Regenerate.
+
+	* target.h (Target::adjust_elf_header, Target::do_adjust_elf_header):
+	Remove const from declaration.
+	* target.cc (Sized_target::do_adjust_elf_header): Update definition.
+	* sparc.cc (Target_sparc::do_adjust_elf_header): Likewise.
+	* output.h (Output_file_header): Remove const from member target_
+	and corresponding constructor argument.
+	* output.cc (Output_file_header::Output_file_header): Update prototype.
+	(Output_file_header::do_sized_write): Use this->target_ in place
+	of parameters()->target().
+
+	* testsuite/undef_symbol.cc (Foo::get_a): New method.
+
+	* configure.ac (MERGE_CONSTANTS_FLAG): New check.
+	* configure: Regenerate.
+	* Makefile.in: Regenerate.
+	* testsuite/merge_string_literals_1.c: Renamed to have .cc suffix.
+	* testsuite/merge_string_literals_2.c: Likewise.
+	* testsuite/Makefile.am
+	(merge_string_literals_1.o, merge_string_literals_2.o): Update deps.
+	(AM_CFLAGS, AM_CXXFLAGS): Use $(MERGE_CONSTANTS_FLAG) in place of
+	literal -fmerge-constants.
+	* testsuite/Makefile.in: Regenerate.
+
+	* i386.cc (Target_i386): Remove unused member dynbss_.
+	* arm.cc (Target_arm): Likewise.
+	* powerpc.cc (Target_powerpc): Likewise.
+	* sparc.cc (Target_sparc): Likewise.
+	* tilegx.cc (Target_tilegx): Likewise.
+	* x86_64.cc (Target_x86_64): Likewise.
+	* dwarf_reader.h (Dwarf_info_reader): Remove unused members
+	type_signature_, type_offset_.
+	* plugin.h (Plugin_hook): Remove unused member layout_.
+	* readsyms.h (Add_symbols): Remove unused members dirpath_, dirindex_,
+	mapfile_.
+	(Read_member): Remove unused members input_objects_, symtab_,
+	mapfile_, layout_.
+	(Check_library): Remove unused member symtab_.
+	* archive.h (Lib_group): Remove unused member lib_.
+	* archive.cc (Lib_group::Lib_group): Update initializer.
+	* incremental.h	(Incremental_binary): Remove unused member target_.
+	(Incremental_script_entry): Removed unused member script_.
+	* layout.h (Write_symbols_task): Remove unused member input_objects_.
+	* icf.h (Icf): Remove unused member num_tracked_relocs.
+
+	* gold-threads.h (Once): Conditionalize member was_run_lock_ on
+	[ENABLE_THREADS && __GCC_HAVE_SYNC_COMPARE_AND_SWAP_4], matching
+	its only use.
+	* gold-threads.cc (Once::Once): Likewise conditionalize initializer.
+
+	* archive.h: Use struct rather than class for forward declaration
+	of Read_symbols_data.
+
 2013-09-03  Pavel Chupin  <pavel.v.chupin@intel.com>
 
 	PR gold/15927
@@ -296,23 +367,23 @@
 
 2013-05-21  Cary Coutant  <ccoutant@google.com>
 
-    	* object.cc (Sized_relobj_file::get_symbol_location_info): Set
-    	type of enclosing symbol.
-    	(Relocate_info::location): Check symbol type when describing symbol.
-    	* object.h (Symbol_location_info): Remove unused line_number;
-    	add enclosing_symbol_type.
-    	* testsuite/debug_msg.sh: Adjust expected output.
+	* object.cc (Sized_relobj_file::get_symbol_location_info): Set
+	type of enclosing symbol.
+	(Relocate_info::location): Check symbol type when describing symbol.
+	* object.h (Symbol_location_info): Remove unused line_number;
+	add enclosing_symbol_type.
+	* testsuite/debug_msg.sh: Adjust expected output.
 
 2013-05-13  Cary Coutant  <ccoutant@google.com>
 
-    	* configure.ac: Export DEFAULT_TARGET.
-    	* configure: Regenerate.
-    	* Makefile.in: Regenerate.
-    	* testsuite/Makefile.am: Add .EXPORT_ALL_VARIABLES.
-    	* testsuite/Makefile.in: Regenerate.
-    	* testsuite/debug_msg.sh: Delete duplicate tests.
-    	Don't check undef_int error message match for powerpc where the
-    	source file and line number aren't available.
+	* configure.ac: Export DEFAULT_TARGET.
+	* configure: Regenerate.
+	* Makefile.in: Regenerate.
+	* testsuite/Makefile.am: Add .EXPORT_ALL_VARIABLES.
+	* testsuite/Makefile.in: Regenerate.
+	* testsuite/debug_msg.sh: Delete duplicate tests.
+	Don't check undef_int error message match for powerpc where the
+	source file and line number aren't available.
 
 2013-05-10  Roland McGrath  <mcgrathr@google.com>
 

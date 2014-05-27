@@ -1,3 +1,77 @@
+2013-10-17  Alan Modra  <amodra@gmail.com>
+
+	PR 16056
+	* elf.c (copy_elf_program_header): Only consider SEC_ALLOC sections
+	when finding lowest_section.
+
+2013-10-09  Roland McGrath  <mcgrathr@google.com>
+
+	* elf64-alpha.c (elf64_alpha_relax_tls_get_addr): Cast switch
+	expression to int to silence over-eager compiler warnings.
+
+2013-10-09  Roland McGrath  <mcgrathr@google.com>
+
+	* xcofflink.c (_bfd_xcoff_bfd_final_link): Don't touch EREL in
+	loop that doesn't use (or initialize) it.
+
+2013-10-09  Roland McGrath  <mcgrathr@google.com>
+
+	* elfxx-tilegx.c (tilegx32_plt_tail_entry, tilegx32_plt_tail_entry):
+	Move second const qualifier so it applies to the pointer.
+
+2013-10-05  Gregory Fong  <gregory.0xf0@gmail.com>
+
+	* elfxx-mips.c (mips_elf_create_got_section): Hide
+	_GLOBAL_OFFSET_TABLE_.
+
+2013-10-04  Will Newton  <will.newton@linaro.org>
+
+	* configure: Regenerate.
+	* configure.in: Build elf-ifunc.o for AArch64.
+	* elfnn-aarch64.c: Include objalloc.h.
+	(elfNN_aarch64_local_htab_hash): New function.
+	(elfNN_aarch64_local_htab_eq): New function.
+	(elfNN_aarch64_get_local_sym_hash): New function.
+	(elfNN_aarch64_link_hash_table_create): Initialize local STT_GNU_IFUNC
+	symbol hash.
+	(elfNN_aarch64_hash_table_free): Free local STT_GNU_IFUNC symbol hash.
+	(elfNN_aarch64_final_link_relocate): Add sym argument.  Add support
+	for handling STT_GNU_IFUNC symbols.
+	(elfNN_aarch64_gc_sweep_hook): Add support for garbage collecting
+	references to STT_GNU_IFUNC symbols.
+	(elfNN_aarch64_adjust_dynamic_symbol): Add support for handling
+	STT_GNU_IFUNC symbols.
+	(elfNN_aarch64_check_relocs): Add support for handling STT_GNU_IFUNC
+	symbols.  Ensure we don't increase plt.refcount from -1 to 0.
+	(elfNN_aarch64_post_process_headers): Call _bfd_elf_set_osabi.
+	(elfNN_aarch64_is_function_type): Remove function.
+	(elfNN_aarch64_allocate_dynrelocs): Handle STT_GNU_IFUNC symbols.
+	(elfNN_aarch64_allocate_ifunc_dynrelocs): New function.
+	(elfNN_aarch64_allocate_local_dynrelocs): New function.
+	(elfNN_aarch64_allocate_local_ifunc_dynrelocs): New function.
+	(elfNN_aarch64_size_dynamic_sections): Call
+	elfNN_aarch64_allocate_local_dynrelocs.
+	(elfNN_aarch64_create_small_pltn_entry): Add info argument.
+	Add support for creating .iplt entries for STT_GNU_IFUNC symbols.
+	(elfNN_aarch64_finish_dynamic_symbol): Add support for handling
+	STT_GNU_IFUNC symbols and .iplt.
+	(elfNN_aarch64_finish_local_dynamic_symbol): New function.
+	(elfNN_aarch64_finish_dynamic_sections): Call
+	elfNN_aarch64_finish_local_dynamic_symbol.
+
+2013-09-24  Alan Modra  <amodra@gmail.com>
+
+	* elf32-mips.c (ELF_OSABI): Undef for vxworks.
+
+2013-09-20  Alan Modra  <amodra@gmail.com>
+
+	* configure: Regenerate.
+
+2013-09-18  Tristan Gingold  <gingold@adacore.com>
+
+	* configure.in: Bump version to 2.23.90
+	* configure: Regenerate.
+
 2013-09-17  Doug Gilmore  <Doug.Gilmore@imgtec.com>
 
 	* elfxx-mips.c (_bfd_mips_elf_print_private_bfd_data): Handle

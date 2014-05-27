@@ -443,7 +443,7 @@ class Target_powerpc : public Sized_target<size, big_endian>
     : Sized_target<size, big_endian>(&powerpc_info),
       got_(NULL), plt_(NULL), iplt_(NULL), brlt_section_(NULL),
       glink_(NULL), rela_dyn_(NULL), copy_relocs_(elfcpp::R_POWERPC_COPY),
-      dynbss_(NULL), tlsld_got_offset_(-1U),
+      tlsld_got_offset_(-1U),
       stub_tables_(), branch_lookup_table_(), branch_info_(),
       plt_thread_safe_(false)
   {
@@ -1181,8 +1181,6 @@ class Target_powerpc : public Sized_target<size, big_endian>
   Reloc_section* rela_dyn_;
   // Relocs saved to avoid a COPY reloc.
   Copy_relocs<elfcpp::SHT_RELA, size, big_endian> copy_relocs_;
-  // Space for variables copied with a COPY reloc.
-  Output_data_space* dynbss_;
   // Offset of the GOT entry for local dynamic __tls_get_addr calls.
   unsigned int tlsld_got_offset_;
 
@@ -1989,32 +1987,88 @@ public:
       header_index_(size == 32 ? 0x2000 : 0)
   { }
 
-  class Got_entry;
-
-  // Create a new GOT entry and return its offset.
-  unsigned int
-  add_got_entry(Got_entry got_entry)
+  // Override all the Output_data_got methods we use so as to first call
+  // reserve_ent().
+  bool
+  add_global(Symbol* gsym, unsigned int got_type)
   {
     this->reserve_ent();
-    return Output_data_got<size, big_endian>::add_got_entry(got_entry);
+    return Output_data_got<size, big_endian>::add_global(gsym, got_type);
   }
 
-  // Create a pair of new GOT entries and return the offset of the first.
-  unsigned int
-  add_got_entry_pair(Got_entry got_entry_1, Got_entry got_entry_2)
+  bool
+  add_global_plt(Symbol* gsym, unsigned int got_type)
+  {
+    this->reserve_ent();
+    return Output_data_got<size, big_endian>::add_global_plt(gsym, got_type);
+  }
+
+  bool
+  add_global_tls(Symbol* gsym, unsigned int got_type)
+  { return this->add_global_plt(gsym, got_type); }
+
+  void
+  add_global_with_rel(Symbol* gsym, unsigned int got_type,
+		      Output_data_reloc_generic* rel_dyn, unsigned int r_type)
+  {
+    this->reserve_ent();
+    Output_data_got<size, big_endian>::
+      add_global_with_rel(gsym, got_type, rel_dyn, r_type);
+  }
+
+  void
+  add_global_pair_with_rel(Symbol* gsym, unsigned int got_type,
+			   Output_data_reloc_generic* rel_dyn,
+			   unsigned int r_type_1, unsigned int r_type_2)
   {
     this->reserve_ent(2);
-    return Output_data_got<size, big_endian>::add_got_entry_pair(got_entry_1,
-								 got_entry_2);
+    Output_data_got<size, big_endian>::
+      add_global_pair_with_rel(gsym, got_type, rel_dyn, r_type_1, r_type_2);
+  }
+
+  bool
+  add_local(Relobj* object, unsigned int sym_index, unsigned int got_type)
+  {
+    this->reserve_ent();
+    return Output_data_got<size, big_endian>::add_local(object, sym_index,
+							got_type);
+  }
+
+  bool
+  add_local_plt(Relobj* object, unsigned int sym_index, unsigned int got_type)
+  {
+    this->reserve_ent();
+    return Output_data_got<size, big_endian>::add_local_plt(object, sym_index,
+							    got_type);
+  }
+
+  bool
+  add_local_tls(Relobj* object, unsigned int sym_index, unsigned int got_type)
+  { return this->add_local_plt(object, sym_index, got_type); }
+
+  void
+  add_local_tls_pair(Relobj* object, unsigned int sym_index,
+		     unsigned int got_type,
+		     Output_data_reloc_generic* rel_dyn,
+		     unsigned int r_type)
+  {
+    this->reserve_ent(2);
+    Output_data_got<size, big_endian>::
+      add_local_tls_pair(object, sym_index, got_type, rel_dyn, r_type);
+  }
+
+  unsigned int
+  add_constant(Valtype constant)
+  {
+    this->reserve_ent();
+    return Output_data_got<size, big_endian>::add_constant(constant);
   }
 
   unsigned int
   add_constant_pair(Valtype c1, Valtype c2)
   {
     this->reserve_ent(2);
-    unsigned int got_offset = this->add_constant(c1);
-    this->add_constant(c2);
-    return got_offset;
+    return Output_data_got<size, big_endian>::add_constant_pair(c1, c2);
   }
 
   // Offset of _GLOBAL_OFFSET_TABLE_.
@@ -2510,7 +2564,7 @@ Target_powerpc<size, big_endian>::do_relax(int pass,
 	      "GOMP_parallel_loop_dynamic_start",
 	      "GOMP_parallel_loop_guided_start",
 	      "GOMP_parallel_loop_runtime_start",
-	      "GOMP_parallel_sections_start", 
+	      "GOMP_parallel_sections_start",
 	    };
 
 	  if (parameters->options().shared())

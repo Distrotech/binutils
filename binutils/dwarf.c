@@ -288,7 +288,7 @@ read_uleb128 (unsigned char * data,
 #define SAFE_BYTE_GET(VAL, PTR, AMOUNT, END)	\
   do						\
     {						\
-      int dummy [sizeof (VAL) < (AMOUNT) ? -1 : 0] ATTRIBUTE_UNUSED ; \
+      int dummy [sizeof (VAL) < (AMOUNT) ? -1 : 1] ATTRIBUTE_UNUSED ; \
       unsigned int amount = (AMOUNT);		\
       if (((PTR) + amount) >= (END))		\
 	{					\
@@ -1425,6 +1425,34 @@ find_cu_tu_set_v2 (dwarf_vma cu_offset, int do_types)
   return NULL;
 }
 
+/* Add INC to HIGH_BITS:LOW_BITS.  */
+static void
+add64 (dwarf_vma * high_bits, dwarf_vma * low_bits, dwarf_vma inc)
+{
+  dwarf_vma tmp = * low_bits;
+
+  tmp += inc;
+
+  /* FIXME: There is probably a better way of handling this:
+
+     We need to cope with dwarf_vma being a 32-bit or 64-bit
+     type.  Plus regardless of its size LOW_BITS is meant to
+     only hold 32-bits, so if there is overflow or wrap around
+     we must propagate into HIGH_BITS.  */
+  if (tmp < * low_bits)
+    {
+      ++ * high_bits;
+    }
+  else if (sizeof (tmp) > 8
+	   && (tmp >> 31) > 1)
+    {
+      ++ * high_bits;
+      tmp &= 0xFFFFFFFF;
+    }
+
+  * low_bits = tmp;
+}
+
 static unsigned char *
 read_and_display_attr_value (unsigned long attribute,
 			     unsigned long form,
@@ -1570,12 +1598,15 @@ read_and_display_attr_value (unsigned long attribute,
       if (!do_loc)
 	{
 	  dwarf_vma high_bits;
+	  dwarf_vma utmp;
 	  char buf[64];
 
 	  SAFE_BYTE_GET64 (data, &high_bits, &uvalue, end);
-
+	  utmp = uvalue;
+	  if (form == DW_FORM_ref8)
+	    add64 (& high_bits, & utmp, cu_offset);
 	  printf (" 0x%s",
-		  dwarf_vmatoa64 (high_bits, uvalue, buf, sizeof (buf)));
+		  dwarf_vmatoa64 (high_bits, utmp, buf, sizeof (buf)));
 	}
 
       if ((do_loc || do_debug_loc || do_debug_ranges)
@@ -5249,7 +5280,7 @@ display_debug_frames (struct dwarf_section *section,
 
 	  printf ("\n%08lx ", (unsigned long) (saved_start - section_start));
 	  print_dwarf_vma (length, fc->ptr_size);
-	  print_dwarf_vma (cie_id, fc->ptr_size);
+	  print_dwarf_vma (cie_id, offset_size);
 
 	  if (do_debug_frames_interp)
 	    {
@@ -5385,7 +5416,7 @@ display_debug_frames (struct dwarf_section *section,
 	  printf ("\n%08lx %s %s FDE cie=%08lx pc=",
 		  (unsigned long)(saved_start - section_start),
 		  dwarf_vmatoa_1 (NULL, length, fc->ptr_size),
-		  dwarf_vmatoa_1 (NULL, cie_id, fc->ptr_size),
+		  dwarf_vmatoa_1 (NULL, cie_id, offset_size),
 		  (unsigned long)(cie->chunk_start - section_start));
 
 	  if (fc->segment_size)
