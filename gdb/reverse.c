@@ -46,7 +46,7 @@ static void
 exec_reverse_once (char *cmd, char *args, int from_tty)
 {
   char *reverse_command;
-  enum exec_direction_kind dir = execution_direction;
+  enum exec_direction_kind dir = (enum exec_direction_kind) execution_direction;
   struct cleanup *old_chain;
 
   if (dir == EXEC_REVERSE)

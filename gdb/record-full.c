@@ -941,7 +941,7 @@ record_full_resume (struct target_ops *ops, ptid_t ptid, int step,
 {
   record_full_resume_step = step;
   record_full_resumed = 1;
-  record_full_execution_dir = execution_direction;
+  record_full_execution_dir = (enum exec_direction_kind) execution_direction;
 
   if (!RECORD_FULL_IS_REPLAY)
     {
@@ -1932,7 +1932,7 @@ record_full_core_resume (struct target_ops *ops, ptid_t ptid, int step,
 {
   record_full_resume_step = step;
   record_full_resumed = 1;
-  record_full_execution_dir = execution_direction;
+  record_full_execution_dir = (enum exec_direction_kind) execution_direction;
 
   /* We are about to start executing the inferior (or simulate it),
      let's register it with the event loop.  */
@@ -2378,7 +2378,7 @@ record_full_restore (void)
 	  bfdcore_read (core_bfd, osec, &signal, 
 			sizeof (signal), &bfd_offset);
 	  signal = netorder32 (signal);
-	  rec->u.end.sigval = signal;
+	  rec->u.end.sigval = (enum gdb_signal) signal;
 
 	  /* Get insn count.  */
 	  bfdcore_read (core_bfd, osec, &count, 

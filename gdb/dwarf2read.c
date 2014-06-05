@@ -12612,7 +12612,7 @@ dwarf2_add_member_fn (struct field_info *fip, struct die_info *die,
   /* Get accessibility.  */
   attr = dwarf2_attr (die, DW_AT_accessibility, cu);
   if (attr)
-    accessibility = DW_UNSND (attr);
+    accessibility = (enum dwarf_access_attribute) DW_UNSND (attr);
   else
     accessibility = dwarf2_default_access_attribute (die, cu);
   switch (accessibility)
@@ -13511,7 +13511,7 @@ read_array_order (struct die_info *die, struct dwarf2_cu *cu)
 
   attr = dwarf2_attr (die, DW_AT_ordering, cu);
 
-  if (attr) return DW_SND (attr);
+  if (attr) return (enum dwarf_array_dim_ordering) DW_SND (attr);
 
   /* GNU F77 is a special case, as at 08/2004 array type info is the
      opposite order to the dwarf2 specification, but data is still
@@ -14972,7 +14972,8 @@ abbrev_table_read_table (struct dwarf2_section_info *section,
 
       /* read in abbrev header */
       cur_abbrev->number = abbrev_number;
-      cur_abbrev->tag = read_unsigned_leb128 (abfd, abbrev_ptr, &bytes_read);
+      cur_abbrev->tag
+	= (enum dwarf_tag) read_unsigned_leb128 (abfd, abbrev_ptr, &bytes_read);
       abbrev_ptr += bytes_read;
       cur_abbrev->has_children = read_1_byte (abfd, abbrev_ptr);
       abbrev_ptr += 1;
@@ -14992,8 +14993,10 @@ abbrev_table_read_table (struct dwarf2_section_info *section,
 					* sizeof (struct attr_abbrev)));
 	    }
 
-	  cur_attrs[cur_abbrev->num_attrs].name = abbrev_name;
-	  cur_attrs[cur_abbrev->num_attrs++].form = abbrev_form;
+	  cur_attrs[cur_abbrev->num_attrs].name
+	    = (enum dwarf_attribute) abbrev_name;
+	  cur_attrs[cur_abbrev->num_attrs++].form
+	    = (enum dwarf_form) abbrev_form;
 	  abbrev_name = read_unsigned_leb128 (abfd, abbrev_ptr, &bytes_read);
 	  abbrev_ptr += bytes_read;
 	  abbrev_form = read_unsigned_leb128 (abfd, abbrev_ptr, &bytes_read);
@@ -15831,7 +15834,7 @@ read_attribute_value (const struct die_reader_specs *reader,
   unsigned int bytes_read;
   struct dwarf_block *blk;
 
-  attr->form = form;
+  attr->form = (enum dwarf_form) form;
   switch (form)
     {
     case DW_FORM_ref_addr:
@@ -20456,7 +20459,8 @@ skip_unknown_opcode (unsigned int opcode,
 
   for (i = 0; i < arg; ++i)
     {
-      mac_ptr = skip_form_bytes (abfd, mac_ptr, mac_end, defn[i], offset_size,
+      mac_ptr = skip_form_bytes (abfd, mac_ptr, mac_end,
+				 (enum dwarf_form) defn[i], offset_size,
 				 section);
       if (mac_ptr == NULL)
 	{
@@ -20715,7 +20719,9 @@ dwarf_decode_macro_bytes (bfd *abfd,
 
                   /* We don't increment mac_ptr here, so this is just
                      a look-ahead.  */
-                  next_type = read_1_byte (abfd, mac_ptr);
+                  next_type
+		    = (enum dwarf_macro_record_type) read_1_byte (abfd,
+								  mac_ptr);
                   if (next_type != 0)
 		    complaint (&symfile_complaints,
 			       _("no terminating 0-type entry for "
@@ -20893,7 +20899,7 @@ dwarf_decode_macros (struct dwarf2_cu *cu, unsigned int offset,
 	  break;
         }
 
-      macinfo_type = read_1_byte (abfd, mac_ptr);
+      macinfo_type = (enum dwarf_macro_record_type) read_1_byte (abfd, mac_ptr);
       mac_ptr++;
 
       /* Note that we rely on the fact that the corresponding GNU and

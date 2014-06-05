@@ -278,7 +278,7 @@ read_stack (CORE_ADDR memaddr, gdb_byte *myaddr, ssize_t len)
 
   status = target_read_stack (memaddr, myaddr, len);
   if (status != 0)
-    memory_error (status, memaddr);
+    memory_error ((enum target_xfer_status) status, memaddr);
 }
 
 /* Same as target_read_code, but report an error if can't read.  */
@@ -290,7 +290,7 @@ read_code (CORE_ADDR memaddr, gdb_byte *myaddr, ssize_t len)
 
   status = target_read_code (memaddr, myaddr, len);
   if (status != 0)
-    memory_error (status, memaddr);
+    memory_error ((enum target_xfer_status) status, memaddr);
 }
 
 /* Argument / return result struct for use with
@@ -437,7 +437,7 @@ write_memory (CORE_ADDR memaddr,
 
   status = target_write_memory (memaddr, myaddr, len);
   if (status != 0)
-    memory_error (status, memaddr);
+    memory_error ((enum target_xfer_status) status, memaddr);
 }
 
 /* Same as write_memory, but notify 'memory_changed' observers.  */

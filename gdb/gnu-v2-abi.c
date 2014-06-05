@@ -43,7 +43,7 @@ gnuv2_is_destructor_name (const char *name)
       || strncmp (name, "__dt__", 6) == 0)
     return complete_object_dtor;
   else
-    return 0;
+    return (enum dtor_kinds) 0;
 }
 
 static enum ctor_kinds
@@ -54,7 +54,7 @@ gnuv2_is_constructor_name (const char *name)
       || strncmp (name, "__ct__", 6) == 0)
     return complete_object_ctor;
   else
-    return 0;
+    return (enum ctor_kinds) 0;
 }
 
 static int
