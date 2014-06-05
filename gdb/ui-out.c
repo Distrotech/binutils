@@ -476,7 +476,7 @@ ui_out_field_int (struct ui_out *uiout,
 
   verify_field (uiout, &fldno, &width, &align);
 
-  uo_field_int (uiout, fldno, width, align, fldname, value);
+  uo_field_int (uiout, fldno, width, (enum ui_align) align, fldname, value);
 }
 
 void
@@ -536,7 +536,7 @@ ui_out_field_skip (struct ui_out *uiout,
 
   verify_field (uiout, &fldno, &width, &align);
 
-  uo_field_skip (uiout, fldno, width, align, fldname);
+  uo_field_skip (uiout, fldno, width, (enum ui_align) align, fldname);
 }
 
 void
@@ -550,7 +550,7 @@ ui_out_field_string (struct ui_out *uiout,
 
   verify_field (uiout, &fldno, &width, &align);
 
-  uo_field_string (uiout, fldno, width, align, fldname, string);
+  uo_field_string (uiout, fldno, width, (enum ui_align) align, fldname, string);
 }
 
 /* VARARGS */
@@ -569,7 +569,8 @@ ui_out_field_fmt (struct ui_out *uiout,
 
   va_start (args, format);
 
-  uo_field_fmt (uiout, fldno, width, align, fldname, format, args);
+  uo_field_fmt (uiout, fldno, width, (enum ui_align) align, fldname,
+		format, args);
 
   va_end (args);
 }
