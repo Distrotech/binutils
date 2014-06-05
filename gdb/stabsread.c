@@ -402,8 +402,8 @@ patch_block_stabs (struct pending *symbols, struct pending_stabs *stabs,
 	      SYMBOL_DOMAIN (sym) = VAR_DOMAIN;
 	      SYMBOL_ACLASS_INDEX (sym) = LOC_OPTIMIZED_OUT;
 	      SYMBOL_SET_LINKAGE_NAME
-		(sym, obstack_copy0 (&objfile->objfile_obstack,
-				     name, pp - name));
+		(sym, (char *) obstack_copy0 (&objfile->objfile_obstack,
+					      name, pp - name));
 	      pp += 2;
 	      if (*(pp - 1) == 'F' || *(pp - 1) == 'f')
 		{

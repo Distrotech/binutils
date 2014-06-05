@@ -1051,8 +1051,8 @@ parse_symbol (SYMR *sh, union aux_ext *ax, char *ext_sh, int bigend,
 		enum_sym = allocate_symbol (mdebugread_objfile);
 		SYMBOL_SET_LINKAGE_NAME
 		  (enum_sym,
-		   obstack_copy0 (&mdebugread_objfile->objfile_obstack,
-				  f->name, strlen (f->name)));
+		   (char *) obstack_copy0 (&mdebugread_objfile->objfile_obstack,
+					   f->name, strlen (f->name)));
 		SYMBOL_ACLASS_INDEX (enum_sym) = LOC_CONST;
 		SYMBOL_TYPE (enum_sym) = t;
 		SYMBOL_DOMAIN (enum_sym) = VAR_DOMAIN;
