@@ -2764,7 +2764,7 @@ add_filename_language (char *ext, enum language lang)
     {
       fl_table_size += 10;
       filename_language_table =
-	(struct filename_language *) xrealloc (filename_language_table,
+	(filename_language *) xrealloc (filename_language_table,
 		  fl_table_size * sizeof (*filename_language_table));
     }
 
@@ -2863,7 +2863,7 @@ init_filename_language_table (void)
       fl_table_size = 20;
       fl_table_next = 0;
       filename_language_table =
-	(struct filename_language *) xmalloc (fl_table_size * sizeof (*filename_language_table));
+	(filename_language *) xmalloc (fl_table_size * sizeof (*filename_language_table));
       add_filename_language (".c", language_c);
       add_filename_language (".d", language_d);
       add_filename_language (".C", language_cplus);

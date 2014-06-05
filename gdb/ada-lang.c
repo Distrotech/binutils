@@ -12720,7 +12720,7 @@ sort_remove_dups_ada_exceptions_list (VEC(ada_exc_info) **exceptions,
 static int
 ada_exc_search_name_matches (const char *search_name, void *user_data)
 {
-  regex_t *preg = (struct regex_t *) user_data;
+  regex_t *preg = (regex_t *) user_data;
 
   if (preg == NULL)
     return 1;

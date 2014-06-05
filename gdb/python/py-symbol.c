@@ -461,7 +461,7 @@ gdbpy_lookup_global_symbol (PyObject *self, PyObject *args, PyObject *kw)
 static void
 del_objfile_symbols (struct objfile *objfile, void *datum)
 {
-  symbol_object *obj = (struct symbol_object *) datum;
+  symbol_object *obj = (symbol_object *) datum;
   while (obj)
     {
       symbol_object *next = obj->next;

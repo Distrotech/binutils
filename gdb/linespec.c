@@ -3485,8 +3485,8 @@ classify_mtype (enum minimal_symbol_type t)
 static int
 compare_msyms (const void *a, const void *b)
 {
-  const bound_minimal_symbol_d *moa = (const struct bound_minimal_symbol_d *) a;
-  const bound_minimal_symbol_d *mob = (const struct bound_minimal_symbol_d *) b;
+  const bound_minimal_symbol_d *moa = (const bound_minimal_symbol_d *) a;
+  const bound_minimal_symbol_d *mob = (const bound_minimal_symbol_d *) b;
   enum minimal_symbol_type ta = MSYMBOL_TYPE (moa->minsym);
   enum minimal_symbol_type tb = MSYMBOL_TYPE (mob->minsym);
 

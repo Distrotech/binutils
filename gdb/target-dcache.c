@@ -31,7 +31,7 @@ static const struct address_space_data *target_dcache_aspace_key;
 static void
 target_dcache_cleanup (struct address_space *aspace, void *arg)
 {
-  dcache_free ((struct DCACHE *) arg);
+  dcache_free ((DCACHE *) arg);
 }
 
 /* Target dcache is initialized or not.  */
@@ -39,7 +39,7 @@ target_dcache_cleanup (struct address_space *aspace, void *arg)
 int
 target_dcache_init_p (void)
 {
-  DCACHE *dcache = (struct DCACHE *) address_space_data (current_program_space->aspace,
+  DCACHE *dcache = (DCACHE *) address_space_data (current_program_space->aspace,
 				       target_dcache_aspace_key);
 
   return (dcache != NULL);
@@ -50,7 +50,7 @@ target_dcache_init_p (void)
 void
 target_dcache_invalidate (void)
 {
-  DCACHE *dcache = (struct DCACHE *) address_space_data (current_program_space->aspace,
+  DCACHE *dcache = (DCACHE *) address_space_data (current_program_space->aspace,
 				       target_dcache_aspace_key);
 
   if (dcache != NULL)
@@ -63,7 +63,7 @@ target_dcache_invalidate (void)
 DCACHE *
 target_dcache_get (void)
 {
-  DCACHE *dcache = (struct DCACHE *) address_space_data (current_program_space->aspace,
+  DCACHE *dcache = (DCACHE *) address_space_data (current_program_space->aspace,
 				       target_dcache_aspace_key);
 
   return dcache;
@@ -75,7 +75,7 @@ target_dcache_get (void)
 DCACHE *
 target_dcache_get_or_init (void)
 {
-  DCACHE *dcache = (struct DCACHE *) address_space_data (current_program_space->aspace,
+  DCACHE *dcache = (DCACHE *) address_space_data (current_program_space->aspace,
 				       target_dcache_aspace_key);
 
   if (dcache == NULL)

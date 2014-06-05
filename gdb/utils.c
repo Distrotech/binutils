@@ -216,7 +216,7 @@ make_cleanup_close (int fd)
 static void
 do_fclose_cleanup (void *arg)
 {
-  FILE *file = (struct FILE *) arg;
+  FILE *file = (FILE *) arg;
 
   fclose (file);
 }
@@ -1098,7 +1098,7 @@ gdb_print_host_address (const void *addr, struct ui_file *stream)
 static void
 do_regfree_cleanup (void *r)
 {
-  regfree ((struct regex_t *) r);
+  regfree ((regex_t *) r);
 }
 
 /* Create a new cleanup that frees the compiled regular expression R.  */

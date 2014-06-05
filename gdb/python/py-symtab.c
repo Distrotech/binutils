@@ -455,7 +455,7 @@ symtab_object_to_symtab (PyObject *obj)
 static void
 del_objfile_symtab (struct objfile *objfile, void *datum)
 {
-  symtab_object *obj = (struct symtab_object *) datum;
+  symtab_object *obj = (symtab_object *) datum;
 
   while (obj)
     {
@@ -476,7 +476,7 @@ del_objfile_symtab (struct objfile *objfile, void *datum)
 static void
 del_objfile_sal (struct objfile *objfile, void *datum)
 {
-  sal_object *obj = (struct sal_object *) datum;
+  sal_object *obj = (sal_object *) datum;
 
   while (obj)
     {

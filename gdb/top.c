@@ -287,7 +287,7 @@ void
 do_restore_instream_cleanup (void *stream)
 {
   /* Restore the previous input stream.  */
-  instream = (struct FILE *) stream;
+  instream = (FILE *) stream;
 }
 
 /* Read commands from STREAM.  */

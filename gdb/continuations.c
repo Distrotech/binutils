@@ -147,7 +147,7 @@ add_continuation (struct thread_info *thread,
 static void
 restore_thread_cleanup (void *arg)
 {
-  ptid_t *ptid_p = (struct ptid_t *) arg;
+  ptid_t *ptid_p = (ptid_t *) arg;
 
   switch_to_thread (*ptid_p);
 }

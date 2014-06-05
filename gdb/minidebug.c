@@ -77,7 +77,7 @@ struct lzma_stream
 static void *
 lzma_open (struct bfd *nbfd, void *open_closure)
 {
-  asection *section = (struct asection *) open_closure;
+  asection *section = (asection *) open_closure;
   bfd_size_type size, offset;
   lzma_stream_flags options;
   gdb_byte footer[LZMA_STREAM_HEADER_SIZE];

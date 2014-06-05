@@ -1386,7 +1386,7 @@ gdbpy_apply_type_printers (const struct extension_language_defn *extlang,
   struct cleanup *cleanups;
   PyObject *type_obj, *type_module = NULL, *func = NULL;
   PyObject *result_obj = NULL;
-  PyObject *printers_obj = (struct PyObject *) ext_printers->py_type_printers;
+  PyObject *printers_obj = (PyObject *) ext_printers->py_type_printers;
   char *result = NULL;
 
   if (printers_obj == NULL)
@@ -1452,7 +1452,7 @@ gdbpy_free_type_printers (const struct extension_language_defn *extlang,
 			  struct ext_lang_type_printers *ext_printers)
 {
   struct cleanup *cleanups;
-  PyObject *printers = (struct PyObject *) ext_printers->py_type_printers;
+  PyObject *printers = (PyObject *) ext_printers->py_type_printers;
 
   if (printers == NULL)
     return;

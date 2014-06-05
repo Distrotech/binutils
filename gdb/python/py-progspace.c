@@ -240,7 +240,7 @@ static void
 py_free_pspace (struct program_space *pspace, void *datum)
 {
   struct cleanup *cleanup;
-  pspace_object *object = (struct pspace_object *) datum;
+  pspace_object *object = (pspace_object *) datum;
   struct gdbarch *arch = get_current_arch ();
 
   cleanup = ensure_python_env (arch, current_language);
@@ -259,7 +259,7 @@ pspace_to_pspace_object (struct program_space *pspace)
 {
   pspace_object *object;
 
-  object = (struct pspace_object *) program_space_data (pspace, pspy_pspace_data_key);
+  object = (pspace_object *) program_space_data (pspace, pspy_pspace_data_key);
   if (!object)
     {
       object = PyObject_New (pspace_object, &pspace_object_type);

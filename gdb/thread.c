@@ -756,7 +756,7 @@ finish_thread_state (ptid_t ptid)
 void
 finish_thread_state_cleanup (void *arg)
 {
-  ptid_t *ptid_p = (struct ptid_t *) arg;
+  ptid_t *ptid_p = (ptid_t *) arg;
 
   gdb_assert (arg);
 

@@ -91,13 +91,13 @@ elf_symfile_segments (bfd *abfd)
   if (phdrs_size == -1)
     return NULL;
 
-  phdrs = (struct Elf_Internal_Phdr *) alloca (phdrs_size);
+  phdrs = (Elf_Internal_Phdr *) alloca (phdrs_size);
   num_phdrs = bfd_get_elf_phdrs (abfd, phdrs);
   if (num_phdrs == -1)
     return NULL;
 
   num_segments = 0;
-  segments = (struct Elf_Internal_Phdr **) alloca (sizeof (Elf_Internal_Phdr *) * num_phdrs);
+  segments = (Elf_Internal_Phdr **) alloca (sizeof (Elf_Internal_Phdr *) * num_phdrs);
   for (i = 0; i < num_phdrs; i++)
     if (phdrs[i].p_type == PT_LOAD)
       segments[num_segments++] = &phdrs[i];
@@ -1161,7 +1161,7 @@ elf_read_minimal_symbols (struct objfile *objfile, int symfile_flags,
 	 done by _bfd_elf_get_synthetic_symtab which is all a bfd
 	 implementation detail, though.  */
 
-      dyn_symbol_table = (struct asymbol **) bfd_alloc (abfd, storage_needed);
+      dyn_symbol_table = (asymbol **) bfd_alloc (abfd, storage_needed);
       dynsymcount = bfd_canonicalize_dynamic_symtab (objfile->obfd,
 						     dyn_symbol_table);
 

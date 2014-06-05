@@ -410,7 +410,7 @@ gdbpy_block_for_pc (PyObject *self, PyObject *args)
 static void
 del_objfile_blocks (struct objfile *objfile, void *datum)
 {
-  block_object *obj = (struct block_object *) datum;
+  block_object *obj = (block_object *) datum;
 
   while (obj)
     {

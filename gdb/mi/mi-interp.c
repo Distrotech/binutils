@@ -675,7 +675,7 @@ mi_breakpoint_modified (struct breakpoint *b)
 static int
 mi_output_running_pid (struct thread_info *info, void *arg)
 {
-  ptid_t *ptid = (struct ptid_t *) arg;
+  ptid_t *ptid = (ptid_t *) arg;
 
   if (ptid_get_pid (*ptid) == ptid_get_pid (info->ptid))
     fprintf_unfiltered (raw_stdout,

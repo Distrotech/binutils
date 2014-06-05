@@ -5284,7 +5284,7 @@ remote_notif_remove_once_on_match (QUEUE (stop_reply_p) *q,
 				   void *data)
 {
   struct queue_iter_param *param = (struct queue_iter_param *) data;
-  ptid_t *ptid = (struct ptid_t *) param->input;
+  ptid_t *ptid = (ptid_t *) param->input;
 
   if (ptid_match (event->ptid, *ptid))
     {
@@ -5359,7 +5359,7 @@ stop_reply_match_ptid_and_ws (QUEUE (stop_reply_p) *q,
 			      struct stop_reply *event,
 			      void *data)
 {
-  ptid_t *ptid = (struct ptid_t *) data;
+  ptid_t *ptid = (ptid_t *) data;
 
   return !(ptid_equal (*ptid, event->ptid)
 	   && event->ws.kind == TARGET_WAITKIND_STOPPED);

@@ -1037,7 +1037,7 @@ static const struct objfile_data *typy_objfile_data_key;
 static void
 save_objfile_types (struct objfile *objfile, void *datum)
 {
-  type_object *obj = (struct type_object *) datum;
+  type_object *obj = (type_object *) datum;
   htab_t copied_types;
   struct cleanup *cleanup;
 

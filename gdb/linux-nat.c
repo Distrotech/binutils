@@ -3578,7 +3578,7 @@ retry:
 static int
 resume_stopped_resumed_lwps (struct lwp_info *lp, void *data)
 {
-  ptid_t *wait_ptid_p = (struct ptid_t *) data;
+  ptid_t *wait_ptid_p = (ptid_t *) data;
 
   if (lp->stopped
       && lp->resumed

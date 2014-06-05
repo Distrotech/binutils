@@ -7128,7 +7128,7 @@ discard_infcall_control_state (struct infcall_control_state *inf_status)
 static void
 restore_inferior_ptid (void *arg)
 {
-  ptid_t *saved_ptid_ptr = (struct ptid_t *) arg;
+  ptid_t *saved_ptid_ptr = (ptid_t *) arg;
 
   inferior_ptid = *saved_ptid_ptr;
   xfree (arg);
