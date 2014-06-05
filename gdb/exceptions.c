@@ -89,7 +89,7 @@ exceptions_state_mc_init (volatile struct gdb_exception *exception,
   struct catcher *new_catcher = XCNEW (struct catcher);
 
   /* Start with no exception, save it's address.  */
-  exception->reason = 0;
+  exception->reason = (enum return_reason) 0;
   exception->error = GDB_NO_ERROR;
   exception->message = NULL;
   new_catcher->exception = exception;

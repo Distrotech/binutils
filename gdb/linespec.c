@@ -2180,7 +2180,7 @@ parse_linespec (linespec_parser *parser, const char **argptr)
 
   parser->lexer.saved_arg = *argptr;
   parser->lexer.stream = argptr;
-  file_exception.reason = 0;
+  file_exception.reason = (enum return_reason) 0;
 
   /* Initialize the default symtab and line offset.  */
   initialize_defaults (&PARSER_STATE (parser)->default_symtab,

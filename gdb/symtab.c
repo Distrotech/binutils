@@ -5312,7 +5312,7 @@ initialize_ordinary_address_classes (void)
   int i;
 
   for (i = 0; i < LOC_FINAL_VALUE; ++i)
-    symbol_impl[i].aclass = i;
+    symbol_impl[i].aclass = (enum address_class) i;
 }
 
 
