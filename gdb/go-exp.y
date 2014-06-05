@@ -546,7 +546,7 @@ string_exp:
 			     for convenience.  */
 			  char *p;
 			  ++$$.len;
-			  $$.tokens = realloc ($$.tokens,
+			  $$.tokens = (struct typed_stoken *) realloc ($$.tokens,
 					       $$.len * sizeof (struct typed_stoken));
 
 			  p = (char *) malloc ($3.length + 1);

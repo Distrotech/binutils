@@ -861,7 +861,8 @@ static int memrange_cmp (const void *, const void *);
 static int
 memrange_cmp (const void *va, const void *vb)
 {
-  const struct memrange *a = (const struct memrange *) va, *b = vb;
+  const struct memrange *a = (const struct memrange *) va;
+  const struct memrange *b = (const struct memrange *) vb;
 
   if (a->type < b->type)
     return -1;
