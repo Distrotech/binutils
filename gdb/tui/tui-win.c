@@ -619,7 +619,7 @@ tui_scroll (enum tui_scroll_direction direction,
 void
 tui_refresh_all_win (void)
 {
-  enum tui_win_type type;
+  int type;
 
   clearok (curscr, TRUE);
   tui_refresh_all (tui_win_list);
@@ -667,7 +667,7 @@ tui_resize_all (void)
       struct tui_win_info *first_win;
       struct tui_win_info *second_win;
       struct tui_gen_win_info *locator = tui_locator_win_info_ptr ();
-      enum tui_win_type win_type;
+      int win_type;
       int new_height, split_diff, cmd_split_diff, num_wins_displayed = 2;
 
 #ifdef HAVE_RESIZE_TERM
@@ -960,7 +960,7 @@ tui_set_focus_command (char *arg, int from_tty)
 static void
 tui_all_windows_info (char *arg, int from_tty)
 {
-  enum tui_win_type type;
+  int type;
   struct tui_win_info *win_with_focus = tui_win_with_focus ();
 
   for (type = SRC_WIN; (type < MAX_MAJOR_WINDOWS); type++)

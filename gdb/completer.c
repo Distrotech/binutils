@@ -795,7 +795,7 @@ signal_completer (struct cmd_list_element *ignore,
 {
   VEC (char_ptr) *return_val = NULL;
   size_t len = strlen (word);
-  enum gdb_signal signum;
+  int signum;
   const char *signame;
 
   for (signum = GDB_SIGNAL_FIRST; signum != GDB_SIGNAL_LAST; ++signum)
@@ -804,7 +804,7 @@ signal_completer (struct cmd_list_element *ignore,
       if (signum == GDB_SIGNAL_0)
 	continue;
 
-      signame = gdb_signal_to_name (signum);
+      signame = gdb_signal_to_name ((enum gdb_signal) signum);
 
       /* Ignore the unknown signal case.  */
       if (!signame || strcmp (signame, "?") == 0)
