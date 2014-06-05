@@ -2261,6 +2261,10 @@ parse_string_or_char (const char *tokptr, const char **outptr,
 
 enum token_flags
 {
+  /* Nothing in particular.  */
+
+  FLAG_NOTHING = 0,
+
   /* If this bit is set, the token is C++-only.  */
 
   FLAG_CXX = 1,
@@ -2282,58 +2286,58 @@ struct token
 
 static const struct token tokentab3[] =
   {
-    {">>=", ASSIGN_MODIFY, BINOP_RSH, 0},
-    {"<<=", ASSIGN_MODIFY, BINOP_LSH, 0},
+    {">>=", ASSIGN_MODIFY, BINOP_RSH, FLAG_NOTHING},
+    {"<<=", ASSIGN_MODIFY, BINOP_LSH, FLAG_NOTHING},
     {"->*", ARROW_STAR, BINOP_END, FLAG_CXX},
-    {"...", DOTDOTDOT, BINOP_END, 0}
+    {"...", DOTDOTDOT, BINOP_END, FLAG_NOTHING}
   };
 
 static const struct token tokentab2[] =
   {
-    {"+=", ASSIGN_MODIFY, BINOP_ADD, 0},
-    {"-=", ASSIGN_MODIFY, BINOP_SUB, 0},
-    {"*=", ASSIGN_MODIFY, BINOP_MUL, 0},
-    {"/=", ASSIGN_MODIFY, BINOP_DIV, 0},
-    {"%=", ASSIGN_MODIFY, BINOP_REM, 0},
-    {"|=", ASSIGN_MODIFY, BINOP_BITWISE_IOR, 0},
-    {"&=", ASSIGN_MODIFY, BINOP_BITWISE_AND, 0},
-    {"^=", ASSIGN_MODIFY, BINOP_BITWISE_XOR, 0},
-    {"++", INCREMENT, BINOP_END, 0},
-    {"--", DECREMENT, BINOP_END, 0},
-    {"->", ARROW, BINOP_END, 0},
-    {"&&", ANDAND, BINOP_END, 0},
-    {"||", OROR, BINOP_END, 0},
+    {"+=", ASSIGN_MODIFY, BINOP_ADD, FLAG_NOTHING},
+    {"-=", ASSIGN_MODIFY, BINOP_SUB, FLAG_NOTHING},
+    {"*=", ASSIGN_MODIFY, BINOP_MUL, FLAG_NOTHING},
+    {"/=", ASSIGN_MODIFY, BINOP_DIV, FLAG_NOTHING},
+    {"%=", ASSIGN_MODIFY, BINOP_REM, FLAG_NOTHING},
+    {"|=", ASSIGN_MODIFY, BINOP_BITWISE_IOR, FLAG_NOTHING},
+    {"&=", ASSIGN_MODIFY, BINOP_BITWISE_AND, FLAG_NOTHING},
+    {"^=", ASSIGN_MODIFY, BINOP_BITWISE_XOR, FLAG_NOTHING},
+    {"++", INCREMENT, BINOP_END, FLAG_NOTHING},
+    {"--", DECREMENT, BINOP_END, FLAG_NOTHING},
+    {"->", ARROW, BINOP_END, FLAG_NOTHING},
+    {"&&", ANDAND, BINOP_END, FLAG_NOTHING},
+    {"||", OROR, BINOP_END, FLAG_NOTHING},
     /* "::" is *not* only C++: gdb overrides its meaning in several
        different ways, e.g., 'filename'::func, function::variable.  */
-    {"::", COLONCOLON, BINOP_END, 0},
-    {"<<", LSH, BINOP_END, 0},
-    {">>", RSH, BINOP_END, 0},
-    {"==", EQUAL, BINOP_END, 0},
-    {"!=", NOTEQUAL, BINOP_END, 0},
-    {"<=", LEQ, BINOP_END, 0},
-    {">=", GEQ, BINOP_END, 0},
+    {"::", COLONCOLON, BINOP_END, FLAG_NOTHING},
+    {"<<", LSH, BINOP_END, FLAG_NOTHING},
+    {">>", RSH, BINOP_END, FLAG_NOTHING},
+    {"==", EQUAL, BINOP_END, FLAG_NOTHING},
+    {"!=", NOTEQUAL, BINOP_END, FLAG_NOTHING},
+    {"<=", LEQ, BINOP_END, FLAG_NOTHING},
+    {">=", GEQ, BINOP_END, FLAG_NOTHING},
     {".*", DOT_STAR, BINOP_END, FLAG_CXX}
   };
 
 /* Identifier-like tokens.  */
 static const struct token ident_tokens[] =
   {
-    {"unsigned", UNSIGNED, OP_NULL, 0},
+    {"unsigned", UNSIGNED, OP_NULL, FLAG_NOTHING},
     {"template", TEMPLATE, OP_NULL, FLAG_CXX},
-    {"volatile", VOLATILE_KEYWORD, OP_NULL, 0},
-    {"struct", STRUCT, OP_NULL, 0},
-    {"signed", SIGNED_KEYWORD, OP_NULL, 0},
-    {"sizeof", SIZEOF, OP_NULL, 0},
-    {"double", DOUBLE_KEYWORD, OP_NULL, 0},
+    {"volatile", VOLATILE_KEYWORD, OP_NULL, FLAG_NOTHING},
+    {"struct", STRUCT, OP_NULL, FLAG_NOTHING},
+    {"signed", SIGNED_KEYWORD, OP_NULL, FLAG_NOTHING},
+    {"sizeof", SIZEOF, OP_NULL, FLAG_NOTHING},
+    {"double", DOUBLE_KEYWORD, OP_NULL, FLAG_NOTHING},
     {"false", FALSEKEYWORD, OP_NULL, FLAG_CXX},
     {"class", CLASS, OP_NULL, FLAG_CXX},
-    {"union", UNION, OP_NULL, 0},
-    {"short", SHORT, OP_NULL, 0},
-    {"const", CONST_KEYWORD, OP_NULL, 0},
-    {"enum", ENUM, OP_NULL, 0},
-    {"long", LONG, OP_NULL, 0},
+    {"union", UNION, OP_NULL, FLAG_NOTHING},
+    {"short", SHORT, OP_NULL, FLAG_NOTHING},
+    {"const", CONST_KEYWORD, OP_NULL, FLAG_NOTHING},
+    {"enum", ENUM, OP_NULL, FLAG_NOTHING},
+    {"long", LONG, OP_NULL, FLAG_NOTHING},
     {"true", TRUEKEYWORD, OP_NULL, FLAG_CXX},
-    {"int", INT_KEYWORD, OP_NULL, 0},
+    {"int", INT_KEYWORD, OP_NULL, FLAG_NOTHING},
     {"new", NEW, OP_NULL, FLAG_CXX},
     {"delete", DELETE, OP_NULL, FLAG_CXX},
     {"operator", OPERATOR, OP_NULL, FLAG_CXX},
