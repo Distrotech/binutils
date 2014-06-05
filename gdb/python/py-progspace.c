@@ -41,7 +41,7 @@ typedef struct
   PyObject *type_printers;
 } pspace_object;
 
-static PyTypeObject pspace_object_type
+extern PyTypeObject pspace_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("pspace_object");
 
 static const struct program_space_data *pspy_pspace_data_key;
@@ -323,7 +323,7 @@ static PyGetSetDef pspace_getset[] =
   { NULL }
 };
 
-static PyTypeObject pspace_object_type =
+PyTypeObject pspace_object_type =
 {
   PyVarObject_HEAD_INIT (NULL, 0)
   "gdb.Progspace",		  /*tp_name*/

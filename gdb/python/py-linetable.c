@@ -29,7 +29,7 @@ typedef struct {
   CORE_ADDR pc;
 } linetable_entry_object;
 
-static PyTypeObject linetable_entry_object_type
+extern PyTypeObject linetable_entry_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("linetable_entry_object");
 
 typedef struct {
@@ -40,7 +40,7 @@ typedef struct {
   PyObject *symtab;
 } linetable_object;
 
-static PyTypeObject linetable_object_type
+extern PyTypeObject linetable_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("linetable_object");
 
 typedef struct {
@@ -53,7 +53,7 @@ typedef struct {
   PyObject *source;
 } ltpy_iterator_object;
 
-static PyTypeObject ltpy_iterator_object_type
+extern PyTypeObject ltpy_iterator_object_type
     CPYCHECKER_TYPE_OBJECT_FOR_TYPEDEF ("ltpy_iterator_object");
 
 /* Internal helper function to extract gdb.Symtab from a gdb.Linetable
@@ -494,7 +494,7 @@ Return True if this Linetable is valid, False if not." },
   {NULL}  /* Sentinel */
 };
 
-static PyTypeObject linetable_object_type = {
+PyTypeObject linetable_object_type = {
   PyVarObject_HEAD_INIT (NULL, 0)
   "gdb.LineTable",	          /*tp_name*/
   sizeof (linetable_object),	  /*tp_basicsize*/
@@ -541,7 +541,7 @@ Return True if this Linetable iterator is valid, False if not." },
   {NULL}  /* Sentinel */
 };
 
-static PyTypeObject ltpy_iterator_object_type = {
+PyTypeObject ltpy_iterator_object_type = {
   PyVarObject_HEAD_INIT (NULL, 0)
   "gdb.LineTableIterator",		  /*tp_name*/
   sizeof (ltpy_iterator_object),  /*tp_basicsize*/
@@ -581,7 +581,7 @@ static PyGetSetDef linetable_entry_object_getset[] = {
   { NULL }  /* Sentinel */
 };
 
-static PyTypeObject linetable_entry_object_type = {
+PyTypeObject linetable_entry_object_type = {
   PyVarObject_HEAD_INIT (NULL, 0)
   "gdb.LineTableEntry",	          /*tp_name*/
   sizeof (linetable_entry_object), /*tp_basicsize*/

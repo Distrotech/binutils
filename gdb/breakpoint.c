@@ -267,7 +267,7 @@ static int strace_marker_p (struct breakpoint *b);
 
 /* The abstract base class all breakpoint_ops structures inherit
    from.  */
-struct breakpoint_ops base_breakpoint_ops;
+extern struct breakpoint_ops base_breakpoint_ops;
 
 /* The breakpoint_ops structure to be inherited by all breakpoint_ops
    that are implemented on top of software or hardware breakpoints
