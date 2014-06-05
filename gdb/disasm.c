@@ -206,13 +206,13 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
   int out_of_order = 0;
   int next_line = 0;
   int num_displayed = 0;
-  enum print_source_lines_flags psl_flags = 0;
+  enum print_source_lines_flags psl_flags = PRINT_SOURCE_LINES_DEFAULT;
   struct cleanup *ui_out_chain;
   struct cleanup *ui_out_tuple_chain = make_cleanup (null_cleanup, 0);
   struct cleanup *ui_out_list_chain = make_cleanup (null_cleanup, 0);
 
   if (flags & DISASSEMBLY_FILENAME)
-    psl_flags |= PRINT_SOURCE_LINES_FILENAME;
+    psl_flags = PRINT_SOURCE_LINES_FILENAME;
 
   mle = (struct dis_line_entry *) alloca (nlines
 					  * sizeof (struct dis_line_entry));

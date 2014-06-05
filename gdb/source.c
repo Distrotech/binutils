@@ -1306,7 +1306,7 @@ identify_source_line (struct symtab *s, int line, int mid_statement,
 
 static void
 print_source_lines_base (struct symtab *s, int line, int stopline,
-			 enum print_source_lines_flags flags)
+			 int flags)
 {
   int c;
   int desc;
@@ -1659,7 +1659,8 @@ forward_search_command (char *regex, int from_tty)
 	{
 	  /* Match!  */
 	  do_cleanups (cleanups);
-	  print_source_lines (current_source_symtab, line, line + 1, 0);
+	  print_source_lines (current_source_symtab, line, line + 1,
+			      PRINT_SOURCE_LINES_DEFAULT);
 	  set_internalvar_integer (lookup_internalvar ("_"), line);
 	  current_source_line = max (line - lines_to_list / 2, 1);
 	  return;
@@ -1737,7 +1738,8 @@ reverse_search_command (char *regex, int from_tty)
 	{
 	  /* Match!  */
 	  do_cleanups (cleanups);
-	  print_source_lines (current_source_symtab, line, line + 1, 0);
+	  print_source_lines (current_source_symtab, line, line + 1,
+			      PRINT_SOURCE_LINES_DEFAULT);
 	  set_internalvar_integer (lookup_internalvar ("_"), line);
 	  current_source_line = max (line - lines_to_list / 2, 1);
 	  return;

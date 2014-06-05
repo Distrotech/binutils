@@ -382,6 +382,7 @@ tui_vertical_source_scroll (enum tui_scroll_direction scroll_direction,
 	    l.u.line_no = 1;
 	}
 
-      print_source_lines (s, l.u.line_no, l.u.line_no + 1, 0);
+      print_source_lines (s, l.u.line_no, l.u.line_no + 1,
+			  PRINT_SOURCE_LINES_DEFAULT);
     }
 }
