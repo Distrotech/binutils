@@ -109,10 +109,10 @@ write_gcore_file (bfd *obfd)
 static void
 do_bfd_delete_cleanup (void *arg)
 {
-  bfd *obfd = arg;
+  bfd *obfd = (struct bfd *) arg;
   const char *filename = obfd->filename;
 
-  gdb_bfd_unref (arg);
+  gdb_bfd_unref ((struct bfd *) arg);
   unlink (filename);
 }
 
@@ -389,7 +389,7 @@ static int
 gcore_create_callback (CORE_ADDR vaddr, unsigned long size, int read,
 		       int write, int exec, int modified, void *data)
 {
-  bfd *obfd = data;
+  bfd *obfd = (struct bfd *) data;
   asection *osec;
   flagword flags = SEC_ALLOC | SEC_HAS_CONTENTS | SEC_LOAD;
 
@@ -554,7 +554,7 @@ gcore_copy_callback (bfd *obfd, asection *osec, void *ignored)
 	size = total_size;
 
       if (target_read_memory (bfd_section_vma (obfd, osec) + offset,
-			      memhunk, size) != 0)
+			      (gdb_byte *) memhunk, size) != 0)
 	{
 	  warning (_("Memory read failed for corefile "
 		     "section, %s bytes at %s."),

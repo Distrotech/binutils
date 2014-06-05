@@ -111,13 +111,13 @@ void
 user_reg_add (struct gdbarch *gdbarch, const char *name,
 	      user_reg_read_ftype *read, const void *baton)
 {
-  struct gdb_user_regs *regs = gdbarch_data (gdbarch, user_regs_data);
+  struct gdb_user_regs *regs = (struct gdb_user_regs *) gdbarch_data (gdbarch, user_regs_data);
 
   if (regs == NULL)
     {
       /* ULGH, called during architecture initialization.  Patch
          things up.  */
-      regs = user_regs_init (gdbarch);
+      regs = (struct gdb_user_regs *) user_regs_init (gdbarch);
       deprecated_set_gdbarch_data (gdbarch, user_regs_data, regs);
     }
   append_user_reg (regs, name, read, baton,
@@ -153,7 +153,7 @@ user_reg_map_name_to_regnum (struct gdbarch *gdbarch, const char *name,
 
   /* Search the user name space.  */
   {
-    struct gdb_user_regs *regs = gdbarch_data (gdbarch, user_regs_data);
+    struct gdb_user_regs *regs = (struct gdb_user_regs *) gdbarch_data (gdbarch, user_regs_data);
     struct user_reg *reg;
     int nr;
 
@@ -173,7 +173,7 @@ user_reg_map_name_to_regnum (struct gdbarch *gdbarch, const char *name,
 static struct user_reg *
 usernum_to_user_reg (struct gdbarch *gdbarch, int usernum)
 {
-  struct gdb_user_regs *regs = gdbarch_data (gdbarch, user_regs_data);
+  struct gdb_user_regs *regs = (struct gdb_user_regs *) gdbarch_data (gdbarch, user_regs_data);
   struct user_reg *reg;
 
   for (reg = regs->first; reg != NULL; reg = reg->next)

@@ -1205,7 +1205,7 @@ end_symtab_from_static_block (struct block *static_block,
 	    {
 	      /* Reallocate the dirname on the symbol obstack.  */
 	      symtab->dirname =
-		obstack_copy0 (&objfile->objfile_obstack,
+		(const char *) obstack_copy0 (&objfile->objfile_obstack,
 			       subfile->dirname,
 			       strlen (subfile->dirname));
 	    }

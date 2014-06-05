@@ -179,7 +179,7 @@ struct symbol_file_add_from_memory_args
 static int
 symbol_file_add_from_memory_wrapper (struct ui_out *uiout, void *data)
 {
-  struct symbol_file_add_from_memory_args *args = data;
+  struct symbol_file_add_from_memory_args *args = (struct symbol_file_add_from_memory_args *) data;
 
   symbol_file_add_from_memory (args->bfd, args->sysinfo_ehdr, args->size,
 			       args->name, args->from_tty);
@@ -193,7 +193,7 @@ find_vdso_size (CORE_ADDR vaddr, unsigned long size,
 		int read, int write, int exec, int modified,
 		void *data)
 {
-  struct symbol_file_add_from_memory_args *args = data;
+  struct symbol_file_add_from_memory_args *args = (struct symbol_file_add_from_memory_args *) data;
 
   if (vaddr == args->sysinfo_ehdr)
     {

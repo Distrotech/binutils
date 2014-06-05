@@ -2244,7 +2244,7 @@ free_variable (struct varobj *var)
 static void
 do_free_variable_cleanup (void *var)
 {
-  free_variable (var);
+  free_variable ((struct varobj *) var);
 }
 
 static struct cleanup *
@@ -2655,7 +2655,7 @@ varobj_value_get_print_value (struct value *value,
 			    }
 
 			  len = strlen (s);
-			  thevalue = xmemdup (s, len + 1, len + 1);
+			  thevalue = (char *) xmemdup (s, len + 1, len + 1);
 			  type = builtin_type (gdbarch)->builtin_char;
 			  xfree (s);
 

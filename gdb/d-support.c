@@ -145,17 +145,17 @@ parse_function_type (struct obstack *tempbuf, const char *mangle)
   /* Function attributes.  */
   mangle = parse_attributes (&obattr, mangle);
   szattr = obstack_object_size (&obattr);
-  attr = obstack_finish (&obattr);
+  attr = (char *) obstack_finish (&obattr);
 
   /* Function arguments.  */
   mangle = parse_function_args (&obargs, mangle);
   szargs = obstack_object_size (&obargs);
-  args = obstack_finish (&obargs);
+  args = (char *) obstack_finish (&obargs);
 
   /* Function return type.  */
   mangle = parse_type (&obtype, mangle);
   sztype = obstack_object_size (&obtype);
-  type = obstack_finish (&obtype);
+  type = (char *) obstack_finish (&obtype);
 
   /* Append to buffer in order. */
   obstack_grow (tempbuf, type, sztype);
@@ -309,7 +309,7 @@ parse_type (struct obstack *tempbuf, const char *mangle)
       obstack_init (&obtype);
       mangle = parse_type (&obtype, mangle);
       sztype = obstack_object_size (&obtype);
-      type = obstack_finish (&obtype);
+      type = (char *) obstack_finish (&obtype);
 
       mangle = parse_type (tempbuf, mangle);
       obstack_grow_str (tempbuf, "[");

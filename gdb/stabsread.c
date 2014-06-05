@@ -719,7 +719,7 @@ define_symbol (CORE_ADDR valu, char *string, int desc, int type,
 			   &objfile->objfile_obstack);
       if (SYMBOL_LANGUAGE (sym) == language_cplus)
 	{
-	  char *name = alloca (p - string + 1);
+	  char *name = (char *) alloca (p - string + 1);
 
 	  memcpy (name, string, p - string);
 	  name[p - string] = '\0';
@@ -788,7 +788,7 @@ define_symbol (CORE_ADDR valu, char *string, int desc, int type,
 
 	    dbl_type = objfile_type (objfile)->builtin_double;
 	    dbl_valu =
-	      obstack_alloc (&objfile->objfile_obstack,
+	      (gdb_byte *) obstack_alloc (&objfile->objfile_obstack,
 			     TYPE_LENGTH (dbl_type));
 	    store_typed_floating (dbl_valu, dbl_type, d);
 
@@ -871,7 +871,7 @@ define_symbol (CORE_ADDR valu, char *string, int desc, int type,
 	    SYMBOL_TYPE (sym) = create_array_type (NULL,
 				  objfile_type (objfile)->builtin_char,
 				  range_type);
-	    string_value = obstack_alloc (&objfile->objfile_obstack, ind + 1);
+	    string_value = (gdb_byte *) obstack_alloc (&objfile->objfile_obstack, ind + 1);
 	    memcpy (string_value, string_local, ind + 1);
 	    p++;
 
@@ -1625,14 +1625,14 @@ again:
 	  type_name = NULL;
 	  if (current_subfile->language == language_cplus)
 	    {
-	      char *new_name, *name = alloca (p - *pp + 1);
+	      char *new_name, *name = (char *) alloca (p - *pp + 1);
 
 	      memcpy (name, *pp, p - *pp);
 	      name[p - *pp] = '\0';
 	      new_name = cp_canonicalize_string (name);
 	      if (new_name != NULL)
 		{
-		  type_name = obstack_copy0 (&objfile->objfile_obstack,
+		  type_name = (char *) obstack_copy0 (&objfile->objfile_obstack,
 					     new_name, strlen (new_name));
 		  xfree (new_name);
 		}
@@ -1811,7 +1811,7 @@ again:
         while (**pp && **pp != '#')
           {
             struct type *arg_type = read_type (pp, objfile);
-            struct type_list *newobj = alloca (sizeof (*newobj));
+            struct type_list *newobj = (struct type_list *) alloca (sizeof (*newobj));
             newobj->type = arg_type;
             newobj->next = arg_types;
             arg_types = newobj;
@@ -2058,7 +2058,7 @@ static const struct objfile_data *rs6000_builtin_type_data;
 static struct type *
 rs6000_builtin_type (int typenum, struct objfile *objfile)
 {
-  struct type **negative_types = objfile_data (objfile,
+  struct type **negative_types = (struct type **) objfile_data (objfile,
 					       rs6000_builtin_type_data);
 
   /* We recognize types numbered from -NUMBER_RECOGNIZED to -1.  */
@@ -2712,7 +2712,7 @@ read_member_functions (struct field_info *fip, char **pp, struct type *type,
 					     dem_opname, 0);
 	      if (ret)
 		new_fnlist->fn_fieldlist.name
-		  = obstack_copy0 (&objfile->objfile_obstack,
+		  = (const char *) obstack_copy0 (&objfile->objfile_obstack,
 				   dem_opname, strlen (dem_opname));
 	      xfree (main_fn_name);
 	    }
@@ -2855,7 +2855,7 @@ read_one_struct_field (struct field_info *fip, char **pp, char *p,
   struct gdbarch *gdbarch = get_objfile_arch (objfile);
 
   fip->list->field.name =
-    obstack_copy0 (&objfile->objfile_obstack, *pp, p - *pp);
+    (const char *) obstack_copy0 (&objfile->objfile_obstack, *pp, p - *pp);
   *pp = p + 1;
 
   /* This means we have a visibility for a field coming.  */
@@ -3677,7 +3677,7 @@ read_enum_type (char **pp, struct type *type,
       p = *pp;
       while (*p != ':')
 	p++;
-      name = obstack_copy0 (&objfile->objfile_obstack, *pp, p - *pp);
+      name = (char *) obstack_copy0 (&objfile->objfile_obstack, *pp, p - *pp);
       *pp = p + 1;
       n = read_huge_number (pp, ',', &nbits, 0);
       if (nbits != 0)
@@ -4331,7 +4331,7 @@ common_block_start (char *name, struct objfile *objfile)
     }
   common_block = local_symbols;
   common_block_i = local_symbols ? local_symbols->nsyms : 0;
-  common_block_name = obstack_copy0 (&objfile->objfile_obstack,
+  common_block_name = (char *) obstack_copy0 (&objfile->objfile_obstack,
 				     name, strlen (name));
 }
 

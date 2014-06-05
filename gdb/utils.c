@@ -185,7 +185,7 @@ make_cleanup_dyn_string_delete (dyn_string_t arg)
 static void
 do_bfd_close_cleanup (void *arg)
 {
-  gdb_bfd_unref (arg);
+  gdb_bfd_unref ((struct bfd *) arg);
 }
 
 struct cleanup *
@@ -197,7 +197,7 @@ make_cleanup_bfd_unref (bfd *abfd)
 static void
 do_close_cleanup (void *arg)
 {
-  int *fd = arg;
+  int *fd = (int *) arg;
 
   close (*fd);
 }
@@ -216,7 +216,7 @@ make_cleanup_close (int fd)
 static void
 do_fclose_cleanup (void *arg)
 {
-  FILE *file = arg;
+  FILE *file = (struct FILE *) arg;
 
   fclose (file);
 }
@@ -234,7 +234,7 @@ make_cleanup_fclose (FILE *file)
 static void
 do_obstack_free (void *arg)
 {
-  struct obstack *ob = arg;
+  struct obstack *ob = (struct obstack *) arg;
 
   obstack_free (ob, NULL);
 }
@@ -250,7 +250,7 @@ make_cleanup_obstack_free (struct obstack *obstack)
 static void
 do_ui_file_delete (void *arg)
 {
-  ui_file_delete (arg);
+  ui_file_delete ((struct ui_file *) arg);
 }
 
 struct cleanup *
@@ -264,7 +264,7 @@ make_cleanup_ui_file_delete (struct ui_file *arg)
 static void
 do_ui_out_redirect_pop (void *arg)
 {
-  struct ui_out *uiout = arg;
+  struct ui_out *uiout = (struct ui_out *) arg;
 
   if (ui_out_redirect (uiout, NULL) < 0)
     warning (_("Cannot restore redirection of the current output protocol"));
@@ -282,7 +282,7 @@ make_cleanup_ui_out_redirect_pop (struct ui_out *uiout)
 static void
 do_free_section_addr_info (void *arg)
 {
-  free_section_addr_info (arg);
+  free_section_addr_info ((struct section_addr_info *) arg);
 }
 
 struct cleanup *
@@ -300,7 +300,7 @@ struct restore_integer_closure
 static void
 restore_integer (void *p)
 {
-  struct restore_integer_closure *closure = p;
+  struct restore_integer_closure *closure = (struct restore_integer_closure *) p;
 
   *(closure->variable) = closure->value;
 }
@@ -333,7 +333,7 @@ make_cleanup_restore_uinteger (unsigned int *variable)
 static void
 do_unpush_target (void *arg)
 {
-  struct target_ops *ops = arg;
+  struct target_ops *ops = (struct target_ops *) arg;
 
   unpush_target (ops);
 }
@@ -351,7 +351,7 @@ make_cleanup_unpush_target (struct target_ops *ops)
 static void
 do_htab_delete_cleanup (void *htab_voidp)
 {
-  htab_t htab = htab_voidp;
+  htab_t htab = (htab_t) htab_voidp;
 
   htab_delete (htab);
 }
@@ -373,7 +373,7 @@ struct restore_ui_file_closure
 static void
 do_restore_ui_file (void *p)
 {
-  struct restore_ui_file_closure *closure = p;
+  struct restore_ui_file_closure *closure = (struct restore_ui_file_closure *) p;
 
   *(closure->variable) = closure->value;
 }
@@ -414,7 +414,7 @@ make_cleanup_value_free_to_mark (struct value *mark)
 static void
 do_value_free (void *value)
 {
-  value_free (value);
+  value_free ((struct value *) value);
 }
 
 /* Free VALUE.  */
@@ -430,7 +430,7 @@ make_cleanup_value_free (struct value *value)
 static void
 do_free_so (void *arg)
 {
-  struct so_list *so = arg;
+  struct so_list *so = (struct so_list *) arg;
 
   free_so (so);
 }
@@ -494,7 +494,7 @@ make_cleanup_clear_parser_state (struct parser_state **p)
 void
 free_current_contents (void *ptr)
 {
-  void **location = ptr;
+  void **location = (void **) ptr;
 
   if (location == NULL)
     internal_error (__FILE__, __LINE__,
@@ -1098,7 +1098,7 @@ gdb_print_host_address (const void *addr, struct ui_file *stream)
 static void
 do_regfree_cleanup (void *r)
 {
-  regfree (r);
+  regfree ((struct regex_t *) r);
 }
 
 /* Create a new cleanup that frees the compiled regular expression R.  */
@@ -1116,7 +1116,7 @@ char *
 get_regcomp_error (int code, regex_t *rx)
 {
   size_t length = regerror (code, rx, NULL, 0);
-  char *result = xmalloc (length);
+  char *result = (char *) xmalloc (length);
 
   regerror (code, rx, result, length);
   return result;
@@ -1965,7 +1965,7 @@ puts_filtered_tabular (char *string, int width, int right)
   if (right)
     spaces += width - stringlen;
 
-  spacebuf = alloca (spaces + 1);
+  spacebuf = (char *) alloca (spaces + 1);
   spacebuf[spaces] = '\0';
   while (spaces--)
     spacebuf[spaces] = ' ';
@@ -2773,7 +2773,7 @@ print_core_address (struct gdbarch *gdbarch, CORE_ADDR address)
 hashval_t
 core_addr_hash (const void *ap)
 {
-  const CORE_ADDR *addrp = ap;
+  const CORE_ADDR *addrp = (const CORE_ADDR *) ap;
 
   return *addrp;
 }
@@ -2783,8 +2783,8 @@ core_addr_hash (const void *ap)
 int
 core_addr_eq (const void *ap, const void *bp)
 {
-  const CORE_ADDR *addr_ap = ap;
-  const CORE_ADDR *addr_bp = bp;
+  const CORE_ADDR *addr_ap = (const CORE_ADDR *) ap;
+  const CORE_ADDR *addr_bp = (const CORE_ADDR *) bp;
 
   return *addr_ap == *addr_bp;
 }
@@ -2883,7 +2883,7 @@ gdb_realpath (const char *filename)
     if (path_max > 0)
       {
 	/* PATH_MAX is bounded.  */
-	char *buf = alloca (path_max);
+	char *buf = (char *) alloca (path_max);
 	char *rp = realpath (filename, buf);
 
 	return xstrdup (rp ? rp : filename);
@@ -2930,7 +2930,7 @@ gdb_realpath_keepfile (const char *filename)
   if (base_name == filename)
     return xstrdup (filename);
 
-  dir_name = alloca ((size_t) (base_name - filename + 2));
+  dir_name = (char *) alloca ((size_t) (base_name - filename + 2));
   /* Allocate enough space to store the dir_name + plus one extra
      character sometimes needed under Windows (see below), and
      then the closing \000 character.  */
@@ -3157,7 +3157,7 @@ ldirname (const char *filename)
   if (base == filename)
     return NULL;
 
-  dirname = xmalloc (base - filename + 2);
+  dirname = (char *) xmalloc (base - filename + 2);
   memcpy (dirname, filename, base - filename);
 
   /* On DOS based file systems, convert "d:foo" to "d:.", so that we
@@ -3223,7 +3223,7 @@ gdb_bfd_errmsg (bfd_error_type error_tag, char **matching)
             + strlen (AMBIGUOUS_MESS2);
   for (p = matching; *p; p++)
     ret_len += strlen (*p) + 1;
-  ret = xmalloc (ret_len + 1);
+  ret = (char *) xmalloc (ret_len + 1);
   retp = ret;
   make_cleanup (xfree, ret);
 
@@ -3331,7 +3331,7 @@ producer_is_gcc_ge_4 (const char *producer)
 static void
 do_free_char_ptr_vec (void *arg)
 {
-  VEC (char_ptr) *char_ptr_vec = arg;
+  VEC (char_ptr) *char_ptr_vec = (struct VEC_char_ptr *) arg;
 
   free_char_ptr_vec (char_ptr_vec);
 }
@@ -3374,7 +3374,7 @@ substitute_path_component (char **stringp, const char *from, const char *to)
 	{
 	  char *string_new;
 
-	  string_new = xrealloc (string, (strlen (string) + to_len + 1));
+	  string_new = (char *) xrealloc (string, (strlen (string) + to_len + 1));
 
 	  /* Relocate the current S pointer.  */
 	  s = s - string + string_new;

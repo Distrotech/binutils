@@ -203,7 +203,7 @@ mi_parse_argv (const char *args, struct mi_parse *parse)
 	  }
 	}
       /* Append arg to argv.  */
-      argv = xrealloc (argv, (argc + 2) * sizeof (char *));
+      argv = (char **) xrealloc (argv, (argc + 2) * sizeof (char *));
       argv[argc++] = arg;
       argv[argc] = NULL;
     }
@@ -230,7 +230,7 @@ mi_parse_free (struct mi_parse *parse)
 static void
 mi_parse_cleanup (void *arg)
 {
-  mi_parse_free (arg);
+  mi_parse_free ((struct mi_parse *) arg);
 }
 
 struct mi_parse *
@@ -255,7 +255,7 @@ mi_parse (const char *cmd, char **token)
   /* Find/skip any token and then extract it.  */
   for (chp = cmd; *chp >= '0' && *chp <= '9'; chp++)
     ;
-  *token = xmalloc (chp - cmd + 1);
+  *token = (char *) xmalloc (chp - cmd + 1);
   memcpy (*token, cmd, (chp - cmd));
   (*token)[chp - cmd] = '\0';
 
@@ -277,7 +277,7 @@ mi_parse (const char *cmd, char **token)
 
     for (; *chp && !isspace (*chp); chp++)
       ;
-    parse->command = xmalloc (chp - tmp + 1);
+    parse->command = (char *) xmalloc (chp - tmp + 1);
     memcpy (parse->command, tmp, chp - tmp);
     parse->command[chp - tmp] = '\0';
   }

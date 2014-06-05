@@ -73,7 +73,7 @@ d_demangle (const char *symbol, int options)
   if (d_parse_symbol (&tempbuf, symbol) != NULL)
     {
       obstack_grow_str0 (&tempbuf, "");
-      result = xstrdup (obstack_finish (&tempbuf));
+      result = xstrdup ((const char *) obstack_finish (&tempbuf));
       obstack_free (&tempbuf, NULL);
     }
   else
@@ -348,7 +348,7 @@ static struct gdbarch_data *d_type_data;
 const struct builtin_d_type *
 builtin_d_type (struct gdbarch *gdbarch)
 {
-  return gdbarch_data (gdbarch, d_type_data);
+  return (const struct builtin_d_type *) gdbarch_data (gdbarch, d_type_data);
 }
 
 /* Provide a prototype to silence -Wmissing-prototypes.  */

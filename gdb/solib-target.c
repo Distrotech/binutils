@@ -82,9 +82,9 @@ library_list_start_segment (struct gdb_xml_parser *parser,
 			    const struct gdb_xml_element *element,
 			    void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
-  VEC(lm_info_p) **list = user_data;
+  VEC(lm_info_p) **list = (struct VEC_lm_info_p **) user_data;
   struct lm_info *last = VEC_last (lm_info_p, *list);
-  ULONGEST *address_p = xml_find_attribute (attributes, "address")->value;
+  ULONGEST *address_p = (long unsigned int *) xml_find_attribute (attributes, "address")->value;
   CORE_ADDR address = (CORE_ADDR) *address_p;
 
   if (last->section_bases != NULL)
@@ -99,9 +99,9 @@ library_list_start_section (struct gdb_xml_parser *parser,
 			    const struct gdb_xml_element *element,
 			    void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
-  VEC(lm_info_p) **list = user_data;
+  VEC(lm_info_p) **list = (struct VEC_lm_info_p **) user_data;
   struct lm_info *last = VEC_last (lm_info_p, *list);
-  ULONGEST *address_p = xml_find_attribute (attributes, "address")->value;
+  ULONGEST *address_p = (long unsigned int *) xml_find_attribute (attributes, "address")->value;
   CORE_ADDR address = (CORE_ADDR) *address_p;
 
   if (last->segment_bases != NULL)
@@ -118,9 +118,9 @@ library_list_start_library (struct gdb_xml_parser *parser,
 			    const struct gdb_xml_element *element,
 			    void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
-  VEC(lm_info_p) **list = user_data;
+  VEC(lm_info_p) **list = (struct VEC_lm_info_p **) user_data;
   struct lm_info *item = XCNEW (struct lm_info);
-  const char *name = xml_find_attribute (attributes, "name")->value;
+  const char *name = (const char *) xml_find_attribute (attributes, "name")->value;
 
   item->name = xstrdup (name);
   VEC_safe_push (lm_info_p, *list, item);
@@ -131,7 +131,7 @@ library_list_end_library (struct gdb_xml_parser *parser,
 			  const struct gdb_xml_element *element,
 			  void *user_data, const char *body_text)
 {
-  VEC(lm_info_p) **list = user_data;
+  VEC(lm_info_p) **list = (struct VEC_lm_info_p **) user_data;
   struct lm_info *lm_info = VEC_last (lm_info_p, *list);
 
   if (lm_info->segment_bases == NULL
@@ -148,7 +148,7 @@ library_list_start_list (struct gdb_xml_parser *parser,
 			 const struct gdb_xml_element *element,
 			 void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
-  char *version = xml_find_attribute (attributes, "version")->value;
+  char *version = (char *) xml_find_attribute (attributes, "version")->value;
 
   if (strcmp (version, "1.0") != 0)
     gdb_xml_error (parser,
@@ -161,7 +161,7 @@ library_list_start_list (struct gdb_xml_parser *parser,
 static void
 solib_target_free_library_list (void *p)
 {
-  VEC(lm_info_p) **result = p;
+  VEC(lm_info_p) **result = (struct VEC_lm_info_p **) p;
   struct lm_info *info;
   int ix;
 
@@ -341,7 +341,7 @@ solib_target_relocate_section_addresses (struct so_list *so,
     {
       int num_sections = gdb_bfd_count_sections (so->abfd);
 
-      so->lm_info->offsets = xzalloc (SIZEOF_N_SECTION_OFFSETS (num_sections));
+      so->lm_info->offsets = (struct section_offsets *) xzalloc (SIZEOF_N_SECTION_OFFSETS (num_sections));
 
       if (so->lm_info->section_bases)
 	{

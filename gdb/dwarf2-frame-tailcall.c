@@ -70,7 +70,7 @@ struct tailcall_cache
 static hashval_t
 cache_hash (const void *arg)
 {
-  const struct tailcall_cache *cache = arg;
+  const struct tailcall_cache *cache = (const struct tailcall_cache *) arg;
 
   return htab_hash_pointer (cache->next_bottom_frame);
 }
@@ -80,8 +80,8 @@ cache_hash (const void *arg)
 static int
 cache_eq (const void *arg1, const void *arg2)
 {
-  const struct tailcall_cache *cache1 = arg1;
-  const struct tailcall_cache *cache2 = arg2;
+  const struct tailcall_cache *cache1 = (const struct tailcall_cache *) arg1;
+  const struct tailcall_cache *cache2 = (const struct tailcall_cache *) arg2;
 
   return cache1->next_bottom_frame == cache2->next_bottom_frame;
 }
@@ -164,7 +164,7 @@ cache_find (struct frame_info *fi)
   if (slot == NULL)
     return NULL;
 
-  cache = *slot;
+  cache = (struct tailcall_cache *) *slot;
   gdb_assert (cache != NULL);
   return cache;
 }
@@ -213,7 +213,7 @@ static void
 tailcall_frame_this_id (struct frame_info *this_frame, void **this_cache,
 			struct frame_id *this_id)
 {
-  struct tailcall_cache *cache = *this_cache;
+  struct tailcall_cache *cache = (struct tailcall_cache *) *this_cache;
   struct frame_info *next_frame;
 
   /* Tail call does not make sense for a sentinel frame.  */
@@ -268,7 +268,7 @@ dwarf2_tailcall_prev_register_first (struct frame_info *this_frame,
 				     void **tailcall_cachep, int regnum)
 {
   struct gdbarch *this_gdbarch = get_frame_arch (this_frame);
-  struct tailcall_cache *cache = *tailcall_cachep;
+  struct tailcall_cache *cache = (struct tailcall_cache *) *tailcall_cachep;
   CORE_ADDR addr;
 
   if (regnum == gdbarch_pc_regnum (this_gdbarch))
@@ -297,7 +297,7 @@ static struct value *
 tailcall_frame_prev_register (struct frame_info *this_frame,
 			       void **this_cache, int regnum)
 {
-  struct tailcall_cache *cache = *this_cache;
+  struct tailcall_cache *cache = (struct tailcall_cache *) *this_cache;
   struct value *val;
 
   gdb_assert (this_frame != cache->next_bottom_frame);
@@ -434,7 +434,7 @@ dwarf2_tailcall_sniffer_first (struct frame_info *this_frame,
 static void
 tailcall_frame_dealloc_cache (struct frame_info *self, void *this_cache)
 {
-  struct tailcall_cache *cache = this_cache;
+  struct tailcall_cache *cache = (struct tailcall_cache *) this_cache;
 
   cache_unref (cache);
 }
@@ -446,7 +446,7 @@ static struct gdbarch *
 tailcall_frame_prev_arch (struct frame_info *this_frame,
 			  void **this_prologue_cache)
 {
-  struct tailcall_cache *cache = *this_prologue_cache;
+  struct tailcall_cache *cache = (struct tailcall_cache *) *this_prologue_cache;
 
   return get_frame_arch (cache->next_bottom_frame);
 }

@@ -305,7 +305,7 @@ c_get_string (struct value *value, gdb_byte **buffer,
       /* I is now either a user-defined length, the number of non-null
  	 characters, or FETCHLIMIT.  */
       *length = i * width;
-      *buffer = xmalloc (*length);
+      *buffer = (gdb_byte *) xmalloc (*length);
       memcpy (*buffer, contents, *length);
       err = 0;
     }
@@ -415,7 +415,7 @@ emit_numeric_character (struct type *type, unsigned long value,
 {
   gdb_byte *buffer;
 
-  buffer = alloca (TYPE_LENGTH (type));
+  buffer = (gdb_byte *) alloca (TYPE_LENGTH (type));
   pack_long (buffer, type, value);
   obstack_grow (output, buffer, TYPE_LENGTH (type));
 }

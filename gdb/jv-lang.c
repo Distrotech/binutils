@@ -81,10 +81,10 @@ struct jv_per_objfile_data
 static void
 jv_per_objfile_free (struct objfile *objfile, void *data)
 {
-  struct jv_per_objfile_data *jv_data = data;
+  struct jv_per_objfile_data *jv_data = (struct jv_per_objfile_data *) data;
   struct objfile *dynamics_objfile;
 
-  dynamics_objfile = program_space_data (current_program_space,
+  dynamics_objfile = (struct objfile *) program_space_data (current_program_space,
 					 jv_dynamics_progspace_key);
   gdb_assert (objfile == dynamics_objfile);
 
@@ -108,7 +108,7 @@ get_dynamics_objfile (struct gdbarch *gdbarch)
 {
   struct objfile *dynamics_objfile;
 
-  dynamics_objfile = program_space_data (current_program_space,
+  dynamics_objfile = (struct objfile *) program_space_data (current_program_space,
 					 jv_dynamics_progspace_key);
 
   if (dynamics_objfile == NULL)
@@ -164,7 +164,7 @@ get_java_class_symtab (struct gdbarch *gdbarch)
       BLOCKVECTOR_BLOCK (bv, GLOBAL_BLOCK) = bl;
 
       /* Arrange to free the dict.  */
-      jv_data = objfile_data (objfile, jv_dynamics_objfile_data_key);
+      jv_data = (struct jv_per_objfile_data *) objfile_data (objfile, jv_dynamics_objfile_data_key);
       jv_data->dict = BLOCK_DICT (bl);
     }
   return class_symtab;
@@ -223,7 +223,7 @@ get_java_utf8_name (struct obstack *obstack, struct value *name)
   temp = value_struct_elt (&temp, NULL, "length", NULL, "structure");
   name_length = (int) value_as_long (temp);
   data_addr = value_address (temp) + TYPE_LENGTH (value_type (temp));
-  chrs = obstack_alloc (obstack, name_length + 1);
+  chrs = (char *) obstack_alloc (obstack, name_length + 1);
   chrs[name_length] = '\0';
   read_memory (data_addr, (gdb_byte *) chrs, name_length);
   return chrs;
@@ -313,7 +313,7 @@ type_from_class (struct gdbarch *gdbarch, struct value *clas)
       int namelen = java_demangled_signature_length (signature);
 
       if (namelen > strlen (name))
-	name = obstack_alloc (&objfile->objfile_obstack, namelen + 1);
+	name = (char *) obstack_alloc (&objfile->objfile_obstack, namelen + 1);
       java_demangled_signature_copy (name, signature);
       name[namelen] = '\0';
       temp = clas;
@@ -805,7 +805,7 @@ char *
 java_demangle_type_signature (const char *signature)
 {
   int length = java_demangled_signature_length (signature);
-  char *result = xmalloc (length + 1);
+  char *result = (char *) xmalloc (length + 1);
 
   java_demangled_signature_copy (result, signature);
   result[length] = '\0';
@@ -1058,7 +1058,7 @@ java_class_name_from_physname (const char *physname)
   end = java_find_last_component (demangled_name);
   if (end != NULL)
     {
-      ret = xmalloc (end - demangled_name + 1);
+      ret = (char *) xmalloc (end - demangled_name + 1);
       memcpy (ret, demangled_name, end - demangled_name);
       ret[end - demangled_name] = '\0';
     }
@@ -1233,7 +1233,7 @@ static struct gdbarch_data *java_type_data;
 const struct builtin_java_type *
 builtin_java_type (struct gdbarch *gdbarch)
 {
-  return gdbarch_data (gdbarch, java_type_data);
+  return (const struct builtin_java_type *) gdbarch_data (gdbarch, java_type_data);
 }
 
 void

@@ -485,7 +485,7 @@ static const struct inferior_data *inflow_inferior_data;
 static void
 inflow_inferior_data_cleanup (struct inferior *inf, void *arg)
 {
-  struct terminal_info *info = arg;
+  struct terminal_info *info = (struct terminal_info *) arg;
 
   xfree (info->run_terminal);
   xfree (info->ttystate);
@@ -500,7 +500,7 @@ get_inflow_inferior_data (struct inferior *inf)
 {
   struct terminal_info *info;
 
-  info = inferior_data (inf, inflow_inferior_data);
+  info = (struct terminal_info *) inferior_data (inf, inflow_inferior_data);
   if (info == NULL)
     {
       info = XCNEW (struct terminal_info);
@@ -521,7 +521,7 @@ inflow_inferior_exit (struct inferior *inf)
 {
   struct terminal_info *info;
 
-  info = inferior_data (inf, inflow_inferior_data);
+  info = (struct terminal_info *) inferior_data (inf, inflow_inferior_data);
   if (info != NULL)
     {
       xfree (info->run_terminal);

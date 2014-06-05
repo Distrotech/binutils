@@ -62,9 +62,9 @@ dis_asm_memory_error (int status, bfd_vma memaddr,
 static void
 dis_asm_print_address (bfd_vma addr, struct disassemble_info *info)
 {
-  struct gdbarch *gdbarch = info->application_data;
+  struct gdbarch *gdbarch = (struct gdbarch *) info->application_data;
 
-  print_address (gdbarch, addr, info->stream);
+  print_address (gdbarch, addr, (struct ui_file *) info->stream);
 }
 
 static int
@@ -370,7 +370,7 @@ fprintf_disasm (void *stream, const char *format, ...)
   va_list args;
 
   va_start (args, format);
-  vfprintf_filtered (stream, format, args);
+  vfprintf_filtered ((struct ui_file *) stream, format, args);
   va_end (args);
   /* Something non -ve.  */
   return 0;
@@ -464,7 +464,7 @@ gdb_print_insn (struct gdbarch *gdbarch, CORE_ADDR memaddr,
 static void
 do_ui_file_delete (void *arg)
 {
-  ui_file_delete (arg);
+  ui_file_delete ((struct ui_file *) arg);
 }
 
 /* Return the length in bytes of the instruction at address MEMADDR in

@@ -43,5 +43,5 @@ obconcat (struct obstack *obstackp, ...)
   va_end (ap);
   obstack_1grow (obstackp, 0);
 
-  return obstack_finish (obstackp);
+  return (char *) obstack_finish (obstackp);
 }

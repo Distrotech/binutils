@@ -520,7 +520,7 @@ get_core_register_section (struct regcache *regcache,
     }
 
   size = bfd_section_size (core_bfd, section);
-  contents = alloca (size);
+  contents = (char *) alloca (size);
   if (! bfd_get_section_contents (core_bfd, section, contents,
 				  (file_ptr) 0, size))
     {
@@ -625,7 +625,7 @@ struct spuid_list
 static void
 add_to_spuid_list (bfd *abfd, asection *asect, void *list_p)
 {
-  struct spuid_list *list = list_p;
+  struct spuid_list *list = (struct spuid_list *) list_p;
   enum bfd_endian byte_order
     = bfd_big_endian (abfd) ? BFD_ENDIAN_BIG : BFD_ENDIAN_LITTLE;
   int fd, pos = 0;

@@ -837,7 +837,7 @@ add_sal_to_sals_basic (struct symtabs_and_lines *sals,
 		       struct symtab_and_line *sal)
 {
   ++sals->nelts;
-  sals->sals = xrealloc (sals->sals, sals->nelts * sizeof (sals->sals[0]));
+  sals->sals = (struct symtab_and_line *) xrealloc (sals->sals, sals->nelts * sizeof (sals->sals[0]));
   sals->sals[sals->nelts - 1] = *sal;
 }
 
@@ -860,7 +860,7 @@ add_sal_to_sals (struct linespec_state *self,
     {
       struct linespec_canonical_name *canonical;
 
-      self->canonical_names = xrealloc (self->canonical_names,
+      self->canonical_names = (struct linespec_canonical_name *) xrealloc (self->canonical_names,
 					(sals->nelts
 					 * sizeof (*self->canonical_names)));
       canonical = &self->canonical_names[sals->nelts - 1];
@@ -896,7 +896,7 @@ add_sal_to_sals (struct linespec_state *self,
 static hashval_t
 hash_address_entry (const void *p)
 {
-  const struct address_entry *aep = p;
+  const struct address_entry *aep = (const struct address_entry *) p;
   hashval_t hash;
 
   hash = iterative_hash_object (aep->pspace, 0);
@@ -908,8 +908,8 @@ hash_address_entry (const void *p)
 static int
 eq_address_entry (const void *a, const void *b)
 {
-  const struct address_entry *aea = a;
-  const struct address_entry *aeb = b;
+  const struct address_entry *aea = (const struct address_entry *) a;
+  const struct address_entry *aeb = (const struct address_entry *) b;
 
   return aea->pspace == aeb->pspace && aea->addr == aeb->addr;
 }
@@ -957,7 +957,7 @@ iterate_inline_only (struct symbol *sym, void *d)
 {
   if (SYMBOL_INLINED (sym))
     {
-      struct symbol_and_data_callback *cad = d;
+      struct symbol_and_data_callback *cad = (struct symbol_and_data_callback *) d;
 
       return cad->callback (sym, cad->data);
     }
@@ -981,7 +981,7 @@ struct symbol_matcher_data
 static int
 iterate_name_matcher (const char *name, void *d)
 {
-  const struct symbol_matcher_data *data = d;
+  const struct symbol_matcher_data *data = (const struct symbol_matcher_data *) d;
 
   if (data->symbol_name_cmp (name, data->lookup_name) == 0)
     return 1; /* Expand this symbol's symbol table.  */
@@ -1319,8 +1319,8 @@ struct decode_line_2_item
 static int
 decode_line_2_compare_items (const void *ap, const void *bp)
 {
-  const struct decode_line_2_item *a = ap;
-  const struct decode_line_2_item *b = bp;
+  const struct decode_line_2_item *a = (const struct decode_line_2_item *) ap;
+  const struct decode_line_2_item *b = (const struct decode_line_2_item *) bp;
   int retval;
 
   retval = strcmp (a->displayform, b->displayform);
@@ -2644,7 +2644,7 @@ decode_objc (struct linespec_state *self, linespec_p ls, const char **argptr)
     {
       char *saved_arg;
 
-      saved_arg = alloca (new_argptr - *argptr + 1);
+      saved_arg = (char *) alloca (new_argptr - *argptr + 1);
       memcpy (saved_arg, *argptr, new_argptr - *argptr);
       saved_arg[new_argptr - *argptr] = '\0';
 
@@ -2690,7 +2690,7 @@ struct decode_compound_collector
 static int
 collect_one_symbol (struct symbol *sym, void *d)
 {
-  struct decode_compound_collector *collector = d;
+  struct decode_compound_collector *collector = (struct decode_compound_collector *) d;
   void **slot;
   struct type *t;
 
@@ -2770,8 +2770,8 @@ lookup_prefix_sym (struct linespec_state *state, VEC (symtab_ptr) *file_symtabs,
 static int
 compare_symbols (const void *a, const void *b)
 {
-  struct symbol * const *sa = a;
-  struct symbol * const *sb = b;
+  struct symbol * const *sa = (struct symbol * const*) a;
+  struct symbol * const *sb = (struct symbol * const*) b;
   uintptr_t uia, uib;
 
   uia = (uintptr_t) SYMTAB_PSPACE (SYMBOL_SYMTAB (*sa));
@@ -2798,8 +2798,8 @@ compare_symbols (const void *a, const void *b)
 static int
 compare_msymbols (const void *a, const void *b)
 {
-  const struct bound_minimal_symbol *sa = a;
-  const struct bound_minimal_symbol *sb = b;
+  const struct bound_minimal_symbol *sa = (const struct bound_minimal_symbol *) a;
+  const struct bound_minimal_symbol *sb = (const struct bound_minimal_symbol *) b;
   uintptr_t uia, uib;
 
   uia = (uintptr_t) sa->objfile->pspace;
@@ -2980,7 +2980,7 @@ struct symtab_collector
 static int
 add_symtabs_to_list (struct symtab *symtab, void *d)
 {
-  struct symtab_collector *data = d;
+  struct symtab_collector *data = (struct symtab_collector *) d;
   void **slot;
 
   slot = htab_find_slot (data->symtab_table, symtab, INSERT);
@@ -3171,14 +3171,14 @@ find_linespec_symbols (struct linespec_state *state,
 
       /* LOOKUP_NAME points to the class name.
 	 LAST points to the method name.  */
-      klass = xmalloc ((last - lookup_name + 1) * sizeof (char));
+      klass = (char *) xmalloc ((last - lookup_name + 1) * sizeof (char));
       make_cleanup (xfree, klass);
       strncpy (klass, lookup_name, last - lookup_name);
       klass[last - lookup_name] = '\0';
 
       /* Skip past the scope operator.  */
       last += strlen (scope_op);
-      method = xmalloc ((strlen (last) + 1) * sizeof (char));
+      method = (char *) xmalloc ((strlen (last) + 1) * sizeof (char));
       make_cleanup (xfree, method);
       strcpy (method, last);
 
@@ -3400,7 +3400,7 @@ linespec_parse_variable (struct linespec_state *self, const char *variable)
 static int
 collect_symbols (struct symbol *sym, void *data)
 {
-  struct collect_info *info = data;
+  struct collect_info *info = (struct collect_info *) data;
 
   /* In list mode, add all matching symbols, regardless of class.
      This allows the user to type "list a_global_variable".  */
@@ -3485,8 +3485,8 @@ classify_mtype (enum minimal_symbol_type t)
 static int
 compare_msyms (const void *a, const void *b)
 {
-  const bound_minimal_symbol_d *moa = a;
-  const bound_minimal_symbol_d *mob = b;
+  const bound_minimal_symbol_d *moa = (const struct bound_minimal_symbol_d *) a;
+  const bound_minimal_symbol_d *mob = (const struct bound_minimal_symbol_d *) b;
   enum minimal_symbol_type ta = MSYMBOL_TYPE (moa->minsym);
   enum minimal_symbol_type tb = MSYMBOL_TYPE (mob->minsym);
 
@@ -3499,7 +3499,7 @@ compare_msyms (const void *a, const void *b)
 static void
 add_minsym (struct minimal_symbol *minsym, void *d)
 {
-  struct collect_minsyms *info = d;
+  struct collect_minsyms *info = (struct collect_minsyms *) d;
   bound_minimal_symbol_d mo;
 
   mo.minsym = minsym;
@@ -3707,7 +3707,7 @@ destroy_linespec_result (struct linespec_result *ls)
 static void
 cleanup_linespec_result (void *a)
 {
-  destroy_linespec_result (a);
+  destroy_linespec_result ((struct linespec_result *) a);
 }
 
 /* See the comment in linespec.h.  */

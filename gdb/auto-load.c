@@ -391,9 +391,9 @@ filename_is_in_pattern (const char *filename, const char *pattern)
 {
   char *filename_copy, *pattern_copy;
 
-  filename_copy = alloca (strlen (filename) + 1);
+  filename_copy = (char *) alloca (strlen (filename) + 1);
   strcpy (filename_copy, filename);
-  pattern_copy = alloca (strlen (pattern) + 1);
+  pattern_copy = (char *) alloca (strlen (pattern) + 1);
   strcpy (pattern_copy, pattern);
 
   return filename_is_in_pattern_1 (filename_copy, pattern_copy);
@@ -561,7 +561,7 @@ static const struct program_space_data *auto_load_pspace_data;
 static void
 auto_load_pspace_data_cleanup (struct program_space *pspace, void *arg)
 {
-  struct auto_load_pspace_info *info = arg;
+  struct auto_load_pspace_info *info = (struct auto_load_pspace_info *) arg;
 
   if (info->loaded_scripts)
     htab_delete (info->loaded_scripts);
@@ -576,7 +576,7 @@ get_auto_load_pspace_data (struct program_space *pspace)
 {
   struct auto_load_pspace_info *info;
 
-  info = program_space_data (pspace, auto_load_pspace_data);
+  info = (struct auto_load_pspace_info *) program_space_data (pspace, auto_load_pspace_data);
   if (info == NULL)
     {
       info = XCNEW (struct auto_load_pspace_info);
@@ -591,7 +591,7 @@ get_auto_load_pspace_data (struct program_space *pspace)
 static hashval_t
 hash_loaded_script_entry (const void *data)
 {
-  const struct loaded_script *e = data;
+  const struct loaded_script *e = (const struct loaded_script *) data;
 
   return htab_hash_string (e->name) ^ htab_hash_pointer (e->language);
 }
@@ -601,8 +601,8 @@ hash_loaded_script_entry (const void *data)
 static int
 eq_loaded_script_entry (const void *a, const void *b)
 {
-  const struct loaded_script *ea = a;
-  const struct loaded_script *eb = b;
+  const struct loaded_script *ea = (const struct loaded_script *) a;
+  const struct loaded_script *eb = (const struct loaded_script *) b;
 
   return strcmp (ea->name, eb->name) == 0 && ea->language == eb->language;
 }
@@ -667,7 +667,7 @@ maybe_add_script (struct auto_load_pspace_info *pspace_info, int loaded,
       char *p;
 
       /* Allocate all space in one chunk so it's easier to free.  */
-      *slot = xmalloc (sizeof (**slot)
+      *slot = (struct loaded_script *) xmalloc (sizeof (**slot)
 		       + strlen (name) + 1
 		       + (full_path != NULL ? (strlen (full_path) + 1) : 0));
       p = ((char*) *slot) + sizeof (**slot);
@@ -696,7 +696,7 @@ clear_section_scripts (void)
   struct program_space *pspace = current_program_space;
   struct auto_load_pspace_info *info;
 
-  info = program_space_data (pspace, auto_load_pspace_data);
+  info = (struct auto_load_pspace_info *) program_space_data (pspace, auto_load_pspace_data);
   if (info != NULL && info->loaded_scripts != NULL)
     {
       htab_delete (info->loaded_scripts);
@@ -721,7 +721,7 @@ auto_load_objfile_script_1 (struct objfile *objfile, const char *realname,
   const char *suffix = ext_lang_auto_load_suffix (language);
 
   len = strlen (realname);
-  filename = xmalloc (len + strlen (suffix) + 1);
+  filename = (char *) xmalloc (len + strlen (suffix) + 1);
   memcpy (filename, realname, len);
   strcpy (filename + len, suffix);
 
@@ -752,7 +752,7 @@ auto_load_objfile_script_1 (struct objfile *objfile, const char *realname,
 
       for (ix = 0; VEC_iterate (char_ptr, vec, ix, dir); ++ix)
 	{
-	  debugfile = xmalloc (strlen (dir) + strlen (filename) + 1);
+	  debugfile = (char *) xmalloc (strlen (dir) + strlen (filename) + 1);
 	  strcpy (debugfile, dir);
 
 	  /* FILENAME is absolute, so we don't need a "/" here.  */
@@ -900,7 +900,7 @@ source_section_scripts (struct objfile *objfile, const char *section_name,
 	++p;
       if (p == end)
 	{
-	  char *buf = alloca (p - file + 1);
+	  char *buf = (char *) alloca (p - file + 1);
 
 	  memcpy (buf, file, p - file);
 	  buf[p - file] = '\0';
@@ -1080,8 +1080,8 @@ struct collect_matching_scripts_data
 static int
 collect_matching_scripts (void **slot, void *info)
 {
-  struct loaded_script *script = *slot;
-  struct collect_matching_scripts_data *data = info;
+  struct loaded_script *script = (struct loaded_script *) *slot;
+  struct collect_matching_scripts_data *data = (struct collect_matching_scripts_data *) info;
 
   if (script->language == data->language && re_exec (script->name))
     VEC_safe_push (loaded_script_ptr, *data->scripts_p, script);

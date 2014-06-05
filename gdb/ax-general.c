@@ -48,7 +48,7 @@ new_agent_expr (struct gdbarch *gdbarch, CORE_ADDR scope)
   x->len = 0;
   x->size = 1;			/* Change this to a larger value once
 				   reallocation code is tested.  */
-  x->buf = xmalloc (x->size);
+  x->buf = (unsigned char *) xmalloc (x->size);
 
   x->gdbarch = gdbarch;
   x->scope = scope;
@@ -75,7 +75,7 @@ free_agent_expr (struct agent_expr *x)
 static void
 do_free_agent_expr_cleanup (void *x)
 {
-  free_agent_expr (x);
+  free_agent_expr ((struct agent_expr *) x);
 }
 
 struct cleanup *
@@ -95,7 +95,7 @@ grow_expr (struct agent_expr *x, int n)
       x->size *= 2;
       if (x->size < x->len + n)
 	x->size = x->len + n + 10;
-      x->buf = xrealloc (x->buf, x->size);
+      x->buf = (unsigned char *) xrealloc (x->buf, x->size);
     }
 }
 
@@ -459,7 +459,7 @@ ax_reg_mask (struct agent_expr *ax, int reg)
           /* It's not appropriate to double here.  This isn't a
 	     string buffer.  */
           int new_len = byte + 1;
-          unsigned char *new_reg_mask = xrealloc (ax->reg_mask,
+          unsigned char *new_reg_mask = (unsigned char *) xrealloc (ax->reg_mask,
 					          new_len
 					          * sizeof (ax->reg_mask[0]));
           memset (new_reg_mask + ax->reg_mask_len, 0,

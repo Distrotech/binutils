@@ -298,7 +298,7 @@ fork_save_infrun_state (struct fork_info *fp, int clobber_regs)
 		fp->maxfd = tmp;
 	    }
 	  /* Allocate array of file positions.  */
-	  fp->filepos = xrealloc (fp->filepos,
+	  fp->filepos = (off_t *) xrealloc (fp->filepos,
 				  (fp->maxfd + 1) * sizeof (*fp->filepos));
 
 	  /* Initialize to -1 (invalid).  */
@@ -417,7 +417,7 @@ linux_fork_detach (const char *args, int from_tty)
 static void
 inferior_call_waitpid_cleanup (void *fp)
 {
-  struct fork_info *oldfp = fp;
+  struct fork_info *oldfp = (struct fork_info *) fp;
 
   if (oldfp)
     {

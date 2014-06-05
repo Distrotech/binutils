@@ -361,7 +361,7 @@ num_lwps (int pid)
 static void
 delete_lwp_cleanup (void *lp_voidp)
 {
-  struct lwp_info *lp = lp_voidp;
+  struct lwp_info *lp = (struct lwp_info *) lp_voidp;
 
   delete_lwp (lp->ptid);
 }
@@ -1562,7 +1562,7 @@ linux_nat_detach (struct target_ops *ops, const char *args, int from_tty)
 
       /* Put the signal number in ARGS so that inf_ptrace_detach will
 	 pass it along with PTRACE_DETACH.  */
-      tem = alloca (8);
+      tem = (char *) alloca (8);
       xsnprintf (tem, 8, "%d", (int) WSTOPSIG (status));
       args = tem;
       if (debug_linux_nat)
@@ -2657,7 +2657,7 @@ running_callback (struct lwp_info *lp, void *data)
 static int
 count_events_callback (struct lwp_info *lp, void *data)
 {
-  int *count = data;
+  int *count = (int *) data;
 
   gdb_assert (count != NULL);
 
@@ -2685,7 +2685,7 @@ select_singlestep_lwp_callback (struct lwp_info *lp, void *data)
 static int
 select_event_lwp_callback (struct lwp_info *lp, void *data)
 {
-  int *selector = data;
+  int *selector = (int *) data;
 
   gdb_assert (selector != NULL);
 
@@ -2733,7 +2733,7 @@ cancel_breakpoint (struct lwp_info *lp)
 static int
 cancel_breakpoints_callback (struct lwp_info *lp, void *data)
 {
-  struct lwp_info *event_lp = data;
+  struct lwp_info *event_lp = (struct lwp_info *) data;
 
   /* Leave the LWP that has been elected to receive a SIGTRAP alone.  */
   if (lp == event_lp)
@@ -2828,7 +2828,7 @@ resumed_callback (struct lwp_info *lp, void *data)
 static int
 stop_and_resume_callback (struct lwp_info *lp, void *data)
 {
-  int *new_pending_p = data;
+  int *new_pending_p = (int *) data;
 
   if (!lp->stopped)
     {
@@ -3578,7 +3578,7 @@ retry:
 static int
 resume_stopped_resumed_lwps (struct lwp_info *lp, void *data)
 {
-  ptid_t *wait_ptid_p = data;
+  ptid_t *wait_ptid_p = (struct ptid_t *) data;
 
   if (lp->stopped
       && lp->resumed

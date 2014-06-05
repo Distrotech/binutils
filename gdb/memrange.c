@@ -37,8 +37,8 @@ mem_ranges_overlap (CORE_ADDR start1, int len1,
 static int
 compare_mem_ranges (const void *ap, const void *bp)
 {
-  const struct mem_range *r1 = ap;
-  const struct mem_range *r2 = bp;
+  const struct mem_range *r1 = (const struct mem_range *) ap;
+  const struct mem_range *r2 = (const struct mem_range *) bp;
 
   if (r1->start > r2->start)
     return 1;

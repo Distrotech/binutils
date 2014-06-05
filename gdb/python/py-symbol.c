@@ -293,7 +293,7 @@ set_symbol (symbol_object *obj, struct symbol *symbol)
   obj->prev = NULL;
   if (SYMBOL_SYMTAB (symbol))
     {
-      obj->next = objfile_data (SYMBOL_SYMTAB (symbol)->objfile,
+      obj->next = (struct sympy_symbol_object *) objfile_data (SYMBOL_SYMTAB (symbol)->objfile,
 				sympy_objfile_data_key);
 
       if (obj->next)
@@ -461,7 +461,7 @@ gdbpy_lookup_global_symbol (PyObject *self, PyObject *args, PyObject *kw)
 static void
 del_objfile_symbols (struct objfile *objfile, void *datum)
 {
-  symbol_object *obj = datum;
+  symbol_object *obj = (struct symbol_object *) datum;
   while (obj)
     {
       symbol_object *next = obj->next;

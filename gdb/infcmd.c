@@ -969,7 +969,7 @@ struct step_1_continuation_args
 static void
 step_1_continuation (void *args, int err)
 {
-  struct step_1_continuation_args *a = args;
+  struct step_1_continuation_args *a = (struct step_1_continuation_args *) args;
 
   if (target_has_execution)
     {
@@ -1272,7 +1272,7 @@ struct until_next_continuation_args
 static void
 until_next_continuation (void *arg, int err)
 {
-  struct until_next_continuation_args *a = arg;
+  struct until_next_continuation_args *a = (struct until_next_continuation_args *) arg;
 
   delete_longjmp_breakpoint (a->thread);
 }
@@ -1501,7 +1501,7 @@ struct finish_command_continuation_args
 static void
 finish_command_continuation (void *arg, int err)
 {
-  struct finish_command_continuation_args *a = arg;
+  struct finish_command_continuation_args *a = (struct finish_command_continuation_args *) arg;
 
   if (!err)
     {
@@ -2440,7 +2440,7 @@ struct attach_command_continuation_args
 static void
 attach_command_continuation (void *args, int err)
 {
-  struct attach_command_continuation_args *a = args;
+  struct attach_command_continuation_args *a = (struct attach_command_continuation_args *) args;
 
   if (err)
     return;
@@ -2451,7 +2451,7 @@ attach_command_continuation (void *args, int err)
 static void
 attach_command_continuation_free_args (void *args)
 {
-  struct attach_command_continuation_args *a = args;
+  struct attach_command_continuation_args *a = (struct attach_command_continuation_args *) args;
 
   xfree (a->args);
   xfree (a);

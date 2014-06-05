@@ -106,7 +106,7 @@ parse_format_string (const char **arg)
 
   /* Need extra space for the '\0's.  Doubling the size is sufficient.  */
 
-  current_substring = xmalloc (strlen (string) * 2 + 1000);
+  current_substring = (char *) xmalloc (strlen (string) * 2 + 1000);
 
   max_pieces = strlen (string) + 2;
 
@@ -389,14 +389,14 @@ free_format_pieces (struct format_piece *pieces)
 void
 free_format_pieces_cleanup (void *ptr)
 {
-  void **location = ptr;
+  void **location = (void **) ptr;
 
   if (location == NULL)
     return;
 
   if (*location != NULL)
     {
-      free_format_pieces (*location);
+      free_format_pieces ((struct format_piece *) *location);
       *location = NULL;
     }
 }

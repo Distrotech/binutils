@@ -65,7 +65,7 @@ dwarf_gdbarch_types_init (struct gdbarch *gdbarch)
 static struct type *
 dwarf_expr_address_type (struct dwarf_expr_context *ctx)
 {
-  struct dwarf_gdbarch_types *types = gdbarch_data (ctx->gdbarch,
+  struct dwarf_gdbarch_types *types = (struct dwarf_gdbarch_types *) gdbarch_data (ctx->gdbarch,
 						    dwarf_arch_cookie);
   int ndx;
 
@@ -120,7 +120,7 @@ free_dwarf_expr_context (struct dwarf_expr_context *ctx)
 static void
 free_dwarf_expr_context_cleanup (void *arg)
 {
-  free_dwarf_expr_context (arg);
+  free_dwarf_expr_context ((struct dwarf_expr_context *) arg);
 }
 
 /* Return a cleanup that calls free_dwarf_expr_context.  */
@@ -141,7 +141,7 @@ dwarf_expr_grow_stack (struct dwarf_expr_context *ctx, size_t need)
     {
       size_t newlen = ctx->stack_len + need + 10;
 
-      ctx->stack = xrealloc (ctx->stack,
+      ctx->stack = (struct dwarf_stack_value *) xrealloc (ctx->stack,
 			     newlen * sizeof (struct dwarf_stack_value));
       ctx->stack_allocated = newlen;
     }
@@ -271,7 +271,7 @@ dwarf_expr_fetch_address (struct dwarf_expr_context *ctx, int n)
      for those architectures which require it.  */
   if (gdbarch_integer_to_address_p (ctx->gdbarch))
     {
-      gdb_byte *buf = alloca (ctx->addr_size);
+      gdb_byte *buf = (gdb_byte *) alloca (ctx->addr_size);
       struct type *int_type = get_unsigned_type (ctx->gdbarch,
 						 value_type (result_val));
 
@@ -310,7 +310,7 @@ add_piece (struct dwarf_expr_context *ctx, ULONGEST size, ULONGEST offset)
 
   ctx->num_pieces++;
 
-  ctx->pieces = xrealloc (ctx->pieces,
+  ctx->pieces = (struct dwarf_expr_piece *) xrealloc (ctx->pieces,
 			  (ctx->num_pieces
 			   * sizeof (struct dwarf_expr_piece)));
 
@@ -1026,7 +1026,7 @@ execute_stack_op (struct dwarf_expr_context *ctx,
 	case DW_OP_GNU_deref_type:
 	  {
 	    int addr_size = (op == DW_OP_deref ? ctx->addr_size : *op_ptr++);
-	    gdb_byte *buf = alloca (addr_size);
+	    gdb_byte *buf = (gdb_byte *) alloca (addr_size);
 	    CORE_ADDR addr = dwarf_expr_fetch_address (ctx, 0);
 	    struct type *type;
 
@@ -1052,7 +1052,7 @@ execute_stack_op (struct dwarf_expr_context *ctx,
 		ULONGEST result =
 		  extract_unsigned_integer (buf, addr_size, byte_order);
 
-		buf = alloca (TYPE_LENGTH (type));
+		buf = (gdb_byte *) alloca (TYPE_LENGTH (type));
 		store_unsigned_integer (buf, TYPE_LENGTH (type),
 					byte_order, result);
 	      }

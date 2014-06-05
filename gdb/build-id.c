@@ -80,7 +80,7 @@ build_id_to_debug_bfd (size_t build_id_len, const bfd_byte *build_id)
   bfd *abfd = NULL;
 
   /* DEBUG_FILE_DIRECTORY/.build-id/ab/cdef */
-  link = alloca (strlen (debug_file_directory) + (sizeof "/.build-id/" - 1) + 1
+  link = (char *) alloca (strlen (debug_file_directory) + (sizeof "/.build-id/" - 1) + 1
 		 + 2 * build_id_len + (sizeof ".debug" - 1) + 1);
 
   /* Keep backward compatibility so that DEBUG_FILE_DIRECTORY being "" will

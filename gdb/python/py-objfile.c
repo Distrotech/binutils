@@ -246,7 +246,7 @@ static void
 py_free_objfile (struct objfile *objfile, void *datum)
 {
   struct cleanup *cleanup;
-  objfile_object *object = datum;
+  objfile_object *object = (struct objfile_object *) datum;
 
   cleanup = ensure_python_env (get_objfile_arch (objfile), current_language);
   object->objfile = NULL;
@@ -263,7 +263,7 @@ objfile_to_objfile_object (struct objfile *objfile)
 {
   objfile_object *object;
 
-  object = objfile_data (objfile, objfpy_objfile_data_key);
+  object = (struct objfile_object *) objfile_data (objfile, objfpy_objfile_data_key);
   if (!object)
     {
       object = PyObject_New (objfile_object, &objfile_object_type);

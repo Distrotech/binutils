@@ -536,7 +536,7 @@ string_exp:
 
 			  vec->type = $1.type;
 			  vec->length = $1.length;
-			  vec->ptr = malloc ($1.length + 1);
+			  vec->ptr = (char *) malloc ($1.length + 1);
 			  memcpy (vec->ptr, $1.ptr, $1.length + 1);
 			}
 
@@ -549,7 +549,7 @@ string_exp:
 			  $$.tokens = realloc ($$.tokens,
 					       $$.len * sizeof (struct typed_stoken));
 
-			  p = malloc ($3.length + 1);
+			  p = (char *) malloc ($3.length + 1);
 			  memcpy (p, $3.ptr, $3.length + 1);
 
 			  $$.tokens[$$.len - 1].type = $3.type;

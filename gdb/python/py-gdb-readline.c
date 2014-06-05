@@ -65,7 +65,7 @@ gdbpy_readline_wrapper (FILE *sys_stdin, FILE *sys_stdout,
   /* Detect EOF (Ctrl-D).  */
   if (p == NULL)
     {
-      q = PyMem_Malloc (1);
+      q = (char *) PyMem_Malloc (1);
       if (q != NULL)
 	q[0] = '\0';
       return q;
@@ -74,7 +74,7 @@ gdbpy_readline_wrapper (FILE *sys_stdin, FILE *sys_stdout,
   n = strlen (p);
 
   /* Copy the line to Python and return.  */
-  q = PyMem_Malloc (n + 2);
+  q = (char *) PyMem_Malloc (n + 2);
   if (q != NULL)
     {
       strncpy (q, p, n);

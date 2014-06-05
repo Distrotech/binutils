@@ -287,7 +287,7 @@ void
 do_restore_instream_cleanup (void *stream)
 {
   /* Restore the previous input stream.  */
-  instream = stream;
+  instream = (struct FILE *) stream;
 }
 
 /* Read commands from STREAM.  */
@@ -766,7 +766,7 @@ struct gdb_readline_wrapper_cleanup
 static void
 gdb_readline_wrapper_cleanup (void *arg)
 {
-  struct gdb_readline_wrapper_cleanup *cleanup = arg;
+  struct gdb_readline_wrapper_cleanup *cleanup = (struct gdb_readline_wrapper_cleanup *) arg;
 
   rl_already_prompted = cleanup->already_prompted_orig;
 
@@ -894,7 +894,7 @@ command_line_input (char *prompt_arg, int repeat, char *annotation_suffix)
 
   if (annotation_level > 1 && instream == stdin)
     {
-      local_prompt = alloca ((prompt_arg == NULL ? 0 : strlen (prompt_arg))
+      local_prompt = (char *) alloca ((prompt_arg == NULL ? 0 : strlen (prompt_arg))
 			     + strlen (annotation_suffix) + 40);
       if (prompt_arg == NULL)
 	local_prompt[0] = '\0';
@@ -1071,7 +1071,7 @@ command_line_input (char *prompt_arg, int repeat, char *annotation_suffix)
     {
       if (linelength > saved_command_line_size)
 	{
-	  saved_command_line = xrealloc (saved_command_line, linelength);
+	  saved_command_line = (char *) xrealloc (saved_command_line, linelength);
 	  saved_command_line_size = linelength;
 	}
       strcpy (saved_command_line, linebuffer);
@@ -1273,7 +1273,7 @@ struct qt_args
 static int
 kill_or_detach (struct inferior *inf, void *args)
 {
-  struct qt_args *qt = args;
+  struct qt_args *qt = (struct qt_args *) args;
   struct thread_info *thread;
 
   if (inf->pid == 0)
@@ -1304,7 +1304,7 @@ kill_or_detach (struct inferior *inf, void *args)
 static int
 print_inferior_quit_action (struct inferior *inf, void *arg)
 {
-  struct ui_file *stb = arg;
+  struct ui_file *stb = (struct ui_file *) arg;
 
   if (inf->pid == 0)
     return 0;

@@ -83,7 +83,7 @@ linux_ptrace_test_ret_to_nx (void)
   long l;
   int status, kill_status;
 
-  return_address = mmap (NULL, 2, PROT_READ | PROT_WRITE,
+  return_address = (gdb_byte *) mmap (NULL, 2, PROT_READ | PROT_WRITE,
 			 MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (return_address == MAP_FAILED)
     {
@@ -185,7 +185,7 @@ linux_ptrace_test_ret_to_nx (void)
 	       strerror (errno));
       return;
     }
-  pc = (void *) (uintptr_t) l;
+  pc = (gdb_byte *) (void *) (uintptr_t) l;
 
   kill (child, SIGKILL);
   ptrace (PTRACE_KILL, child, (PTRACE_TYPE_ARG3) NULL,

@@ -116,7 +116,7 @@ init_linux_gdbarch_data (struct gdbarch *gdbarch)
 static struct linux_gdbarch_data *
 get_linux_gdbarch_data (struct gdbarch *gdbarch)
 {
-  return gdbarch_data (gdbarch, linux_gdbarch_data_handle);
+  return (struct linux_gdbarch_data *) gdbarch_data (gdbarch, linux_gdbarch_data_handle);
 }
 
 /* This function is suitable for architectures that don't
@@ -629,7 +629,7 @@ linux_core_info_proc_mappings (struct gdbarch *gdbarch, char *args)
   if (note_size < 2 * addr_size)
     error (_("malformed core note - too short for header"));
 
-  contents = xmalloc (note_size);
+  contents = (unsigned char *) xmalloc (note_size);
   cleanup = make_cleanup (xfree, contents);
   if (!bfd_get_section_contents (core_bfd, section, contents, 0, note_size))
     error (_("could not get core note contents"));
@@ -855,7 +855,7 @@ linux_find_memory_regions_thunk (ULONGEST vaddr, ULONGEST size,
 				 int read, int write, int exec, int modified,
 				 const char *filename, void *arg)
 {
-  struct linux_find_memory_regions_data *data = arg;
+  struct linux_find_memory_regions_data *data = (struct linux_find_memory_regions_data *) arg;
 
   return data->func (vaddr, size, read, write, exec, modified, data->obfd);
 }
@@ -1003,7 +1003,7 @@ linux_make_mappings_callback (ULONGEST vaddr, ULONGEST size,
 			      int read, int write, int exec, int modified,
 			      const char *filename, void *data)
 {
-  struct linux_make_mappings_data *map_data = data;
+  struct linux_make_mappings_data *map_data = (struct linux_make_mappings_data *) data;
   gdb_byte buf[sizeof (ULONGEST)];
 
   if (*filename == '\0' || inode == 0)
@@ -1110,7 +1110,7 @@ linux_collect_thread_registers (const struct regcache *regcache,
 						 sect_list->size);
       gdb_assert (regset && regset->collect_regset);
 
-      buf = xmalloc (sect_list->size);
+      buf = (char *) xmalloc (sect_list->size);
       regset->collect_regset (regset, regcache, -1, buf, sect_list->size);
 
       /* PRSTATUS still needs to be treated specially.  */
@@ -1151,7 +1151,7 @@ linux_get_siginfo_data (struct gdbarch *gdbarch, LONGEST *size)
   
   siginfo_type = gdbarch_get_siginfo_type (gdbarch);
 
-  buf = xmalloc (TYPE_LENGTH (siginfo_type));
+  buf = (gdb_byte *) xmalloc (TYPE_LENGTH (siginfo_type));
   cleanups = make_cleanup (xfree, buf);
 
   bytes_read = target_read (&current_target, TARGET_OBJECT_SIGNAL_INFO, NULL,
@@ -1187,7 +1187,7 @@ struct linux_corefile_thread_data
 static int
 linux_corefile_thread_callback (struct thread_info *info, void *data)
 {
-  struct linux_corefile_thread_data *args = data;
+  struct linux_corefile_thread_data *args = (struct linux_corefile_thread_data *) data;
 
   if (ptid_get_pid (info->ptid) == args->pid)
     {

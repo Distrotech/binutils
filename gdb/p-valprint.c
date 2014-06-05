@@ -209,8 +209,8 @@ pascal_val_print (struct type *type, const gdb_byte *valaddr,
 	  if (want_space)
 	    fputs_filtered (" ", stream);
 	  buffer = xmalloc (length_size);
-	  read_memory (addr + length_pos, buffer, length_size);
-	  string_length = extract_unsigned_integer (buffer, length_size,
+	  read_memory (addr + length_pos, (gdb_byte *) buffer, length_size);
+	  string_length = extract_unsigned_integer ((const gdb_byte *) buffer, length_size,
 						    byte_order);
 	  xfree (buffer);
 	  i = val_print_string (char_type, NULL,
@@ -772,7 +772,7 @@ pascal_object_print_value (struct type *type, const gdb_byte *valaddr,
 	      gdb_byte *buf;
 	      struct cleanup *back_to;
 
-	      buf = xmalloc (TYPE_LENGTH (baseclass));
+	      buf = (gdb_byte *) xmalloc (TYPE_LENGTH (baseclass));
 	      back_to = make_cleanup (xfree, buf);
 
 	      base_valaddr = buf;

@@ -74,7 +74,7 @@ struct perf_event_sample
 static inline volatile struct perf_event_mmap_page *
 perf_event_header (struct btrace_target_info* tinfo)
 {
-  return tinfo->buffer;
+  return (volatile struct perf_event_mmap_page *) tinfo->buffer;
 }
 
 /* Get the size of the perf_event mmap buffer.  */

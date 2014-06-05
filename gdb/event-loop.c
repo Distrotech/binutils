@@ -1065,7 +1065,7 @@ struct async_event_handler_data
 static void
 invoke_async_event_handler (event_data data)
 {
-  struct async_event_handler_data *hdata = data.ptr;
+  struct async_event_handler_data *hdata = (struct async_event_handler_data *) data.ptr;
   async_event_handler_func* proc = hdata->proc;
   gdb_client_data client_data = hdata->client_data;
 

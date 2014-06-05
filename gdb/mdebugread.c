@@ -361,7 +361,7 @@ mdebug_build_psymtabs (struct objfile *objfile,
       info->fdr = (FDR *) obstack_alloc (&objfile->objfile_obstack,
 					 (info->symbolic_header.ifdMax
 					  * sizeof (FDR)));
-      fdr_src = info->external_fdr;
+      fdr_src = (char *) info->external_fdr;
       fdr_end = (fdr_src
 		 + info->symbolic_header.ifdMax * swap->external_fdr_size);
       fdr_ptr = info->fdr;
@@ -1348,7 +1348,7 @@ static struct type *
 basic_type (int bt, struct objfile *objfile)
 {
   struct gdbarch *gdbarch = get_objfile_arch (objfile);
-  struct type **map_bt = objfile_data (objfile, basic_type_data);
+  struct type **map_bt = (struct type **) objfile_data (objfile, basic_type_data);
   struct type *tp;
 
   if (bt >= btMax)
@@ -1696,7 +1696,7 @@ parse_type (int fd, union aux_ext *ax, unsigned int aux_index, int *bs,
 	  else if (TYPE_TAG_NAME (tp) == NULL
 		   || strcmp (TYPE_TAG_NAME (tp), name) != 0)
 	    TYPE_TAG_NAME (tp)
-	      = obstack_copy0 (&mdebugread_objfile->objfile_obstack,
+	      = (const char *) obstack_copy0 (&mdebugread_objfile->objfile_obstack,
 			       name, strlen (name));
 	}
     }
@@ -1733,7 +1733,7 @@ parse_type (int fd, union aux_ext *ax, unsigned int aux_index, int *bs,
 	  if (TYPE_NAME (tp) == NULL
 	      || strcmp (TYPE_NAME (tp), name) != 0)
 	    TYPE_NAME (tp)
-	      = obstack_copy0 (&mdebugread_objfile->objfile_obstack,
+	      = (const char *) obstack_copy0 (&mdebugread_objfile->objfile_obstack,
 			       name, strlen (name));
 	}
     }
@@ -2828,10 +2828,10 @@ parse_partial_symbols (struct objfile *objfile)
 		    /* Concatinate stabstring2 with stabstring1.  */
 		    if (stabstring
 		     && stabstring != debug_info->ss + fh->issBase + sh.iss)
-		      stabstring = xrealloc (stabstring, len + len2 + 1);
+		      stabstring = (char *) xrealloc (stabstring, len + len2 + 1);
 		    else
 		      {
-			stabstring = xmalloc (len + len2 + 1);
+			stabstring = (char *) xmalloc (len + len2 + 1);
 			strcpy (stabstring, stabstring1);
 		      }
 		    strcpy (stabstring + len, stabstring2);
@@ -3255,7 +3255,7 @@ parse_partial_symbols (struct objfile *objfile)
 			if (! pst)
 			  {
 			    int name_len = p - namestring;
-			    char *name = xmalloc (name_len + 1);
+			    char *name = (char *) xmalloc (name_len + 1);
 
 			    memcpy (name, namestring, name_len);
 			    name[name_len] = '\0';
@@ -3279,7 +3279,7 @@ parse_partial_symbols (struct objfile *objfile)
 			if (! pst)
 			  {
 			    int name_len = p - namestring;
-			    char *name = xmalloc (name_len + 1);
+			    char *name = (char *) xmalloc (name_len + 1);
 
 			    memcpy (name, namestring, name_len);
 			    name[name_len] = '\0';
@@ -4284,7 +4284,7 @@ psymtab_to_symtab_1 (struct objfile *objfile,
       size = lines->nitems;
       if (size > 1)
 	--size;
-      LINETABLE (st) = obstack_copy (&mdebugread_objfile->objfile_obstack,
+      LINETABLE (st) = (struct linetable *) obstack_copy (&mdebugread_objfile->objfile_obstack,
 				     lines,
 				     (sizeof (struct linetable)
 				      + size * sizeof (lines->item)));

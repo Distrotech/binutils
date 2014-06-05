@@ -53,7 +53,7 @@ default_memory_insert_breakpoint (struct gdbarch *gdbarch,
   /* Save the memory contents in the shadow_contents buffer and then
      write the breakpoint instruction.  */
   bp_tgt->shadow_len = bp_tgt->placed_size;
-  readbuf = alloca (bp_tgt->placed_size);
+  readbuf = (gdb_byte *) alloca (bp_tgt->placed_size);
   val = target_read_memory (bp_tgt->placed_address, readbuf,
 			    bp_tgt->placed_size);
   if (val == 0)

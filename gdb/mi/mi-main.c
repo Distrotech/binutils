@@ -569,7 +569,7 @@ struct collect_cores_data
 static int
 collect_cores (struct thread_info *ti, void *xdata)
 {
-  struct collect_cores_data *data = xdata;
+  struct collect_cores_data *data = (struct collect_cores_data *) xdata;
 
   if (ptid_get_pid (ti->ptid) == data->pid)
     {
@@ -602,7 +602,7 @@ struct print_one_inferior_data
 static int
 print_one_inferior (struct inferior *inferior, void *xdata)
 {
-  struct print_one_inferior_data *top_data = xdata;
+  struct print_one_inferior_data *top_data = (struct print_one_inferior_data *) xdata;
   struct ui_out *uiout = current_uiout;
 
   if (VEC_empty (int, top_data->inferiors)
@@ -684,7 +684,7 @@ output_cores (struct ui_out *uiout, const char *field_name, const char *xcores)
 static void
 free_vector_of_ints (void *xvector)
 {
-  VEC (int) **vector = xvector;
+  VEC (int) **vector = (struct VEC_int **) xvector;
 
   VEC_free (int, *vector);
 }
@@ -715,7 +715,7 @@ splay_tree_int_comparator (splay_tree_key xa, splay_tree_key xb)
 static void
 free_splay_tree (void *xt)
 {
-  splay_tree t = xt;
+  splay_tree t = (splay_tree) xt;
   splay_tree_delete (t);
 }
 
@@ -1449,7 +1449,7 @@ mi_cmd_data_read_memory (char *command, char **argv, int argc)
 
   /* Create a buffer and read it in.  */
   total_bytes = word_size * nr_rows * nr_cols;
-  mbuf = xcalloc (total_bytes, 1);
+  mbuf = (gdb_byte *) xcalloc (total_bytes, 1);
   make_cleanup (xfree, mbuf);
 
   /* Dispatch memory reads to the topmost target, not the flattened
@@ -1606,7 +1606,7 @@ mi_cmd_data_read_memory_bytes (char *command, char **argv, int argc)
 			      - addr);
       ui_out_field_core_addr (uiout, "end", gdbarch, read_result->end);
 
-      data = xmalloc ((read_result->end - read_result->begin) * 2 + 1);
+      data = (char *) xmalloc ((read_result->end - read_result->begin) * 2 + 1);
 
       for (i = 0, p = data;
 	   i < (read_result->end - read_result->begin);
@@ -1698,9 +1698,9 @@ mi_cmd_data_write_memory (char *command, char **argv, int argc)
   /* Get the value into an array.  */
   buffer = xmalloc (word_size);
   old_chain = make_cleanup (xfree, buffer);
-  store_signed_integer (buffer, word_size, byte_order, value);
+  store_signed_integer ((gdb_byte *) buffer, word_size, byte_order, value);
   /* Write it down to memory.  */
-  write_memory_with_notification (addr, buffer, word_size);
+  write_memory_with_notification (addr, (const bfd_byte *) buffer, word_size);
   /* Free the buffer.  */
   do_cleanups (old_chain);
 }
@@ -1752,7 +1752,7 @@ mi_cmd_data_write_memory_bytes (char *command, char **argv, int argc)
     {
       /* Pattern is made of less bytes than count:
          repeat pattern to fill memory.  */
-      data = xmalloc (count);
+      data = (gdb_byte *) xmalloc (count);
       make_cleanup (xfree, data);
 
       steps = count / len;
@@ -2094,7 +2094,7 @@ mi_execute_command (const char *cmd, int from_tty)
 	     =thread-selected is supposed to indicate user's intentions.  */
 	  && strcmp (command->command, "thread-select") != 0)
 	{
-	  struct mi_interp *mi = top_level_interpreter_data ();
+	  struct mi_interp *mi = (struct mi_interp *) top_level_interpreter_data ();
 	  int report_change = 0;
 
 	  if (command->thread == -1)
@@ -2847,7 +2847,7 @@ mi_cmd_trace_frame_collected (char *command, char **argv, int argc)
 
 	if (tsv != NULL)
 	  {
-	    tsvname = xrealloc (tsvname, strlen (tsv->name) + 2);
+	    tsvname = (char *) xrealloc (tsvname, strlen (tsv->name) + 2);
 	    tsvname[0] = '$';
 	    strcpy (tsvname + 1, tsv->name);
 	    ui_out_field_string (uiout, "name", tsvname);
@@ -2891,7 +2891,7 @@ mi_cmd_trace_frame_collected (char *command, char **argv, int argc)
 	ui_out_field_core_addr (uiout, "address", gdbarch, r->start);
 	ui_out_field_int (uiout, "length", r->length);
 
-	data = xmalloc (r->length);
+	data = (gdb_byte *) xmalloc (r->length);
 	make_cleanup (xfree, data);
 
 	if (memory_contents)
@@ -2901,7 +2901,7 @@ mi_cmd_trace_frame_collected (char *command, char **argv, int argc)
 		int m;
 		char *data_str, *p;
 
-		data_str = xmalloc (r->length * 2 + 1);
+		data_str = (char *) xmalloc (r->length * 2 + 1);
 		make_cleanup (xfree, data_str);
 
 		for (m = 0, p = data_str; m < r->length; ++m, p += 2)

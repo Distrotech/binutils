@@ -66,7 +66,7 @@ void
 frame_unwind_prepend_unwinder (struct gdbarch *gdbarch,
 				const struct frame_unwind *unwinder)
 {
-  struct frame_unwind_table *table = gdbarch_data (gdbarch, frame_unwind_data);
+  struct frame_unwind_table *table = (struct frame_unwind_table *) gdbarch_data (gdbarch, frame_unwind_data);
   struct frame_unwind_table_entry *entry;
 
   /* Insert the new entry at the start of the list.  */
@@ -80,7 +80,7 @@ void
 frame_unwind_append_unwinder (struct gdbarch *gdbarch,
 			      const struct frame_unwind *unwinder)
 {
-  struct frame_unwind_table *table = gdbarch_data (gdbarch, frame_unwind_data);
+  struct frame_unwind_table *table = (struct frame_unwind_table *) gdbarch_data (gdbarch, frame_unwind_data);
   struct frame_unwind_table_entry **ip;
 
   /* Find the end of the list and insert the new entry there.  */
@@ -139,7 +139,7 @@ void
 frame_unwind_find_by_frame (struct frame_info *this_frame, void **this_cache)
 {
   struct gdbarch *gdbarch = get_frame_arch (this_frame);
-  struct frame_unwind_table *table = gdbarch_data (gdbarch, frame_unwind_data);
+  struct frame_unwind_table *table = (struct frame_unwind_table *) gdbarch_data (gdbarch, frame_unwind_data);
   struct frame_unwind_table_entry *entry;
   const struct frame_unwind *unwinder_from_target;
 

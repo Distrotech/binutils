@@ -841,7 +841,7 @@ string_exp:
 
 			  vec->type = $1.type;
 			  vec->length = $1.length;
-			  vec->ptr = malloc ($1.length + 1);
+			  vec->ptr = (char *) malloc ($1.length + 1);
 			  memcpy (vec->ptr, $1.ptr, $1.length + 1);
 			}
 
@@ -854,7 +854,7 @@ string_exp:
 			  $$.tokens = realloc ($$.tokens,
 					       $$.len * sizeof (struct typed_stoken));
 
-			  p = malloc ($2.length + 1);
+			  p = (char *) malloc ($2.length + 1);
 			  memcpy (p, $2.ptr, $2.length + 1);
 
 			  $$.tokens[$$.len - 1].type = $2.type;
@@ -1007,7 +1007,7 @@ qualified_name:	TYPENAME COLONCOLON name
 			  if (!type_aggregate_p (type))
 			    error (_("`%s' is not defined as an aggregate type."),
 				   TYPE_SAFE_NAME (type));
-			  buf = alloca ($4.length + 2);
+			  buf = (char *) alloca ($4.length + 2);
 			  tmp_token.ptr = buf;
 			  tmp_token.length = $4.length + 1;
 			  buf[0] = '~';
@@ -1668,7 +1668,7 @@ name_not_typename :	NAME
 static void
 write_destructor_name (struct parser_state *par_state, struct stoken token)
 {
-  char *copy = alloca (token.length + 1);
+  char *copy = (char *) alloca (token.length + 1);
 
   copy[0] = '~';
   memcpy (&copy[1], token.ptr, token.length);
@@ -1689,7 +1689,7 @@ operator_stoken (const char *op)
   char *buf;
 
   st.length = strlen (operator_string) + strlen (op);
-  buf = malloc (st.length + 1);
+  buf = (char *) malloc (st.length + 1);
   strcpy (buf, operator_string);
   strcat (buf, op);
   st.ptr = buf;
@@ -1774,7 +1774,7 @@ parse_number (struct parser_state *par_state,
   struct type *unsigned_type;
   char *p;
 
-  p = alloca (len);
+  p = (char *) alloca (len);
   memcpy (p, buf, len);
 
   if (parsed_float)
@@ -2401,7 +2401,7 @@ scan_macro_expansion (char *expansion)
 
   /* Copy to the obstack, and then free the intermediate
      expansion.  */
-  copy = obstack_copy0 (&expansion_obstack, expansion, strlen (expansion));
+  copy = (char *) obstack_copy0 (&expansion_obstack, expansion, strlen (expansion));
   xfree (expansion);
 
   /* Save the old lexptr value, so we can return to it when we're done
@@ -3202,7 +3202,7 @@ yylex (void)
      the FIFO, and delete the other constituent tokens.  */
   if (checkpoint > 0)
     {
-      current.value.sval.ptr = obstack_copy0 (&expansion_obstack,
+      current.value.sval.ptr = (const char *) obstack_copy0 (&expansion_obstack,
 					      current.value.sval.ptr,
 					      current.value.sval.length);
 
@@ -3284,7 +3284,7 @@ c_print_token (FILE *file, int type, YYSTYPE value)
     case CHAR:
     case STRING:
       {
-	char *copy = alloca (value.tsval.length + 1);
+	char *copy = (char *) alloca (value.tsval.length + 1);
 
 	memcpy (copy, value.tsval.ptr, value.tsval.length);
 	copy[value.tsval.length] = '\0';

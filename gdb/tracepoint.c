@@ -861,7 +861,7 @@ static int memrange_cmp (const void *, const void *);
 static int
 memrange_cmp (const void *va, const void *vb)
 {
-  const struct memrange *a = va, *b = vb;
+  const struct memrange *a = (const struct memrange *) va, *b = vb;
 
   if (a->type < b->type)
     return -1;
@@ -949,7 +949,7 @@ add_memrange (struct collection_list *memranges,
   if (memranges->next_memrange >= memranges->listsize)
     {
       memranges->listsize *= 2;
-      memranges->list = xrealloc (memranges->list,
+      memranges->list = (struct memrange *) xrealloc (memranges->list,
 				  memranges->listsize);
     }
 
@@ -1138,7 +1138,7 @@ do_collect_symbol (const char *print_name,
 		   struct symbol *sym,
 		   void *cb_data)
 {
-  struct add_local_symbols_data *p = cb_data;
+  struct add_local_symbols_data *p = (struct add_local_symbols_data *) cb_data;
 
   collect_symbol (p->collect, sym, p->gdbarch, p->frame_regno,
 		  p->frame_offset, p->pc, p->trace_string);
@@ -1232,7 +1232,7 @@ clear_collection_list (struct collection_list *list)
 static void
 do_clear_collection_list (void *list)
 {
-  struct collection_list *l = list;
+  struct collection_list *l = (struct collection_list *) list;
 
   clear_collection_list (l);
 }
@@ -1245,11 +1245,11 @@ init_collection_list (struct collection_list *clist)
   memset (clist, 0, sizeof *clist);
 
   clist->listsize = 128;
-  clist->list = xcalloc (clist->listsize,
+  clist->list = (struct memrange *) xcalloc (clist->listsize,
 			 sizeof (struct memrange));
 
   clist->aexpr_listsize = 128;
-  clist->aexpr_list = xcalloc (clist->aexpr_listsize,
+  clist->aexpr_list = (struct agent_expr **) xcalloc (clist->aexpr_listsize,
 			       sizeof (struct agent_expr *));
 }
 
@@ -1710,7 +1710,7 @@ add_aexpr (struct collection_list *collect, struct agent_expr *aexpr)
   if (collect->next_aexpr_elt >= collect->aexpr_listsize)
     {
       collect->aexpr_list =
-	xrealloc (collect->aexpr_list,
+	(struct agent_expr **) xrealloc (collect->aexpr_list,
 		  2 * collect->aexpr_listsize * sizeof (struct agent_expr *));
       collect->aexpr_listsize *= 2;
     }
@@ -2938,7 +2938,7 @@ trace_dump_actions (struct command_line *action,
 			{
 			  size_t len = next_comma - action_exp;
 
-			  cmd = xrealloc (cmd, len + 1);
+			  cmd = (char *) xrealloc (cmd, len + 1);
 			  memcpy (cmd, action_exp, len);
 			  cmd[len] = 0;
 			}
@@ -2946,7 +2946,7 @@ trace_dump_actions (struct command_line *action,
 			{
 			  size_t len = strlen (action_exp);
 
-			  cmd = xrealloc (cmd, len + 1);
+			  cmd = (char *) xrealloc (cmd, len + 1);
 			  memcpy (cmd, action_exp, len + 1);
 			}
 
@@ -3227,7 +3227,7 @@ struct current_traceframe_cleanup
 static void
 do_restore_current_traceframe_cleanup (void *arg)
 {
-  struct current_traceframe_cleanup *old = arg;
+  struct current_traceframe_cleanup *old = (struct current_traceframe_cleanup *) arg;
 
   set_current_traceframe (old->traceframe_number);
 }
@@ -3235,7 +3235,7 @@ do_restore_current_traceframe_cleanup (void *arg)
 static void
 restore_current_traceframe_cleanup_dtor (void *arg)
 {
-  struct current_traceframe_cleanup *old = arg;
+  struct current_traceframe_cleanup *old = (struct current_traceframe_cleanup *) arg;
 
   xfree (old);
 }
@@ -3616,7 +3616,7 @@ Status line: '%s'\n"), p, line);
 	    }
 	  else if (p2 != p1)
 	    {
-	      ts->stop_desc = xmalloc (strlen (line));
+	      ts->stop_desc = (char *) xmalloc (strlen (line));
 	      end = hex2bin (p1, (gdb_byte *) ts->stop_desc, (p2 - p1) / 2);
 	      ts->stop_desc[end] = '\0';
 	    }
@@ -3636,7 +3636,7 @@ Status line: '%s'\n"), p, line);
 	  p2 = strchr (++p1, ':');
 	  if (p2 != p1)
 	    {
-	      ts->stop_desc = xmalloc ((p2 - p1) / 2 + 1);
+	      ts->stop_desc = (char *) xmalloc ((p2 - p1) / 2 + 1);
 	      end = hex2bin (p1, (gdb_byte *) ts->stop_desc, (p2 - p1) / 2);
 	      ts->stop_desc[end] = '\0';
 	    }
@@ -3690,7 +3690,7 @@ Status line: '%s'\n"), p, line);
       else if (strncmp (p, "username", p1 - p) == 0)
 	{
 	  ++p1;
-	  ts->user_name = xmalloc (strlen (p) / 2);
+	  ts->user_name = (char *) xmalloc (strlen (p) / 2);
 	  end = hex2bin (p1, (gdb_byte *) ts->user_name, (p3 - p1)  / 2);
 	  ts->user_name[end] = '\0';
 	  p = p3;
@@ -3698,7 +3698,7 @@ Status line: '%s'\n"), p, line);
       else if (strncmp (p, "notes", p1 - p) == 0)
 	{
 	  ++p1;
-	  ts->notes = xmalloc (strlen (p) / 2);
+	  ts->notes = (char *) xmalloc (strlen (p) / 2);
 	  end = hex2bin (p1, (gdb_byte *) ts->notes, (p3 - p1) / 2);
 	  ts->notes[end] = '\0';
 	  p = p3;
@@ -3825,7 +3825,7 @@ parse_tracepoint_definition (char *line, struct uploaded_tp **utpp)
       p = unpack_varlen_hex (p, &xlen);
       p++;  /* skip a colon */
 
-      buf = alloca (strlen (line));
+      buf = (char *) alloca (strlen (line));
 
       end = hex2bin (p, (gdb_byte *) buf, strlen (p) / 2);
       buf[end] = '\0';
@@ -3862,7 +3862,7 @@ parse_tsv_definition (char *line, struct uploaded_tsv **utsvp)
   int end;
   struct uploaded_tsv *utsv = NULL;
 
-  buf = alloca (strlen (line));
+  buf = (char *) alloca (strlen (line));
 
   p = line;
   p = unpack_varlen_hex (p, &num);
@@ -3883,7 +3883,7 @@ parse_tsv_definition (char *line, struct uploaded_tsv **utsvp)
 void
 free_current_marker (void *arg)
 {
-  struct static_tracepoint_marker **marker_p = arg;
+  struct static_tracepoint_marker **marker_p = (struct static_tracepoint_marker **) arg;
 
   if (*marker_p != NULL)
     {
@@ -3918,14 +3918,14 @@ parse_static_tracepoint_marker_definition (char *line, char **pp,
   if (endp == NULL)
     error (_("bad marker definition: %s"), line);
 
-  marker->str_id = xmalloc (endp - p + 1);
+  marker->str_id = (char *) xmalloc (endp - p + 1);
   end = hex2bin (p, (gdb_byte *) marker->str_id, (endp - p + 1) / 2);
   marker->str_id[end] = '\0';
 
   p += 2 * end;
   p++;  /* skip a colon */
 
-  marker->extra = xmalloc (strlen (p) + 1);
+  marker->extra = (char *) xmalloc (strlen (p) + 1);
   end = hex2bin (p, (gdb_byte *) marker->extra, strlen (p) / 2);
   marker->extra[end] = '\0';
 
@@ -4176,12 +4176,12 @@ traceframe_info_start_memory (struct gdb_xml_parser *parser,
 			      const struct gdb_xml_element *element,
 			      void *user_data, VEC(gdb_xml_value_s) *attributes)
 {
-  struct traceframe_info *info = user_data;
+  struct traceframe_info *info = (struct traceframe_info *) user_data;
   struct mem_range *r = VEC_safe_push (mem_range_s, info->memory, NULL);
   ULONGEST *start_p, *length_p;
 
-  start_p = xml_find_attribute (attributes, "start")->value;
-  length_p = xml_find_attribute (attributes, "length")->value;
+  start_p = (long unsigned int *) xml_find_attribute (attributes, "start")->value;
+  length_p = (long unsigned int *) xml_find_attribute (attributes, "length")->value;
 
   r->start = *start_p;
   r->length = *length_p;
@@ -4195,8 +4195,8 @@ traceframe_info_start_tvar (struct gdb_xml_parser *parser,
 			     void *user_data,
 			     VEC(gdb_xml_value_s) *attributes)
 {
-  struct traceframe_info *info = user_data;
-  const char *id_attrib = xml_find_attribute (attributes, "id")->value;
+  struct traceframe_info *info = (struct traceframe_info *) user_data;
+  const char *id_attrib = (const char *) xml_find_attribute (attributes, "id")->value;
   int id = gdb_xml_parse_ulongest (parser, id_attrib);
 
   VEC_safe_push (int, info->tvars, id);
@@ -4207,7 +4207,7 @@ traceframe_info_start_tvar (struct gdb_xml_parser *parser,
 static void
 free_result (void *p)
 {
-  struct traceframe_info *result = p;
+  struct traceframe_info *result = (struct traceframe_info *) p;
 
   free_traceframe_info (result);
 }

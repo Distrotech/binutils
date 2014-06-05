@@ -83,8 +83,8 @@ cp_scan_for_anonymous_namespaces (const struct symbol *const symbol,
 			      ? 0 : previous_component - 2);
 	      int src_len = next_component;
 
-	      char *dest = alloca (dest_len + 1);
-	      char *src = alloca (src_len + 1);
+	      char *dest = (char *) alloca (dest_len + 1);
+	      char *src = (char *) alloca (src_len + 1);
 
 	      memcpy (dest, name, dest_len);
 	      memcpy (src, name, src_len);
@@ -170,15 +170,15 @@ cp_add_using_directive (const char *dest,
       return;
     }
 
-  newobj = obstack_alloc (obstack, (sizeof (*newobj)
+  newobj = (struct using_direct *) obstack_alloc (obstack, (sizeof (*newobj)
 				 + (VEC_length (const_char_ptr, excludes)
 				    * sizeof (*newobj->excludes))));
   memset (newobj, 0, sizeof (*newobj));
 
   if (copy_names)
     {
-      newobj->import_src = obstack_copy0 (obstack, src, strlen (src));
-      newobj->import_dest = obstack_copy0 (obstack, dest, strlen (dest));
+      newobj->import_src = (const char *) obstack_copy0 (obstack, src, strlen (src));
+      newobj->import_dest = (const char *) obstack_copy0 (obstack, dest, strlen (dest));
     }
   else
     {
@@ -187,12 +187,12 @@ cp_add_using_directive (const char *dest,
     }
 
   if (alias != NULL && copy_names)
-    newobj->alias = obstack_copy0 (obstack, alias, strlen (alias));
+    newobj->alias = (const char *) obstack_copy0 (obstack, alias, strlen (alias));
   else
     newobj->alias = alias;
 
   if (declaration != NULL && copy_names)
-    newobj->declaration = obstack_copy0 (obstack,
+    newobj->declaration = (const char *) obstack_copy0 (obstack,
 				      declaration, strlen (declaration));
   else
     newobj->declaration = declaration;
@@ -270,7 +270,7 @@ cp_lookup_symbol_in_namespace (const char *the_namespace,
   else
     {
       struct symbol *sym;
-      char *concatenated_name = alloca (strlen (the_namespace) + 2
+      char *concatenated_name = (char *) alloca (strlen (the_namespace) + 2
 					+ strlen (name) + 1);
 
       strcpy (concatenated_name, the_namespace);
@@ -293,7 +293,7 @@ cp_lookup_symbol_in_namespace (const char *the_namespace,
 static void
 reset_directive_searched (void *data)
 {
-  struct using_direct *direct = data;
+  struct using_direct *direct = (struct using_direct *) data;
   direct->searched = 0;
 }
 
@@ -620,7 +620,7 @@ lookup_namespace_scope (const char *name,
   /* Okay, we didn't find a match in our children, so look for the
      name in the current namespace.  */
 
-  the_namespace = alloca (scope_len + 1);
+  the_namespace = (char *) alloca (scope_len + 1);
   strncpy (the_namespace, scope, scope_len);
   the_namespace[scope_len] = '\0';
   return cp_lookup_symbol_in_namespace (the_namespace, name,
@@ -795,7 +795,7 @@ find_symbol_in_baseclass (struct type *parent_type, const char *name,
 	 things like typedefs in the class.  First search in this symtab,
 	 what we want is possibly there.  */
       len = strlen (base_name) + 2 + strlen (name) + 1;
-      concatenated_name = xrealloc (concatenated_name, len);
+      concatenated_name = (char *) xrealloc (concatenated_name, len);
       xsnprintf (concatenated_name, len, "%s::%s", base_name, name);
       sym = lookup_symbol_static (concatenated_name, block, VAR_DOMAIN);
       if (sym != NULL)
@@ -872,7 +872,7 @@ cp_lookup_nested_symbol (struct type *parent_type,
 	   assumptions could make it too magic.  */
 
 	size = strlen (parent_name) + 2 + strlen (nested_name) + 1;
-	concatenated_name = alloca (size);
+	concatenated_name = (char *) alloca (size);
 	xsnprintf (concatenated_name, size, "%s::%s",
 		 parent_name, nested_name);
 	sym = lookup_static_symbol_aux (concatenated_name, VAR_DOMAIN);
@@ -957,7 +957,7 @@ cp_lookup_transparent_type_loop (const char *name,
 	return retval;
     }
 
-  full_name = alloca (scope_length + 2 + strlen (name) + 1);
+  full_name = (char *) alloca (scope_length + 2 + strlen (name) + 1);
   strncpy (full_name, scope, scope_length);
   strncpy (full_name + scope_length, "::", 2);
   strcpy (full_name + scope_length + 2, name);

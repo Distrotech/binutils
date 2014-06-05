@@ -141,7 +141,7 @@ parse_probes (char **argptr, struct linespec_result *canonical)
 	      continue;
 
 	    ++result.nelts;
-	    result.sals = xrealloc (result.sals,
+	    result.sals = (struct symtab_and_line *) xrealloc (result.sals,
 				    result.nelts
 				    * sizeof (struct symtab_and_line));
 	    sal = &result.sals[result.nelts - 1];

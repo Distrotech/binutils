@@ -51,7 +51,7 @@ tui_field_int (struct ui_out *uiout,
 	       const char *fldname, 
 	       int value)
 {
-  tui_out_data *data = ui_out_data (uiout);
+  tui_out_data *data = (struct tui_out_data *) ui_out_data (uiout);
 
   if (data->base.suppress_output)
     return;
@@ -79,7 +79,7 @@ tui_field_string (struct ui_out *uiout,
 		  const char *fldname,
 		  const char *string)
 {
-  tui_out_data *data = ui_out_data (uiout);
+  tui_out_data *data = (struct tui_out_data *) ui_out_data (uiout);
 
   if (data->base.suppress_output)
     return;
@@ -110,7 +110,7 @@ tui_field_fmt (struct ui_out *uiout, int fldno,
 	       const char *format,
 	       va_list args)
 {
-  tui_out_data *data = ui_out_data (uiout);
+  tui_out_data *data = (struct tui_out_data *) ui_out_data (uiout);
 
   if (data->base.suppress_output)
     return;
@@ -125,7 +125,7 @@ tui_field_fmt (struct ui_out *uiout, int fldno,
 static void
 tui_text (struct ui_out *uiout, const char *string)
 {
-  tui_out_data *data = ui_out_data (uiout);
+  tui_out_data *data = (struct tui_out_data *) ui_out_data (uiout);
 
   if (data->base.suppress_output)
     return;
