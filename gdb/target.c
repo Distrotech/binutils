@@ -2167,7 +2167,7 @@ target_pass_signals (int numsigs, unsigned char *pass_signals)
       for (i = 0; i < numsigs; i++)
 	if (pass_signals[i])
 	  fprintf_unfiltered (gdb_stdlog, " %s",
-			      gdb_signal_to_name (i));
+			      gdb_signal_to_name ((enum gdb_signal) i));
 
       fprintf_unfiltered (gdb_stdlog, " })\n");
     }
@@ -2188,7 +2188,7 @@ target_program_signals (int numsigs, unsigned char *program_signals)
       for (i = 0; i < numsigs; i++)
 	if (program_signals[i])
 	  fprintf_unfiltered (gdb_stdlog, " %s",
-			      gdb_signal_to_name (i));
+			      gdb_signal_to_name ((enum gdb_signal) i));
 
       fprintf_unfiltered (gdb_stdlog, " })\n");
     }
