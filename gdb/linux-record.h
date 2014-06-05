@@ -181,6 +181,8 @@ struct linux_record_tdep
    each must provide a mapping from their set to this one.  */
 
 enum gdb_syscall {
+  /* An error, not a real syscall.  */
+  gdb_sys_error = -1,
   gdb_sys_restart_syscall = 0,
   gdb_sys_exit = 1,
   gdb_sys_fork = 2,
