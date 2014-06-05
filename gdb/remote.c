@@ -10235,7 +10235,7 @@ remote_delete_command (char *args, int from_tty)
 static void
 remote_command (char *args, int from_tty)
 {
-  help_list (remote_cmdlist, "remote ", -1, gdb_stdout);
+  help_list (remote_cmdlist, "remote ", all_commands, gdb_stdout);
 }
 
 static int
@@ -11587,7 +11587,7 @@ remote_async (struct target_ops *ops,
 static void
 set_remote_cmd (char *args, int from_tty)
 {
-  help_list (remote_set_cmdlist, "set remote ", -1, gdb_stdout);
+  help_list (remote_set_cmdlist, "set remote ", all_commands, gdb_stdout);
 }
 
 static void
