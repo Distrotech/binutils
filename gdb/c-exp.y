@@ -2359,11 +2359,12 @@ static const struct token ident_tokens[] =
     {"static_cast", STATIC_CAST, OP_NULL, FLAG_CXX },
     {"reinterpret_cast", REINTERPRET_CAST, OP_NULL, FLAG_CXX },
 
-    {"__typeof__", TYPEOF, OP_TYPEOF, 0 },
-    {"__typeof", TYPEOF, OP_TYPEOF, 0 },
+    {"__typeof__", TYPEOF, OP_TYPEOF, FLAG_NOTHING },
+    {"__typeof", TYPEOF, OP_TYPEOF, FLAG_NOTHING },
     {"typeof", TYPEOF, OP_TYPEOF, FLAG_SHADOW },
     {"__decltype", DECLTYPE, OP_DECLTYPE, FLAG_CXX },
-    {"decltype", DECLTYPE, OP_DECLTYPE, FLAG_CXX | FLAG_SHADOW },
+    {"decltype", DECLTYPE, OP_DECLTYPE,
+     (enum token_flags) (FLAG_CXX | FLAG_SHADOW) },
 
     {"typeid", TYPEID, OP_TYPEID, FLAG_CXX}
   };

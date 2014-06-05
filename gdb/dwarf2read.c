@@ -6695,7 +6695,7 @@ partial_die_full_name (struct partial_die_info *pdi,
 	  struct dwarf2_cu *ref_cu = cu;
 
 	  /* DW_FORM_ref_addr is using section offset.  */
-	  attr.name = 0;
+	  attr.name = (enum dwarf_attribute) 0;
 	  attr.form = DW_FORM_ref_addr;
 	  attr.u.unsnd = pdi->offset.sect_off;
 	  die = follow_die_ref (NULL, &attr, &ref_cu);
@@ -20577,7 +20577,7 @@ dwarf_decode_macro_bytes (bfd *abfd,
 	  break;
 	}
 
-      macinfo_type = read_1_byte (abfd, mac_ptr);
+      macinfo_type = (enum dwarf_macro_record_type) read_1_byte (abfd, mac_ptr);
       mac_ptr++;
 
       /* Note that we rely on the fact that the corresponding GNU and

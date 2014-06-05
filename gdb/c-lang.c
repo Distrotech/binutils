@@ -333,7 +333,7 @@ c_get_string (struct value *value, gdb_byte **buffer,
       if (err)
 	{
 	  xfree (*buffer);
-	  memory_error (err, addr);
+	  memory_error ((enum target_xfer_status) err, addr);
 	}
     }
 
@@ -757,7 +757,7 @@ const struct op_print c_op_print_tab[] =
   {"sizeof ", UNOP_SIZEOF, PREC_PREFIX, 0},
   {"++", UNOP_PREINCREMENT, PREC_PREFIX, 0},
   {"--", UNOP_PREDECREMENT, PREC_PREFIX, 0},
-  {NULL, 0, 0, 0}
+  {NULL, OP_NULL, PREC_PREFIX, 0}
 };
 
 enum c_primitive_types {

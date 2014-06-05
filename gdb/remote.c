@@ -6809,7 +6809,7 @@ remote_read_bytes (struct target_ops *ops, CORE_ADDR memaddr,
 		   gdb_byte *myaddr, ULONGEST len, ULONGEST *xfered_len)
 {
   if (len == 0)
-    return 0;
+    return TARGET_XFER_EOF;
 
   if (get_traceframe_number () != -1)
     {
@@ -8149,7 +8149,7 @@ remote_remove_breakpoint (struct target_ops *ops,
   return memory_remove_breakpoint (ops, gdbarch, bp_tgt);
 }
 
-static int
+static enum Z_packet_type
 watchpoint_to_Z_packet (int type)
 {
   switch (type)

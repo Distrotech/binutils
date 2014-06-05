@@ -286,7 +286,7 @@ exec_direction_forward (void *notused)
 static void
 exec_reverse_continue (char **argv, int argc)
 {
-  enum exec_direction_kind dir = execution_direction;
+  enum exec_direction_kind dir = (enum exec_direction_kind) execution_direction;
   struct cleanup *old_chain;
 
   if (dir == EXEC_REVERSE)

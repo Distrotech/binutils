@@ -14880,7 +14880,7 @@ enable_breakpoint_disp (struct breakpoint *bpt, enum bpdisp disposition,
   if (is_watchpoint (bpt))
     {
       /* Initialize it just to avoid a GCC false warning.  */
-      enum enable_state orig_enable_state = 0;
+      enum enable_state orig_enable_state = (enum enable_state) 0;
       volatile struct gdb_exception e;
 
       TRY_CATCH (e, RETURN_MASK_ALL)

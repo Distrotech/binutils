@@ -631,7 +631,7 @@ parse_symbol (SYMR *sh, union aux_ext *ax, char *ext_sh, int bigend,
       s = new_symbol (name);
       SYMBOL_VALUE (s) = svalue;
       if (sh->sc == scRegister)
-	theclass = mdebug_register_index;
+	theclass = (enum address_class) mdebug_register_index;
       else
 	theclass = LOC_LOCAL;
 

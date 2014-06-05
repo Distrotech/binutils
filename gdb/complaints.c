@@ -182,7 +182,7 @@ vcomplaint (struct complaints **c, const char *file,
   if (info_verbose)
     series = SUBSEQUENT_MESSAGE;
   else
-    series = complaints->series;
+    series = (enum complaint_series) complaints->series;
 
   if (complaint->file != NULL)
     internal_vwarning (complaint->file, complaint->line, 

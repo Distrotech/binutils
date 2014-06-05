@@ -264,7 +264,7 @@ static const char *set_endian_string;
 enum bfd_endian
 selected_byte_order (void)
 {
-  return target_byte_order_user;
+  return (enum bfd_endian) target_byte_order_user;
 }
 
 /* Called by ``show endian''.  */
@@ -644,7 +644,7 @@ initialize_current_architecture (void)
       default_byte_order = BFD_ENDIAN_BIG;
     }
 
-  info.byte_order = default_byte_order;
+  info.byte_order = (enum bfd_endian) default_byte_order;
   info.byte_order_for_code = info.byte_order;
 
   if (! gdbarch_update_p (info))
@@ -715,7 +715,7 @@ gdbarch_info_fill (struct gdbarch_info *info)
   /* "(gdb) set byte-order ...".  */
   if (info->byte_order == BFD_ENDIAN_UNKNOWN
       && target_byte_order_user != BFD_ENDIAN_UNKNOWN)
-    info->byte_order = target_byte_order_user;
+    info->byte_order = (enum bfd_endian) target_byte_order_user;
   /* From the INFO struct.  */
   if (info->byte_order == BFD_ENDIAN_UNKNOWN
       && info->abfd != NULL)
@@ -724,7 +724,7 @@ gdbarch_info_fill (struct gdbarch_info *info)
 			: BFD_ENDIAN_UNKNOWN);
   /* From the default.  */
   if (info->byte_order == BFD_ENDIAN_UNKNOWN)
-    info->byte_order = default_byte_order;
+    info->byte_order = (enum bfd_endian) default_byte_order;
   info->byte_order_for_code = info->byte_order;
 
   /* "(gdb) set osabi ...".  Handled by gdbarch_lookup_osabi.  */
