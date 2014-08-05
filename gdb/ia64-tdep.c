@@ -1854,7 +1854,7 @@ ia64_frame_cache (struct frame_info *this_frame, void **this_cache)
   CORE_ADDR cfm, psr;
 
   if (*this_cache)
-    return *this_cache;
+    return (struct ia64_frame_cache *) *this_cache;
 
   cache = ia64_alloc_frame_cache ();
   *this_cache = cache;
@@ -2241,7 +2241,7 @@ ia64_sigtramp_frame_cache (struct frame_info *this_frame, void **this_cache)
   gdb_byte buf[8];
 
   if (*this_cache)
-    return *this_cache;
+    return (struct ia64_frame_cache *) *this_cache;
 
   cache = ia64_alloc_frame_cache ();
 
@@ -3964,7 +3964,7 @@ ia64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
   if (arches != NULL)
     return arches->gdbarch;
 
-  tdep = xzalloc (sizeof (struct gdbarch_tdep));
+  tdep = (struct gdbarch_tdep *) xzalloc (sizeof (struct gdbarch_tdep));
   gdbarch = gdbarch_alloc (&info, tdep);
 
   tdep->size_of_register_frame = ia64_size_of_register_frame;

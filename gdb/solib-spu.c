@@ -59,7 +59,7 @@ spu_relocate_main_executable (int spufs_fd)
   if (symfile_objfile == NULL)
     return;
 
-  new_offsets = alloca (symfile_objfile->num_sections
+  new_offsets = (struct section_offsets *) alloca (symfile_objfile->num_sections
 			* sizeof (struct section_offsets));
 
   for (i = 0; i < symfile_objfile->num_sections; i++)
@@ -108,7 +108,7 @@ append_ocl_sos (struct so_list **link_ptr)
 
   ALL_OBJFILES (objfile)
     {
-      ocl_program_addr_base = objfile_data (objfile, ocl_program_data_key);
+      ocl_program_addr_base = (CORE_ADDR *) objfile_data (objfile, ocl_program_data_key);
       if (ocl_program_addr_base != NULL)
         {
 	  enum bfd_endian byte_order = bfd_big_endian (objfile->obfd)?
@@ -325,7 +325,7 @@ spu_bfd_fopen (char *name, CORE_ADDR addr)
 {
   bfd *nbfd;
 
-  CORE_ADDR *open_closure = xmalloc (sizeof (CORE_ADDR));
+  CORE_ADDR *open_closure = (CORE_ADDR *) xmalloc (sizeof (CORE_ADDR));
   *open_closure = addr;
 
   nbfd = gdb_bfd_openr_iovec (name, "elf32-spu",
@@ -375,7 +375,7 @@ spu_bfd_open (char *pathname)
 
       if (sect_size > 20)
 	{
-	  char *buf = alloca (sect_size - 20 + strlen (original_name) + 1);
+	  char *buf = (char *) alloca (sect_size - 20 + strlen (original_name) + 1);
 
 	  bfd_get_section_contents (abfd, spu_name, buf, 20, sect_size - 20);
 	  buf[sect_size - 20] = '\0';

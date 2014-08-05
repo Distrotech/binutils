@@ -893,7 +893,7 @@ sparc64_store_arguments (struct regcache *regcache, int nargs,
 	  /* Structure, Union or long double Complex arguments.  */
 	  gdb_assert (len <= 16);
 	  memset (buf, 0, sizeof (buf));
-	  valbuf = memcpy (buf, valbuf, len);
+	  valbuf = (const gdb_byte *) memcpy (buf, valbuf, len);
 
 	  if (element % 2 && sparc64_16_byte_align_p (type))
 	    element++;
@@ -1247,7 +1247,7 @@ sparc64_supply_gregset (const struct sparc_gregset *gregset,
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   int sparc32 = (gdbarch_ptr_bit (gdbarch) == 32);
-  const gdb_byte *regs = gregs;
+  const gdb_byte *regs = (const gdb_byte *) gregs;
   gdb_byte zero[8] = { 0 };
   int i;
 
@@ -1364,7 +1364,7 @@ sparc64_collect_gregset (const struct sparc_gregset *gregset,
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   int sparc32 = (gdbarch_ptr_bit (gdbarch) == 32);
-  gdb_byte *regs = gregs;
+  gdb_byte *regs = (gdb_byte *) gregs;
   int i;
 
   if (sparc32)
@@ -1472,7 +1472,7 @@ sparc64_supply_fpregset (const struct sparc_fpregset *fpregset,
 			 int regnum, const void *fpregs)
 {
   int sparc32 = (gdbarch_ptr_bit (get_regcache_arch (regcache)) == 32);
-  const gdb_byte *regs = fpregs;
+  const gdb_byte *regs = (const gdb_byte *) fpregs;
   int i;
 
   for (i = 0; i < 32; i++)
@@ -1510,7 +1510,7 @@ sparc64_collect_fpregset (const struct sparc_fpregset *fpregset,
 			  int regnum, void *fpregs)
 {
   int sparc32 = (gdbarch_ptr_bit (get_regcache_arch (regcache)) == 32);
-  gdb_byte *regs = fpregs;
+  gdb_byte *regs = (gdb_byte *) fpregs;
   int i;
 
   for (i = 0; i < 32; i++)

@@ -232,7 +232,7 @@ m32r_linux_sigtramp_frame_cache (struct frame_info *this_frame,
   int regnum;
 
   if ((*this_cache) != NULL)
-    return (*this_cache);
+    return (struct m32r_frame_cache *) (*this_cache);
   cache = FRAME_OBSTACK_ZALLOC (struct m32r_frame_cache);
   (*this_cache) = cache;
   cache->saved_regs = trad_frame_alloc_saved_regs (this_frame);
@@ -351,7 +351,7 @@ m32r_linux_supply_gregset (const struct regset *regset,
 			   struct regcache *regcache, int regnum,
 			   const void *gregs, size_t size)
 {
-  const char *regs = gregs;
+  const char *regs = (const char *) gregs;
   unsigned long psw, bbpsw;
   int i;
 

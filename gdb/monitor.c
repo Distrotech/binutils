@@ -212,7 +212,7 @@ monitor_error (char *function, char *message,
 	       CORE_ADDR memaddr, int len, char *string, int final_char)
 {
   int real_len = (len == 0 && string != (char *) 0) ? strlen (string) : len;
-  char *safe_string = alloca ((real_len * 4) + 1);
+  char *safe_string = (char *) alloca ((real_len * 4) + 1);
 
   monitor_printable_string (safe_string, string, real_len);
 
@@ -608,7 +608,7 @@ monitor_expect_regexp (struct re_pattern_buffer *pat, char *buf, int buflen)
     mybuf = buf;
   else
     {
-      mybuf = alloca (TARGET_BUF_SIZE);
+      mybuf = (char *) alloca (TARGET_BUF_SIZE);
       buflen = TARGET_BUF_SIZE;
     }
 
@@ -1184,8 +1184,8 @@ monitor_fetch_register (struct regcache *regcache, int regno)
   char *regbuf;
   int i;
 
-  regbuf  = alloca (MAX_REGISTER_SIZE * 2 + 1);
-  zerobuf = alloca (MAX_REGISTER_SIZE);
+  regbuf  = (char *) alloca (MAX_REGISTER_SIZE * 2 + 1);
+  zerobuf = (char *) alloca (MAX_REGISTER_SIZE);
   memset (zerobuf, 0, MAX_REGISTER_SIZE);
 
   if (current_monitor->regname != NULL)

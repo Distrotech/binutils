@@ -138,7 +138,7 @@ new_variant (void)
   struct gdbarch_tdep *var;
   int r;
 
-  var = xmalloc (sizeof (*var));
+  var = (struct gdbarch_tdep *) xmalloc (sizeof (*var));
   memset (var, 0, sizeof (*var));
   
   var->frv_abi = FRV_ABI_EABI;
@@ -1102,7 +1102,7 @@ frv_frame_unwind_cache (struct frame_info *this_frame,
   struct frv_unwind_cache *info;
 
   if ((*this_prologue_cache))
-    return (*this_prologue_cache);
+    return (struct frv_unwind_cache *) (*this_prologue_cache);
 
   info = FRAME_OBSTACK_ZALLOC (struct frv_unwind_cache);
   (*this_prologue_cache) = info;

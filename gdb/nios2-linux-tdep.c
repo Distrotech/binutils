@@ -58,7 +58,7 @@ nios2_supply_gregset (const struct regset *regset,
 		      struct regcache *regcache,
 		      int regnum, const void *gregs_buf, size_t len)
 {
-  const gdb_byte *gregs = gregs_buf;
+  const gdb_byte *gregs = (const gdb_byte *) gregs_buf;
   int regno;
   static const gdb_byte zero_buf[4] = {0, 0, 0, 0};
 

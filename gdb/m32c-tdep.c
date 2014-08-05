@@ -315,7 +315,7 @@ static m32c_move_reg_t m32c_r3r2r1r0_read, m32c_r3r2r1r0_write;
 static enum register_status
 m32c_raw_read (struct m32c_reg *reg, struct regcache *cache, void *buf)
 {
-  return regcache_raw_read (cache, reg->num, buf);
+  return (gdb_byte *) regcache_raw_read (cache, reg->num, buf);
 }
 
 
@@ -356,7 +356,7 @@ static enum register_status
 m32c_banked_read (struct m32c_reg *reg, struct regcache *cache, void *buf)
 {
   struct m32c_reg *bank_reg = m32c_banked_register (reg, cache);
-  return regcache_raw_read (cache, bank_reg->num, buf);
+  return (gdb_byte *) regcache_raw_read (cache, bank_reg->num, buf);
 }
 
 
@@ -448,7 +448,7 @@ m32c_part_read (struct m32c_reg *reg, struct regcache *cache, void *buf)
 
   memset (buf, 0, TYPE_LENGTH (reg->type));
   m32c_find_part (reg, &offset, &len);
-  return regcache_cooked_read_part (cache, reg->rx->num, offset, len, buf);
+  return (gdb_byte *) regcache_cooked_read_part (cache, reg->rx->num, offset, len, buf);
 }
 
 
@@ -477,7 +477,7 @@ m32c_cat_read (struct m32c_reg *reg, struct regcache *cache, void *buf)
   int high_bytes = TYPE_LENGTH (reg->rx->type);
   int low_bytes  = TYPE_LENGTH (reg->ry->type);
   /* For address arithmetic.  */
-  unsigned char *cbuf = buf;
+  unsigned char *cbuf = (unsigned char *) buf;
   enum register_status status;
 
   gdb_assert (TYPE_LENGTH (reg->type) == high_bytes + low_bytes);
@@ -508,7 +508,7 @@ m32c_cat_write (struct m32c_reg *reg, struct regcache *cache, void *buf)
   int high_bytes = TYPE_LENGTH (reg->rx->type);
   int low_bytes  = TYPE_LENGTH (reg->ry->type);
   /* For address arithmetic.  */
-  unsigned char *cbuf = buf;
+  unsigned char *cbuf = (unsigned char *) buf;
 
   gdb_assert (TYPE_LENGTH (reg->type) == high_bytes + low_bytes);
 
@@ -538,7 +538,7 @@ m32c_r3r2r1r0_read (struct m32c_reg *reg, struct regcache *cache, void *buf)
   enum register_status status;
 
   /* For address arithmetic.  */
-  unsigned char *cbuf = buf;
+  unsigned char *cbuf = (unsigned char *) buf;
 
   if (gdbarch_byte_order (reg->arch) == BFD_ENDIAN_BIG)
     {
@@ -575,7 +575,7 @@ m32c_r3r2r1r0_write (struct m32c_reg *reg, struct regcache *cache, void *buf)
   int len = TYPE_LENGTH (tdep->r0->type);
 
   /* For address arithmetic.  */
-  unsigned char *cbuf = buf;
+  unsigned char *cbuf = (unsigned char *) buf;
 
   if (gdbarch_byte_order (reg->arch) == BFD_ENDIAN_BIG)
     {
@@ -1874,10 +1874,10 @@ m32c_analyze_frame_prologue (struct frame_info *this_frame,
 
       *this_prologue_cache = FRAME_OBSTACK_ZALLOC (struct m32c_prologue);
       m32c_analyze_prologue (get_frame_arch (this_frame),
-			     func_start, stop_addr, *this_prologue_cache);
+			     (struct m32c_prologue *) func_start, stop_addr, *this_prologue_cache);
     }
 
-  return *this_prologue_cache;
+  return (struct m32c_prologue *) *this_prologue_cache;
 }
 
 
@@ -2466,7 +2466,7 @@ m32c_m16c_address_to_pointer (struct gdbarch *gdbarch,
                paddress (gdbarch, addr));
 
       func_name = MSYMBOL_LINKAGE_NAME (func_msym.minsym);
-      tramp_name = xmalloc (strlen (func_name) + 5);
+      tramp_name = (char *) xmalloc (strlen (func_name) + 5);
       strcpy (tramp_name, func_name);
       strcat (tramp_name, ".plt");
 
@@ -2553,7 +2553,7 @@ m32c_m16c_pointer_to_address (struct gdbarch *gdbarch,
                  Since the trampoline contains a jump instruction, we
                  could also just extract the jump's target address.  I
                  don't see much advantage one way or the other.  */
-              char *func_name = xmalloc (len - 4 + 1);
+              char *func_name = (char *) xmalloc (len - 4 + 1);
               memcpy (func_name, ptr_msym_name, len - 4);
               func_name[len - 4] = '\0';
               func_msym
@@ -2637,7 +2637,7 @@ m32c_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
        arches = gdbarch_list_lookup_by_info (arches->next, &info))
     return arches->gdbarch;
 
-  tdep = xcalloc (1, sizeof (*tdep));
+  tdep = (struct gdbarch_tdep *) xcalloc (1, sizeof (*tdep));
   arch = gdbarch_alloc (&info, tdep);
 
   /* Essential types.  */

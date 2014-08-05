@@ -1145,7 +1145,7 @@ mep_pseudo_cr32_read (struct gdbarch *gdbarch,
     {
       /* Slow, but legible.  */
       store_unsigned_integer (buf, 4, byte_order,
-			      extract_unsigned_integer (buf64, 8, byte_order));
+			      (gdb_byte *) extract_unsigned_integer (buf64, 8, byte_order));
     }
   return status;
 }
@@ -1157,7 +1157,7 @@ mep_pseudo_cr64_read (struct gdbarch *gdbarch,
                       int cookednum,
                       void *buf)
 {
-  return regcache_raw_read (regcache, mep_pseudo_to_raw[cookednum], buf);
+  return (gdb_byte *) regcache_raw_read (regcache, mep_pseudo_to_raw[cookednum], buf);
 }
 
 
@@ -1228,7 +1228,7 @@ mep_pseudo_cr32_write (struct gdbarch *gdbarch,
   gdb_assert (TYPE_LENGTH (register_type (gdbarch, cookednum)) == 4);
   /* Slow, but legible.  */
   store_unsigned_integer (buf64, 8, byte_order,
-			  extract_unsigned_integer (buf, 4, byte_order));
+			  (const gdb_byte *) extract_unsigned_integer (buf, 4, byte_order));
   regcache_raw_write (regcache, rawnum, buf64);
 }
 
@@ -1953,10 +1953,10 @@ mep_analyze_frame_prologue (struct frame_info *this_frame,
         stop_addr = func_start;
 
       mep_analyze_prologue (get_frame_arch (this_frame),
-			    func_start, stop_addr, *this_prologue_cache);
+			    (struct mep_prologue *) func_start, stop_addr, *this_prologue_cache);
     }
 
-  return *this_prologue_cache;
+  return (struct mep_prologue *) *this_prologue_cache;
 }
 
 

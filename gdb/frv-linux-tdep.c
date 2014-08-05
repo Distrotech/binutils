@@ -272,7 +272,7 @@ frv_linux_sigtramp_frame_cache (struct frame_info *this_frame,
   struct frame_id this_id;
 
   if (*this_cache)
-    return *this_cache;
+    return (struct trad_frame_cache *) *this_cache;
 
   cache = trad_frame_cache_zalloc (this_frame);
 
@@ -401,7 +401,7 @@ frv_linux_supply_gregset (const struct regset *regset,
 {
   int regi;
   char zerobuf[MAX_REGISTER_SIZE];
-  const frv_elf_gregset_t *gregsetp = gregs;
+  const frv_elf_gregset_t *gregsetp = (const struct frv_elf_gregset_t *) gregs;
 
   memset (zerobuf, 0, MAX_REGISTER_SIZE);
 
@@ -442,7 +442,7 @@ frv_linux_supply_fpregset (const struct regset *regset,
 			   int regnum, const void *gregs, size_t len)
 {
   int regi;
-  const frv_elf_fpregset_t *fpregsetp = gregs;
+  const frv_elf_fpregset_t *fpregsetp = (const struct frv_elf_fpregset_t *) gregs;
 
   for (regi = first_fpr_regnum; regi <= last_fpr_regnum; regi++)
     regcache_raw_supply (regcache, regi,

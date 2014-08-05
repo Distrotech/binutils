@@ -1236,7 +1236,7 @@ sh64_extract_return_value (struct type *type, struct regcache *regcache,
 	{
 	  /* Return value stored in gdbarch_fp0_regnum.  */
 	  regcache_raw_read (regcache,
-			     gdbarch_fp0_regnum (gdbarch), valbuf);
+			     (gdb_byte *) gdbarch_fp0_regnum (gdbarch), valbuf);
 	}
       else if (len == 8)
 	{
@@ -2212,7 +2212,7 @@ sh64_frame_cache (struct frame_info *this_frame, void **this_cache)
   int i;
 
   if (*this_cache)
-    return *this_cache;
+    return (struct sh64_frame_cache *) *this_cache;
 
   gdbarch = get_frame_arch (this_frame);
   cache = sh64_alloc_frame_cache ();

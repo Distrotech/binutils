@@ -624,7 +624,7 @@ hppa_hpux_sigtramp_frame_unwind_cache (struct frame_info *this_frame,
   int i, incr, szoff;
 
   if (*this_cache)
-    return *this_cache;
+    return (struct hppa_hpux_sigtramp_unwind_cache *) *this_cache;
 
   info = FRAME_OBSTACK_ZALLOC (struct hppa_hpux_sigtramp_unwind_cache);
   *this_cache = info;
@@ -810,8 +810,8 @@ hppa_hpux_search_pattern (struct gdbarch *gdbarch,
   gdb_byte *buf;
   int offset, i;
 
-  buf = alloca (num_insns * HPPA_INSN_SIZE);
-  insns = alloca (num_insns * sizeof (unsigned int));
+  buf = (gdb_byte *) alloca (num_insns * HPPA_INSN_SIZE);
+  insns = (unsigned int *) alloca (num_insns * sizeof (unsigned int));
 
   read_memory (start, buf, num_insns * HPPA_INSN_SIZE);
   for (i = 0; i < num_insns; i++, buf += HPPA_INSN_SIZE)
@@ -850,7 +850,7 @@ hppa32_hpux_search_dummy_call_sequence (struct gdbarch *gdbarch, CORE_ADDR pc,
 
   sec = find_pc_section (pc);
   obj = sec->objfile;
-  priv = objfile_data (obj, hppa_objfile_priv_data);
+  priv = (struct hppa_objfile_private *) objfile_data (obj, hppa_objfile_priv_data);
 
   if (!priv)
     priv = hppa_init_objfile_priv_data (obj);
@@ -947,7 +947,7 @@ hppa64_hpux_search_dummy_call_sequence (struct gdbarch *gdbarch, CORE_ADDR pc,
 
   sec = find_pc_section (pc);
   obj = sec->objfile;
-  priv = objfile_data (obj, hppa_objfile_priv_data);
+  priv = (struct hppa_objfile_private *) objfile_data (obj, hppa_objfile_priv_data);
 
   if (!priv)
     priv = hppa_init_objfile_priv_data (obj);
@@ -1337,7 +1337,7 @@ hppa_hpux_supply_save_state (const struct regset *regset,
 {
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
-  const gdb_byte *proc_info = regs;
+  const gdb_byte *proc_info = (const gdb_byte *) regs;
   const gdb_byte *save_state = proc_info + 8;
   ULONGEST flags;
 
@@ -1544,7 +1544,7 @@ hppa_hpux_core_osabi_sniffer (bfd *abfd)
 	  char *contents;
 
 	  size = bfd_section_size (abfd, section);
-	  contents = alloca (size);
+	  contents = (char *) alloca (size);
  	  if (bfd_get_section_contents (abfd, section, contents, 
 	  				(file_ptr) 0, size)
 	      && strcmp (contents, "HP-UX") == 0)

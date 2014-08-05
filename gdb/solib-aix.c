@@ -66,7 +66,7 @@ DEF_VEC_P(lm_info_p);
 static struct lm_info *
 solib_aix_new_lm_info (struct lm_info *info)
 {
-  struct lm_info *result = xmalloc (sizeof (struct lm_info));
+  struct lm_info *result = (struct lm_info *) xmalloc (sizeof (struct lm_info));
 
   memcpy (result, info, sizeof (struct lm_info));
   result->filename = xstrdup (info->filename);
@@ -112,7 +112,7 @@ get_solib_aix_inferior_data (struct inferior *inf)
 {
   struct solib_aix_inferior_data *data;
 
-  data = inferior_data (inf, solib_aix_inferior_data_handle);
+  data = (struct solib_aix_inferior_data *) inferior_data (inf, solib_aix_inferior_data_handle);
   if (data == NULL)
     {
       data = XCNEW (struct solib_aix_inferior_data);
@@ -160,7 +160,7 @@ library_list_start_library (struct gdb_xml_parser *parser,
 			    void *user_data,
 			    VEC (gdb_xml_value_s) *attributes)
 {
-  VEC (lm_info_p) **list = user_data;
+  VEC (lm_info_p) **list = (struct VEC_lm_info_p **) user_data;
   struct lm_info *item = XCNEW (struct lm_info);
   struct gdb_xml_value *attr;
 
@@ -193,7 +193,7 @@ library_list_start_list (struct gdb_xml_parser *parser,
                          const struct gdb_xml_element *element,
                          void *user_data, VEC (gdb_xml_value_s) *attributes)
 {
-  char *version = xml_find_attribute (attributes, "version")->value;
+  char *version = (char *) xml_find_attribute (attributes, "version")->value;
 
   if (strcmp (version, "1.0") != 0)
     gdb_xml_error (parser,
@@ -206,7 +206,7 @@ library_list_start_list (struct gdb_xml_parser *parser,
 static void
 solib_aix_free_library_list (void *p)
 {
-  VEC (lm_info_p) **result = p;
+  VEC (lm_info_p) **result = (struct VEC_lm_info_p **) p;
   struct lm_info *info;
   int ix;
 

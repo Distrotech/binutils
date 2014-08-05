@@ -120,7 +120,7 @@ struct cpms_data
 static void
 core_process_module_section (bfd *abfd, asection *sect, void *obj)
 {
-  struct cpms_data *data = obj;
+  struct cpms_data *data = (struct cpms_data *) obj;
   enum bfd_endian byte_order = gdbarch_byte_order (data->gdbarch);
 
   char *module_name;
@@ -132,7 +132,7 @@ core_process_module_section (bfd *abfd, asection *sect, void *obj)
   if (strncmp (sect->name, ".module", 7) != 0)
     return;
 
-  buf = xmalloc (bfd_get_section_size (sect) + 1);
+  buf = (gdb_byte *) xmalloc (bfd_get_section_size (sect) + 1);
   if (!buf)
     {
       printf_unfiltered ("memory allocation failed for %s\n", sect->name);
@@ -185,7 +185,7 @@ windows_core_xfer_shared_libraries (struct gdbarch *gdbarch,
 			 &data);
   obstack_grow_str0 (&obstack, "</library-list>\n");
 
-  buf = obstack_finish (&obstack);
+  buf = (const char *) obstack_finish (&obstack);
   len_avail = strlen (buf);
   if (offset >= len_avail)
     return 0;

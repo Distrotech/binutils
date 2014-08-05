@@ -76,7 +76,7 @@ static char *download_path;	/* user-settable path for SREC files     */
 static void
 m32r_load_section (bfd *abfd, asection *s, void *obj)
 {
-  unsigned int *data_count = obj;
+  unsigned int *data_count = (unsigned int *) obj;
   if (s->flags & SEC_LOAD)
     {
       int addr_size = gdbarch_addr_bit (target_gdbarch ()) / 8;

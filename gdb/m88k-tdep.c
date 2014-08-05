@@ -539,8 +539,8 @@ m88k_analyze_prologue (struct gdbarch *gdbarch,
       size_t sizeof_saved_regs =
 	(M88K_R31_REGNUM + 1) * sizeof (struct trad_frame_saved_reg);
 
-      cache = alloca (sizeof (struct m88k_frame_cache));
-      cache->saved_regs = alloca (sizeof_saved_regs);
+      cache = (struct m88k_frame_cache *) alloca (sizeof (struct m88k_frame_cache));
+      cache->saved_regs = (struct trad_frame_saved_reg *) alloca (sizeof_saved_regs);
 
       /* We only initialize the members we care about.  */
       cache->saved_regs[M88K_R1_REGNUM].addr = -1;
@@ -657,7 +657,7 @@ m88k_frame_cache (struct frame_info *this_frame, void **this_cache)
   CORE_ADDR frame_sp;
 
   if (*this_cache)
-    return *this_cache;
+    return (struct m88k_frame_cache *) *this_cache;
 
   cache = FRAME_OBSTACK_ZALLOC (struct m88k_frame_cache);
   cache->saved_regs = trad_frame_alloc_saved_regs (this_frame);
@@ -787,7 +787,7 @@ m88k_supply_gregset (const struct regset *regset,
 		     struct regcache *regcache,
 		     int regnum, const void *gregs, size_t len)
 {
-  const gdb_byte *regs = gregs;
+  const gdb_byte *regs = (const gdb_byte *) gregs;
   int i;
 
   for (i = 0; i < M88K_NUM_REGS; i++)

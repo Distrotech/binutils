@@ -334,7 +334,7 @@ arm_find_mapping_symbol (CORE_ADDR memaddr, CORE_ADDR *start)
 					    0 };
       unsigned int idx;
 
-      data = objfile_data (sec->objfile, arm_objfile_data_key);
+      data = (struct arm_per_objfile *) objfile_data (sec->objfile, arm_objfile_data_key);
       if (data != NULL)
 	{
 	  map = data->section_maps[sec->the_bfd_section->index];
@@ -2040,7 +2040,7 @@ arm_prologue_this_id (struct frame_info *this_frame,
 
   if (*this_cache == NULL)
     *this_cache = arm_make_prologue_cache (this_frame);
-  cache = *this_cache;
+  cache = (struct arm_prologue_cache *) *this_cache;
 
   /* This is meant to halt the backtrace at "_start".  */
   pc = get_frame_pc (this_frame);
@@ -2072,7 +2072,7 @@ arm_prologue_prev_register (struct frame_info *this_frame,
 
   if (*this_cache == NULL)
     *this_cache = arm_make_prologue_cache (this_frame);
-  cache = *this_cache;
+  cache = (struct arm_prologue_cache *) *this_cache;
 
   /* If we are asked to unwind the PC, then we need to return the LR
      instead.  The prologue may save PC, but it will point into this
@@ -2152,7 +2152,7 @@ struct arm_exidx_data
 static void
 arm_exidx_data_free (struct objfile *objfile, void *arg)
 {
-  struct arm_exidx_data *data = arg;
+  struct arm_exidx_data *data = (struct arm_exidx_data *) arg;
   unsigned int i;
 
   for (i = 0; i < objfile->obfd->section_count; i++)
@@ -2222,7 +2222,7 @@ arm_exidx_new_objfile (struct objfile *objfile)
     {
       exidx_vma = bfd_section_vma (objfile->obfd, exidx);
       exidx_size = bfd_get_section_size (exidx);
-      exidx_data = xmalloc (exidx_size);
+      exidx_data = (gdb_byte *) xmalloc (exidx_size);
       make_cleanup (xfree, exidx_data);
 
       if (!bfd_get_section_contents (objfile->obfd, exidx,
@@ -2238,7 +2238,7 @@ arm_exidx_new_objfile (struct objfile *objfile)
     {
       extab_vma = bfd_section_vma (objfile->obfd, extab);
       extab_size = bfd_get_section_size (extab);
-      extab_data = xmalloc (extab_size);
+      extab_data = (gdb_byte *) xmalloc (extab_size);
       make_cleanup (xfree, extab_data);
 
       if (!bfd_get_section_contents (objfile->obfd, extab,
@@ -2375,7 +2375,7 @@ arm_exidx_new_objfile (struct objfile *objfile)
 	 extab section starting at ADDR.  */
       if (n_bytes || n_words)
 	{
-	  gdb_byte *p = entry = obstack_alloc (&objfile->objfile_obstack,
+	  gdb_byte *p = entry = (gdb_byte *) obstack_alloc (&objfile->objfile_obstack,
 					       n_bytes + n_words * 4 + 1);
 
 	  while (n_bytes--)
@@ -2426,7 +2426,7 @@ arm_find_exidx_entry (CORE_ADDR memaddr, CORE_ADDR *start)
       struct arm_exidx_entry map_key = { memaddr - obj_section_addr (sec), 0 };
       unsigned int idx;
 
-      data = objfile_data (sec->objfile, arm_exidx_data_key);
+      data = (struct arm_exidx_data *) objfile_data (sec->objfile, arm_exidx_data_key);
       if (data != NULL)
 	{
 	  map = data->section_maps[sec->the_bfd_section->index];
@@ -2893,7 +2893,7 @@ arm_stub_this_id (struct frame_info *this_frame,
 
   if (*this_cache == NULL)
     *this_cache = arm_make_stub_cache (this_frame);
-  cache = *this_cache;
+  cache = (struct arm_prologue_cache *) *this_cache;
 
   *this_id = frame_id_build (cache->prev_sp, get_frame_pc (this_frame));
 }
@@ -2980,7 +2980,7 @@ arm_m_exception_this_id (struct frame_info *this_frame,
 
   if (*this_cache == NULL)
     *this_cache = arm_m_exception_cache (this_frame);
-  cache = *this_cache;
+  cache = (struct arm_prologue_cache *) *this_cache;
 
   /* Our frame ID for a stub frame is the current SP and LR.  */
   *this_id = frame_id_build (cache->prev_sp,
@@ -3000,7 +3000,7 @@ arm_m_exception_prev_register (struct frame_info *this_frame,
 
   if (*this_cache == NULL)
     *this_cache = arm_m_exception_cache (this_frame);
-  cache = *this_cache;
+  cache = (struct arm_prologue_cache *) *this_cache;
 
   /* The value was already reconstructed into PREV_SP.  */
   if (prev_regnum == ARM_SP_REGNUM)
@@ -3053,7 +3053,7 @@ arm_normal_frame_base (struct frame_info *this_frame, void **this_cache)
 
   if (*this_cache == NULL)
     *this_cache = arm_make_prologue_cache (this_frame);
-  cache = *this_cache;
+  cache = (struct arm_prologue_cache *) *this_cache;
 
   return cache->prev_sp - cache->framesize;
 }
@@ -3365,7 +3365,7 @@ static struct stack_item *
 push_stack_item (struct stack_item *prev, const void *contents, int len)
 {
   struct stack_item *si;
-  si = xmalloc (sizeof (struct stack_item));
+  si = (struct stack_item *) xmalloc (sizeof (struct stack_item));
   si->data = xmalloc (len);
   si->len = len;
   si->prev = prev;
@@ -3814,7 +3814,7 @@ arm_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 	  CORE_ADDR regval = extract_unsigned_integer (val, len, byte_order);
 	  if (arm_pc_is_thumb (gdbarch, regval))
 	    {
-	      bfd_byte *copy = alloca (len);
+	      bfd_byte *copy = (bfd_byte *) alloca (len);
 	      store_unsigned_integer (copy, len, byte_order,
 				      MAKE_THUMB_ADDR (regval));
 	      val = copy;
@@ -5249,7 +5249,7 @@ extend_buffer_earlier (gdb_byte *buf, CORE_ADDR endaddr,
   gdb_byte *new_buf;
   int bytes_to_read = new_len - old_len;
 
-  new_buf = xmalloc (new_len);
+  new_buf = (gdb_byte *) xmalloc (new_len);
   memcpy (new_buf + bytes_to_read, buf, old_len);
   xfree (buf);
   if (target_read_memory (endaddr - new_len, new_buf, bytes_to_read) != 0)
@@ -5315,7 +5315,7 @@ arm_adjust_breakpoint_address (struct gdbarch *gdbarch, CORE_ADDR bpaddr)
     /* No room for an IT instruction.  */
     return bpaddr;
 
-  buf = xmalloc (buf_len);
+  buf = (gdb_byte *) xmalloc (buf_len);
   if (target_read_memory (bpaddr - buf_len, buf, buf_len) != 0)
     return bpaddr;
   any = 0;
@@ -8663,7 +8663,7 @@ arm_displaced_step_copy_insn (struct gdbarch *gdbarch,
 			      struct regcache *regs)
 {
   struct displaced_step_closure *dsc
-    = xmalloc (sizeof (struct displaced_step_closure));
+    = (struct displaced_step_closure *) xmalloc (sizeof (struct displaced_step_closure));
   arm_process_displaced_insn (gdbarch, from, to, regs, dsc);
   arm_displaced_init_closure (gdbarch, from, to, dsc);
 
@@ -8694,7 +8694,7 @@ arm_displaced_step_fixup (struct gdbarch *gdbarch,
 static int
 gdb_print_insn_arm (bfd_vma memaddr, disassemble_info *info)
 {
-  struct gdbarch *gdbarch = info->application_data;
+  struct gdbarch *gdbarch = (struct gdbarch *) info->application_data;
 
   if (arm_pc_is_thumb (gdbarch, memaddr))
     {
@@ -9272,7 +9272,7 @@ arm_skip_stub (struct frame_info *frame, CORE_ADDR pc)
       else
 	target_len -= strlen ("_from_arm");
 
-      target_name = alloca (target_len + 1);
+      target_name = (char *) alloca (target_len + 1);
       memcpy (target_name, name + 2, target_len);
       target_name[target_len] = '\0';
 
@@ -9516,7 +9516,7 @@ arm_coff_make_msymbol_special(int val, struct minimal_symbol *msym)
 static void
 arm_objfile_data_free (struct objfile *objfile, void *arg)
 {
-  struct arm_per_objfile *data = arg;
+  struct arm_per_objfile *data = (struct arm_per_objfile *) arg;
   unsigned int i;
 
   for (i = 0; i < objfile->obfd->section_count; i++)
@@ -9536,7 +9536,7 @@ arm_record_special_symbol (struct gdbarch *gdbarch, struct objfile *objfile,
   if (name[1] != 'a' && name[1] != 't' && name[1] != 'd')
     return;
 
-  data = objfile_data (objfile, arm_objfile_data_key);
+  data = (struct arm_per_objfile *) objfile_data (objfile, arm_objfile_data_key);
   if (data == NULL)
     {
       data = OBSTACK_ZALLOC (&objfile->objfile_obstack,
@@ -9740,7 +9740,7 @@ arm_pseudo_write (struct gdbarch *gdbarch, struct regcache *regcache,
 static struct value *
 value_of_arm_user_reg (struct frame_info *frame, const void *baton)
 {
-  const int *reg_p = baton;
+  const int *reg_p = (const int *) baton;
   return value_of_register (*reg_p, frame);
 }
 
@@ -10199,7 +10199,7 @@ arm_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
       return best_arch->gdbarch;
     }
 
-  tdep = xcalloc (1, sizeof (struct gdbarch_tdep));
+  tdep = (struct gdbarch_tdep *) xcalloc (1, sizeof (struct gdbarch_tdep));
   gdbarch = gdbarch_alloc (&info, tdep);
 
   /* Record additional information about the architecture we are defining.
@@ -10477,7 +10477,7 @@ _initialize_arm_tdep (void)
   /* Initialize the array that will be passed to
      add_setshow_enum_cmd().  */
   valid_disassembly_styles
-    = xmalloc ((num_disassembly_options + 1) * sizeof (char *));
+    = (const char **) xmalloc ((num_disassembly_options + 1) * sizeof (char *));
   for (i = 0; i < num_disassembly_options; i++)
     {
       numregs = get_arm_regnames (i, &setname, &setdesc, &regnames);

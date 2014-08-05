@@ -240,7 +240,7 @@ make_srec (char *srec, CORE_ADDR targ_addr, bfd *abfd, asection *sect,
     {
       tmp = flags;		/* Data or header record */
       code_table = abfd ? data_code_table : header_code_table;
-      binbuf = alloca (*maxrecsize / 2);
+      binbuf = (char *) alloca (*maxrecsize / 2);
     }
   else
     {

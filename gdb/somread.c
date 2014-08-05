@@ -62,7 +62,7 @@ som_symtab_read (bfd *abfd, struct objfile *objfile,
   /* Allocate a buffer to read in the debug info.
      We avoid using alloca because the memory size could be so large
      that we could hit the stack size limit.  */
-  buf = xmalloc (symsize * number_of_symbols);
+  buf = (struct som_external_symbol_dictionary_record *) xmalloc (symsize * number_of_symbols);
   cleanup = make_cleanup (xfree, buf);
   bfd_seek (abfd, obj_som_sym_filepos (abfd), SEEK_SET);
   val = bfd_bread (buf, symsize * number_of_symbols, abfd);
@@ -73,7 +73,7 @@ som_symtab_read (bfd *abfd, struct objfile *objfile,
      the debugging info.  Again, we avoid using alloca because
      the data could be so large that we could potentially hit
      the stack size limitat.  */
-  stringtab = xmalloc (obj_som_stringtab_size (abfd));
+  stringtab = (char *) xmalloc (obj_som_stringtab_size (abfd));
   make_cleanup (xfree, stringtab);
   bfd_seek (abfd, obj_som_str_filepos (abfd), SEEK_SET);
   val = bfd_bread (stringtab, obj_som_stringtab_size (abfd), abfd);
@@ -434,7 +434,7 @@ struct find_section_offset_arg
 static void
 find_section_offset (bfd *abfd, asection *sect, void *arg)
 {
-  struct find_section_offset_arg *info = arg;
+  struct find_section_offset_arg *info = (struct find_section_offset_arg *) arg;
   flagword aflag;
 
   aflag = bfd_get_section_flags (abfd, sect);

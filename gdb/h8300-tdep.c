@@ -433,7 +433,7 @@ h8300_frame_cache (struct frame_info *this_frame, void **this_cache)
   CORE_ADDR current_pc;
 
   if (*this_cache)
-    return *this_cache;
+    return (struct h8300_frame_cache *) *this_cache;
 
   cache = FRAME_OBSTACK_ZALLOC (struct h8300_frame_cache);
   h8300_init_frame_cache (gdbarch, cache);
@@ -672,7 +672,7 @@ h8300_push_dummy_call (struct gdbarch *gdbarch, struct value *function,
 
       /* Pad the argument appropriately.  */
       int padded_len = align_up (len, wordsize);
-      gdb_byte *padded = xmalloc (padded_len);
+      gdb_byte *padded = (gdb_byte *) xmalloc (padded_len);
       back_to = make_cleanup (xfree, padded);
 
       memset (padded, 0, padded_len);
@@ -801,7 +801,7 @@ h8300h_extract_return_value (struct type *type, struct regcache *regcache,
 	  store_unsigned_integer (valbuf, 4, byte_order, c);
 	  regcache_cooked_read_unsigned (regcache, E_RET1_REGNUM, &c);
 	  store_unsigned_integer ((void *) ((char *) valbuf + 4), 4,
-				  byte_order, c);
+				  (gdb_byte *) byte_order, c);
 	}
       else
 	{

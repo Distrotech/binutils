@@ -597,7 +597,7 @@ som_current_sos (void)
       old_chain = make_cleanup (xfree, newobj);
 
       memset (newobj, 0, sizeof (*newobj));
-      newobj->lm_info = xmalloc (sizeof (struct lm_info));
+      newobj->lm_info = (struct lm_info *) xmalloc (sizeof (struct lm_info));
       make_cleanup (xfree, newobj->lm_info);
 
       read_memory (lm, (gdb_byte *)&dbuf, sizeof (struct dld_list));

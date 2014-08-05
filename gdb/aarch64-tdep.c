@@ -975,7 +975,7 @@ aarch64_prologue_this_id (struct frame_info *this_frame,
 
   if (*this_cache == NULL)
     *this_cache = aarch64_make_prologue_cache (this_frame);
-  cache = *this_cache;
+  cache = (struct aarch64_prologue_cache *) *this_cache;
 
   /* This is meant to halt the backtrace at "_start".  */
   pc = get_frame_pc (this_frame);
@@ -1002,7 +1002,7 @@ aarch64_prologue_prev_register (struct frame_info *this_frame,
 
   if (*this_cache == NULL)
     *this_cache = aarch64_make_prologue_cache (this_frame);
-  cache = *this_cache;
+  cache = (struct aarch64_prologue_cache *) *this_cache;
 
   /* If we are asked to unwind the PC, then we need to return the LR
      instead.  The prologue may save PC, but it will point into this
@@ -1078,7 +1078,7 @@ aarch64_stub_this_id (struct frame_info *this_frame,
 
   if (*this_cache == NULL)
     *this_cache = aarch64_make_stub_cache (this_frame);
-  cache = *this_cache;
+  cache = (struct aarch64_prologue_cache *) *this_cache;
 
   *this_id = frame_id_build (cache->prev_sp, get_frame_pc (this_frame));
 }
@@ -1123,7 +1123,7 @@ aarch64_normal_frame_base (struct frame_info *this_frame, void **this_cache)
 
   if (*this_cache == NULL)
     *this_cache = aarch64_make_prologue_cache (this_frame);
-  cache = *this_cache;
+  cache = (struct aarch64_prologue_cache *) *this_cache;
 
   return cache->prev_sp - cache->framesize;
 }
@@ -2503,7 +2503,7 @@ aarch64_pseudo_write (struct gdbarch *gdbarch, struct regcache *regcache,
 static struct value *
 value_of_aarch64_user_reg (struct frame_info *frame, const void *baton)
 {
-  const int *reg_p = baton;
+  const int *reg_p = (const int *) baton;
 
   return value_of_register (*reg_p, frame);
 }
@@ -2676,7 +2676,7 @@ aarch64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
       return best_arch->gdbarch;
     }
 
-  tdep = xcalloc (1, sizeof (struct gdbarch_tdep));
+  tdep = (struct gdbarch_tdep *) xcalloc (1, sizeof (struct gdbarch_tdep));
   gdbarch = gdbarch_alloc (&info, tdep);
 
   /* This should be low enough for everything.  */
@@ -2745,7 +2745,7 @@ aarch64_gdbarch_init (struct gdbarch_info info, struct gdbarch_list *arches)
 
   /* Hook in the ABI-specific overrides, if they have been registered.  */
   info.target_desc = tdesc;
-  info.tdep_info = (void *) tdesc_data;
+  info.tdep_info = (struct gdbarch_tdep_info *) (void *) tdesc_data;
   gdbarch_init_osabi (info, gdbarch);
 
   dwarf2_frame_set_init_reg (gdbarch, aarch64_dwarf2_frame_init_reg);

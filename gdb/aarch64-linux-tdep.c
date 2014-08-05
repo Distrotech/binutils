@@ -317,7 +317,7 @@ aarch64_stap_parse_special_token (struct gdbarch *gdbarch,
 	return 0;
 
       len = tmp - start;
-      regname = alloca (len + 2);
+      regname = (char *) alloca (len + 2);
 
       strncpy (regname, start, len);
       regname[len] = '\0';

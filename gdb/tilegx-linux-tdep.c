@@ -81,7 +81,7 @@ tilegx_linux_supply_regset (const struct regset *regset,
 			    int regnum, const void *regs, size_t len)
 {
   struct gdbarch *arch = get_regcache_arch (regcache);
-  const char *ptr = regs;
+  const char *ptr = (const char *) regs;
   int i;
 
   /* This logic must match that of struct pt_regs in "ptrace.h".  */
