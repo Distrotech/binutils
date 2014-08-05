@@ -502,7 +502,7 @@ msp430_analyze_frame_prologue (struct frame_info *this_frame,
 	stop_addr = func_start;
 
       msp430_analyze_prologue (get_frame_arch (this_frame), func_start,
-			       (struct msp430_prologue *) stop_addr, *this_prologue_cache);
+			       stop_addr, *this_prologue_cache);
     }
 
   return (struct msp430_prologue *) *this_prologue_cache;

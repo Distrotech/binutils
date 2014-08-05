@@ -247,7 +247,7 @@ am33_supply_fpregset_method (const struct regset *regset,
 			     struct regcache *regcache, 
 			     int regnum, const void *fpregs, size_t len)
 {
-  const mn10300_elf_fpregset_t *fpregset = (const struct mn10300_elf_fpregset_t *) fpregs;
+  const mn10300_elf_fpregset_t *fpregset = (const mn10300_elf_fpregset_t *) fpregs;
 
   gdb_assert (len == sizeof (mn10300_elf_fpregset_t));
 
@@ -427,7 +427,7 @@ am33_collect_fpregset_method (const struct regset *regset,
 			      const struct regcache *regcache, 
 			      int regnum, void *fpregs, size_t len)
 {
-  mn10300_elf_fpregset_t *fpregset = (struct mn10300_elf_fpregset_t *) fpregs;
+  mn10300_elf_fpregset_t *fpregset = (mn10300_elf_fpregset_t *) fpregs;
 
   gdb_assert (len == sizeof (mn10300_elf_fpregset_t));
 

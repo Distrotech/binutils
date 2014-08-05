@@ -574,7 +574,7 @@ ppc_supply_fpregset (const struct regset *regset, struct regcache *regcache,
 
   offset = ppc_fpreg_offset (tdep, offsets, regnum);
   ppc_supply_reg (regcache, regnum, fpregs, offset,
-		  (const gdb_byte *) regnum == tdep->ppc_fpscr_regnum ? offsets->fpscr_size : 8);
+		  regnum == tdep->ppc_fpscr_regnum ? offsets->fpscr_size : 8);
 }
 
 /* Supply register REGNUM in the VSX register set REGSET
@@ -735,7 +735,7 @@ ppc_collect_fpregset (const struct regset *regset,
 
   offset = ppc_fpreg_offset (tdep, offsets, regnum);
   ppc_collect_reg (regcache, regnum, fpregs, offset,
-		   (gdb_byte *) regnum == tdep->ppc_fpscr_regnum ? offsets->fpscr_size : 8);
+		   regnum == tdep->ppc_fpscr_regnum ? offsets->fpscr_size : 8);
 }
 
 /* Collect register REGNUM in the VSX register set
@@ -2626,7 +2626,7 @@ e500_move_ev_register (move_ev_register_func move,
 static enum register_status
 do_regcache_raw_read (struct regcache *regcache, int regnum, void *buffer)
 {
-  return (gdb_byte *) regcache_raw_read (regcache, regnum, buffer);
+  return regcache_raw_read (regcache, regnum, buffer);
 }
 
 static enum register_status

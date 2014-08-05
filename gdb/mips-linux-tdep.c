@@ -122,7 +122,7 @@ supply_32bit_reg (struct regcache *regcache, int regnum, const void *addr)
   enum bfd_endian byte_order = gdbarch_byte_order (gdbarch);
   gdb_byte buf[MAX_REGISTER_SIZE];
   store_signed_integer (buf, register_size (gdbarch, regnum), byte_order,
-			(const gdb_byte *) extract_signed_integer (addr, 4, byte_order));
+			extract_signed_integer (addr, 4, byte_order));
   regcache_raw_supply (regcache, regnum, buf);
 }
 
@@ -343,12 +343,12 @@ mips64_linux_get_longjmp_target (struct frame_info *frame, CORE_ADDR *pc)
 
   if (target_read_memory (jb_addr + MIPS64_LINUX_JB_PC * element_size,
 			  buf,
-			  (gdb_byte *) gdbarch_ptr_bit (gdbarch) / TARGET_CHAR_BIT))
+			  gdbarch_ptr_bit (gdbarch) / TARGET_CHAR_BIT))
     return 0;
 
   *pc = extract_unsigned_integer (buf,
 				  gdbarch_ptr_bit (gdbarch) / TARGET_CHAR_BIT,
-				  (const gdb_byte *) byte_order);
+				  byte_order);
 
   return 1;
 }

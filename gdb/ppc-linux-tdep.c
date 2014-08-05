@@ -405,13 +405,13 @@ ppc_linux_supply_gregset (const struct regset *regset,
       if (regnum == -1 || regnum == PPC_ORIG_R3_REGNUM)
 	ppc_supply_reg (regcache, PPC_ORIG_R3_REGNUM, gregs,
 			offsets->pc_offset + 2 * offsets->gpr_size,
-			(const gdb_byte *) offsets->gpr_size);
+			offsets->gpr_size);
 
       /* "trap" is stored 8 slots after "pc".  */
       if (regnum == -1 || regnum == PPC_TRAP_REGNUM)
 	ppc_supply_reg (regcache, PPC_TRAP_REGNUM, gregs,
 			offsets->pc_offset + 8 * offsets->gpr_size,
-			(const gdb_byte *) offsets->gpr_size);
+			offsets->gpr_size);
     }
 }
 
@@ -434,13 +434,13 @@ ppc_linux_collect_gregset (const struct regset *regset,
       if (regnum == -1 || regnum == PPC_ORIG_R3_REGNUM)
 	ppc_collect_reg (regcache, PPC_ORIG_R3_REGNUM, gregs,
 			 offsets->pc_offset + 2 * offsets->gpr_size,
-			 (gdb_byte *) offsets->gpr_size);
+			 offsets->gpr_size);
 
       /* "trap" is stored 8 slots after "pc".  */
       if (regnum == -1 || regnum == PPC_TRAP_REGNUM)
 	ppc_collect_reg (regcache, PPC_TRAP_REGNUM, gregs,
 			 offsets->pc_offset + 8 * offsets->gpr_size,
-			 (gdb_byte *) offsets->gpr_size);
+			 offsets->gpr_size);
     }
 }
 

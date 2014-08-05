@@ -1094,7 +1094,7 @@ mn10300_analyze_frame_prologue (struct frame_info *this_frame,
         stop_addr = func_start;
 
       mn10300_analyze_prologue (get_frame_arch (this_frame),
-                                (struct mn10300_prologue *) func_start, stop_addr, *this_prologue_cache);
+				func_start, stop_addr, *this_prologue_cache);
     }
 
   return (struct mn10300_prologue *) *this_prologue_cache;

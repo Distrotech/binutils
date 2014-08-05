@@ -858,7 +858,7 @@ xtensa_supply_gregset (const struct regset *regset,
 		       const void *gregs,
 		       size_t len)
 {
-  const xtensa_elf_gregset_t *regs = (const struct xtensa_elf_gregset_t *) gregs;
+  const xtensa_elf_gregset_t *regs = (const xtensa_elf_gregset_t *) gregs;
   struct gdbarch *gdbarch = get_regcache_arch (rc);
   int i;
 

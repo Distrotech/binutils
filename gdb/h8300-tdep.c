@@ -801,7 +801,7 @@ h8300h_extract_return_value (struct type *type, struct regcache *regcache,
 	  store_unsigned_integer (valbuf, 4, byte_order, c);
 	  regcache_cooked_read_unsigned (regcache, E_RET1_REGNUM, &c);
 	  store_unsigned_integer ((void *) ((char *) valbuf + 4), 4,
-				  (gdb_byte *) byte_order, c);
+				  byte_order, c);
 	}
       else
 	{

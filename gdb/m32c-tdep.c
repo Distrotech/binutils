@@ -315,7 +315,7 @@ static m32c_move_reg_t m32c_r3r2r1r0_read, m32c_r3r2r1r0_write;
 static enum register_status
 m32c_raw_read (struct m32c_reg *reg, struct regcache *cache, void *buf)
 {
-  return (gdb_byte *) regcache_raw_read (cache, reg->num, buf);
+  return regcache_raw_read (cache, reg->num, buf);
 }
 
 
@@ -356,7 +356,7 @@ static enum register_status
 m32c_banked_read (struct m32c_reg *reg, struct regcache *cache, void *buf)
 {
   struct m32c_reg *bank_reg = m32c_banked_register (reg, cache);
-  return (gdb_byte *) regcache_raw_read (cache, bank_reg->num, buf);
+  return regcache_raw_read (cache, bank_reg->num, buf);
 }
 
 
@@ -448,7 +448,7 @@ m32c_part_read (struct m32c_reg *reg, struct regcache *cache, void *buf)
 
   memset (buf, 0, TYPE_LENGTH (reg->type));
   m32c_find_part (reg, &offset, &len);
-  return (gdb_byte *) regcache_cooked_read_part (cache, reg->rx->num, offset, len, buf);
+  return regcache_cooked_read_part (cache, reg->rx->num, offset, len, buf);
 }
 
 
@@ -1874,7 +1874,7 @@ m32c_analyze_frame_prologue (struct frame_info *this_frame,
 
       *this_prologue_cache = FRAME_OBSTACK_ZALLOC (struct m32c_prologue);
       m32c_analyze_prologue (get_frame_arch (this_frame),
-			     (struct m32c_prologue *) func_start, stop_addr, *this_prologue_cache);
+			     func_start, stop_addr, *this_prologue_cache);
     }
 
   return (struct m32c_prologue *) *this_prologue_cache;

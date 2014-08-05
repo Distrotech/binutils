@@ -401,7 +401,7 @@ frv_linux_supply_gregset (const struct regset *regset,
 {
   int regi;
   char zerobuf[MAX_REGISTER_SIZE];
-  const frv_elf_gregset_t *gregsetp = (const struct frv_elf_gregset_t *) gregs;
+  const frv_elf_gregset_t *gregsetp = (const frv_elf_gregset_t *) gregs;
 
   memset (zerobuf, 0, MAX_REGISTER_SIZE);
 
@@ -442,7 +442,7 @@ frv_linux_supply_fpregset (const struct regset *regset,
 			   int regnum, const void *gregs, size_t len)
 {
   int regi;
-  const frv_elf_fpregset_t *fpregsetp = (const struct frv_elf_fpregset_t *) gregs;
+  const frv_elf_fpregset_t *fpregsetp = (const frv_elf_fpregset_t *) gregs;
 
   for (regi = first_fpr_regnum; regi <= last_fpr_regnum; regi++)
     regcache_raw_supply (regcache, regi,

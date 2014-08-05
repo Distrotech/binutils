@@ -1236,7 +1236,7 @@ sh64_extract_return_value (struct type *type, struct regcache *regcache,
 	{
 	  /* Return value stored in gdbarch_fp0_regnum.  */
 	  regcache_raw_read (regcache,
-			     (gdb_byte *) gdbarch_fp0_regnum (gdbarch), valbuf);
+			     gdbarch_fp0_regnum (gdbarch), valbuf);
 	}
       else if (len == 8)
 	{

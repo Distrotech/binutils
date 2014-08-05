@@ -131,7 +131,7 @@ union irix_obj_info
 static CORE_ADDR
 extract_mips_address (void *addr, int len, enum bfd_endian byte_order)
 {
-  return (const gdb_byte *) extract_signed_integer (addr, len, byte_order);
+  return extract_signed_integer (addr, len, byte_order);
 }
 
 /* Fetch and return the link map data associated with ADDR.  Note that
