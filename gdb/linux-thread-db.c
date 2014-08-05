@@ -728,7 +728,7 @@ try_thread_db_load_1 (struct thread_db_info *info)
   /* Initialize pointers to the dynamic library functions we will use.
      Essential functions first.  */
 
-  info->td_init_p = (enum td_err_e (*)(void)) verbose_dlsym (info->handle, "td_init");
+  info->td_init_p = (td_err_e (*)(void)) verbose_dlsym (info->handle, "td_init");
   if (info->td_init_p == NULL)
     return 0;
 
@@ -740,7 +740,7 @@ try_thread_db_load_1 (struct thread_db_info *info)
       return 0;
     }
 
-  info->td_ta_new_p = (enum td_err_e (*)(struct ps_prochandle *, struct td_thragent_t **)) verbose_dlsym (info->handle, "td_ta_new");
+  info->td_ta_new_p = (td_err_e (*)(struct ps_prochandle *, td_thragent_t **)) verbose_dlsym (info->handle, "td_ta_new");
   if (info->td_ta_new_p == NULL)
     return 0;
 
@@ -771,34 +771,34 @@ try_thread_db_load_1 (struct thread_db_info *info)
       return 0;
     }
 
-  info->td_ta_map_id2thr_p = (enum td_err_e (*)(const struct td_thragent_t *, thread_t,  struct td_thrhandle_t *)) verbose_dlsym (info->handle, "td_ta_map_id2thr");
+  info->td_ta_map_id2thr_p = (td_err_e (*)(const td_thragent_t *, thread_t,  td_thrhandle_t *)) verbose_dlsym (info->handle, "td_ta_map_id2thr");
   if (info->td_ta_map_id2thr_p == NULL)
     return 0;
 
-  info->td_ta_map_lwp2thr_p = (enum td_err_e (*)(const struct td_thragent_t *, lwpid_t,  struct td_thrhandle_t *)) verbose_dlsym (info->handle,
+  info->td_ta_map_lwp2thr_p = (td_err_e (*)(const td_thragent_t *, lwpid_t,  td_thrhandle_t *)) verbose_dlsym (info->handle,
 					     "td_ta_map_lwp2thr");
   if (info->td_ta_map_lwp2thr_p == NULL)
     return 0;
 
-  info->td_ta_thr_iter_p = (enum td_err_e (*)(const struct td_thragent_t *, int (*)(const struct td_thrhandle_t *, void *), void *, enum td_thr_state_e,  int,  struct sigset_t *, unsigned int)) verbose_dlsym (info->handle, "td_ta_thr_iter");
+  info->td_ta_thr_iter_p = (td_err_e (*)(const td_thragent_t *, int (*)(const td_thrhandle_t *, void *), void *, td_thr_state_e,  int,  sigset_t *, unsigned int)) verbose_dlsym (info->handle, "td_ta_thr_iter");
   if (info->td_ta_thr_iter_p == NULL)
     return 0;
 
-  info->td_thr_validate_p = (enum td_err_e (*)(const struct td_thrhandle_t *)) verbose_dlsym (info->handle, "td_thr_validate");
+  info->td_thr_validate_p = (td_err_e (*)(const td_thrhandle_t *)) verbose_dlsym (info->handle, "td_thr_validate");
   if (info->td_thr_validate_p == NULL)
     return 0;
 
-  info->td_thr_get_info_p = (enum td_err_e (*)(const struct td_thrhandle_t *, struct td_thrinfo_t *)) verbose_dlsym (info->handle, "td_thr_get_info");
+  info->td_thr_get_info_p = (td_err_e (*)(const td_thrhandle_t *, td_thrinfo_t *)) verbose_dlsym (info->handle, "td_thr_get_info");
   if (info->td_thr_get_info_p == NULL)
     return 0;
 
   /* These are not essential.  */
-  info->td_ta_event_addr_p = (enum td_err_e (*)(const struct td_thragent_t *, enum td_event_e,  struct td_notify_t *)) dlsym (info->handle, "td_ta_event_addr");
-  info->td_ta_set_event_p = (enum td_err_e (*)(const struct td_thragent_t *, struct td_thr_events_t *)) dlsym (info->handle, "td_ta_set_event");
-  info->td_ta_clear_event_p = (enum td_err_e (*)(const struct td_thragent_t *, struct td_thr_events_t *)) dlsym (info->handle, "td_ta_clear_event");
-  info->td_ta_event_getmsg_p = (enum td_err_e (*)(const struct td_thragent_t *, struct td_event_msg_t *)) dlsym (info->handle, "td_ta_event_getmsg");
-  info->td_thr_event_enable_p = (enum td_err_e (*)(const struct td_thrhandle_t *, int)) dlsym (info->handle, "td_thr_event_enable");
-  info->td_thr_tls_get_addr_p = (enum td_err_e (*)(const struct td_thrhandle_t *, void *, size_t,  void **)) dlsym (info->handle, "td_thr_tls_get_addr");
+  info->td_ta_event_addr_p = (td_err_e (*)(const td_thragent_t *, td_event_e,  td_notify_t *)) dlsym (info->handle, "td_ta_event_addr");
+  info->td_ta_set_event_p = (td_err_e (*)(const td_thragent_t *, td_thr_events_t *)) dlsym (info->handle, "td_ta_set_event");
+  info->td_ta_clear_event_p = (td_err_e (*)(const td_thragent_t *, td_thr_events_t *)) dlsym (info->handle, "td_ta_clear_event");
+  info->td_ta_event_getmsg_p = (td_err_e (*)(const td_thragent_t *, td_event_msg_t *)) dlsym (info->handle, "td_ta_event_getmsg");
+  info->td_thr_event_enable_p = (td_err_e (*)(const td_thrhandle_t *, int)) dlsym (info->handle, "td_thr_event_enable");
+  info->td_thr_tls_get_addr_p = (td_err_e (*)(const td_thrhandle_t *, void *, size_t,  void **)) dlsym (info->handle, "td_thr_tls_get_addr");
 
   if (thread_db_find_new_threads_silently (inferior_ptid) != 0)
     {
