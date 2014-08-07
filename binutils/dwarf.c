@@ -5103,10 +5103,10 @@ static const char *const dwarf_regnames_aarch64[] =
    NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
    NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
    NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,  NULL,
-   "d0",  "d1",  "d2",  "d3",  "d4",  "d5",  "d6",  "d7", 
-   "d8",  "d9", "d10", "d11", "d12", "d13", "d14", "d15", 
-  "d16", "d17", "d18", "d19", "d20", "d21", "d22", "d23",
-  "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31",
+   "v0",  "v1",  "v2",  "v3",  "v4",  "v5",  "v6",  "v7", 
+   "v8",  "v9", "v10", "v11", "v12", "v13", "v14", "v15", 
+  "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23",
+  "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31",
 };
 
 void
