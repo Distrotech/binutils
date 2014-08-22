@@ -17,3 +17,7 @@ if ! make ${MAKE_J};then
 fi;
 
 make DESTDIR=${3} install
+
+for ldtool in `ls ${3}/usr/${4}/bin/` ;do
+  ln -s -r ${3}/usr/${4}/bin/${ldtool} ${3}/usr/bin/${4}-${ldtool}
+done
