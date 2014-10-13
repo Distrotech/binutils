@@ -814,7 +814,7 @@ try_thread_db_load_1 (struct thread_db_info *info)
     {
       const char *library;
 
-      library = dladdr_to_soname (*info->td_ta_new_p);
+      library = dladdr_to_soname ((const void *) *info->td_ta_new_p);
       if (library == NULL)
 	library = LIBTHREAD_DB_SO;
 

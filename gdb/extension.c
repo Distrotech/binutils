@@ -691,7 +691,7 @@ static void
 install_gdb_sigint_handler (struct signal_handler *previous)
 {
   /* Save here to simplify comparison.  */
-  RETSIGTYPE (*handle_sigint_for_compare) () = handle_sigint;
+  RETSIGTYPE (*handle_sigint_for_compare) (int) = handle_sigint;
 
   previous->handler = signal (SIGINT, handle_sigint);
   if (previous->handler != handle_sigint_for_compare)

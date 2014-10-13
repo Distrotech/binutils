@@ -198,7 +198,7 @@ struct gdbarch_tdep
   const struct target_desc *tdesc;
 
   /* Register group function.  */
-  const void *register_reggroup_p;
+  int (*register_reggroup_p)(struct gdbarch *, int, struct reggroup *);
 
   /* Offset of saved PC in jmp_buf.  */
   int jb_pc_offset;

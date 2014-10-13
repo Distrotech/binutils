@@ -99,8 +99,8 @@ inferior_process_group (void)
    we save our handlers in these two variables and set SIGINT and SIGQUIT
    to SIG_IGN.  */
 
-static void (*sigint_ours) ();
-static void (*sigquit_ours) ();
+static void (*sigint_ours) (int);
+static void (*sigquit_ours) (int);
 
 /* The name of the tty (from the `tty' command) that we're giving to
    the inferior when starting it up.  This is only (and should only
@@ -305,9 +305,9 @@ child_terminal_inferior (struct target_ops *self)
 
       if (!job_control)
 	{
-	  sigint_ours = (void (*)()) signal (SIGINT, SIG_IGN);
+	  sigint_ours = (void (*)(int)) signal (SIGINT, SIG_IGN);
 #ifdef SIGQUIT
-	  sigquit_ours = (void (*)()) signal (SIGQUIT, SIG_IGN);
+	  sigquit_ours = (void (*)(int)) signal (SIGQUIT, SIG_IGN);
 #endif
 	}
 
@@ -396,13 +396,13 @@ child_terminal_ours_1 (int output_only)
 #ifdef SIGTTOU
       /* Ignore this signal since it will happen when we try to set the
          pgrp.  */
-      void (*osigttou) () = NULL;
+      void (*osigttou) (int) = NULL;
 #endif
       int result;
 
 #ifdef SIGTTOU
       if (job_control)
-	osigttou = (void (*)()) signal (SIGTTOU, SIG_IGN);
+	osigttou = (void (*)(int)) signal (SIGTTOU, SIG_IGN);
 #endif
 
       xfree (tinfo->ttystate);
@@ -690,9 +690,9 @@ new_tty (void)
   tty = open ("/dev/tty", O_RDWR);
   if (tty > 0)
     {
-      void (*osigttou) ();
+      void (*osigttou) (int);
 
-      osigttou = (void (*)()) signal (SIGTTOU, SIG_IGN);
+      osigttou = (void (*)(int)) signal (SIGTTOU, SIG_IGN);
       ioctl (tty, TIOCNOTTY, 0);
       close (tty);
       signal (SIGTTOU, osigttou);
@@ -767,7 +767,7 @@ pass_signal (int signo)
 #endif
 }
 
-static void (*osig) ();
+static void (*osig) (int);
 static int osig_set;
 
 void
@@ -778,7 +778,7 @@ set_sigint_trap (void)
 
   if (inf->attach_flag || tinfo->run_terminal)
     {
-      osig = (void (*)()) signal (SIGINT, pass_signal);
+      osig = (void (*)(int)) signal (SIGINT, pass_signal);
       osig_set = 1;
     }
   else

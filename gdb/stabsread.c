@@ -1236,7 +1236,7 @@ define_symbol (CORE_ADDR valu, char *string, int desc, int type,
 	{
 	  /* gcc-2.6 or later (when using -fvtable-thunks)
 	     emits a unique named type for a vtable entry.
-	     Some gdb code depends on that specific name.  */
+	     Some GDB code depends on that specific name.  */
 	  extern const char vtbl_ptr_name[];
 
 	  if ((TYPE_CODE (SYMBOL_TYPE (sym)) == TYPE_CODE_PTR

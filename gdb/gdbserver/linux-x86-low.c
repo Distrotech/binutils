@@ -530,12 +530,14 @@ x86_linux_dr_get (ptid_t ptid, int regnum)
 {
   int tid;
   unsigned long value;
+  int offset;
 
   tid = ptid_get_lwp (ptid);
 
   errno = 0;
-  value = ptrace (PTRACE_PEEKUSER, tid,
-		  offsetof (struct user, u_debugreg[regnum]), 0);
+  offset = (offsetof (struct user, u_debugreg)
+	    + sizeof (((struct user *) 0)->u_debugreg[0]) * regnum);
+  value = ptrace (PTRACE_PEEKUSER, tid, offset, 0);
   if (errno != 0)
     error ("Couldn't read debug register");
 
@@ -546,12 +548,14 @@ static void
 x86_linux_dr_set (ptid_t ptid, int regnum, unsigned long value)
 {
   int tid;
+  int offset;
 
   tid = ptid_get_lwp (ptid);
 
   errno = 0;
-  ptrace (PTRACE_POKEUSER, tid,
-	  offsetof (struct user, u_debugreg[regnum]), value);
+  offset = (offsetof (struct user, u_debugreg)
+	    + sizeof (((struct user *) 0)->u_debugreg[0]) * regnum);
+  ptrace (PTRACE_POKEUSER, tid, offset, value);
   if (errno != 0)
     error ("Couldn't write debug register");
 }
@@ -665,7 +669,7 @@ x86_insert_point (char type, CORE_ADDR addr, int len)
       {
 	enum target_hw_bp_type hw_type = Z_packet_to_hw_type (type);
 	struct i386_debug_reg_state *state
-	  = &proc->private->arch_private->debug_reg_state;
+	  = &proc->priv->arch_private->debug_reg_state;
 
 	return i386_low_insert_watchpoint (state, hw_type, addr, len);
       }
@@ -700,7 +704,7 @@ x86_remove_point (char type, CORE_ADDR addr, int len)
       {
 	enum target_hw_bp_type hw_type = Z_packet_to_hw_type (type);
 	struct i386_debug_reg_state *state
-	  = &proc->private->arch_private->debug_reg_state;
+	  = &proc->priv->arch_private->debug_reg_state;
 
 	return i386_low_remove_watchpoint (state, hw_type, addr, len);
       }
@@ -714,7 +718,7 @@ static int
 x86_stopped_by_watchpoint (void)
 {
   struct process_info *proc = current_process ();
-  return i386_low_stopped_by_watchpoint (&proc->private->arch_private->debug_reg_state);
+  return i386_low_stopped_by_watchpoint (&proc->priv->arch_private->debug_reg_state);
 }
 
 static CORE_ADDR
@@ -722,7 +726,7 @@ x86_stopped_data_address (void)
 {
   struct process_info *proc = current_process ();
   CORE_ADDR addr;
-  if (i386_low_stopped_data_address (&proc->private->arch_private->debug_reg_state,
+  if (i386_low_stopped_data_address (&proc->priv->arch_private->debug_reg_state,
 				     &addr))
     return addr;
   return 0;
@@ -767,7 +771,7 @@ x86_linux_prepare_to_resume (struct lwp_info *lwp)
       int pid = ptid_get_pid (ptid);
       struct process_info *proc = find_process_pid (pid);
       struct i386_debug_reg_state *state
-	= &proc->private->arch_private->debug_reg_state;
+	= &proc->priv->arch_private->debug_reg_state;
 
       for (i = DR_FIRSTADDR; i <= DR_LASTADDR; i++)
 	if (state->dr_ref_count[i] > 0)

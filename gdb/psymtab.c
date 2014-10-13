@@ -980,7 +980,7 @@ dump_psymtab (struct objfile *objfile, struct partial_symtab *psymtab,
 			"  Full symtab was read (at ");
       gdb_print_host_address (psymtab->symtab, outfile);
       fprintf_filtered (outfile, " by function at ");
-      gdb_print_host_address (psymtab->read_symtab, outfile);
+      gdb_print_host_address ((const void *) psymtab->read_symtab, outfile);
       fprintf_filtered (outfile, ")\n");
     }
 

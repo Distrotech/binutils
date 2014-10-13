@@ -107,7 +107,19 @@ extern int countargv (char**);
    is 1, we found it so don't provide any declaration at all.  */
 #if !HAVE_DECL_BASENAME
 #if defined (__GNU_LIBRARY__ ) || defined (__linux__) || defined (__FreeBSD__) || defined (__OpenBSD__) || defined(__NetBSD__) || defined (__CYGWIN__) || defined (__CYGWIN32__) || defined (__MINGW32__) || defined (HAVE_DECL_BASENAME)
-extern char *basename (const char *) ATTRIBUTE_RETURNS_NONNULL ATTRIBUTE_NONNULL(1);
+
+/*
+/usr/include/string.h:598:33: error: new declaration ‘const char* basename(const char*)’
+      __THROW __asm ("basename") __nonnull ((1));
+                                 ^
+In file included from /home/pedro/gdb/mygit/src/gdb/defs.h:97:0,
+                 from /home/pedro/gdb/mygit/src/gdb/gdb.c:19:
+/home/pedro/gdb/mygit/src/gdb/../include/libiberty.h:110:14: error: ambiguates old declaration ‘char* basename(const char*)’
+ extern char *basename (const char *) ATTRIBUTE_RETURNS_NONNULL ATTRIBUTE_NONNULL(1);
+              ^
+make: *** [gdb.o] Error 1
+*/
+  //extern char *basename (const char *) ATTRIBUTE_RETURNS_NONNULL ATTRIBUTE_NONNULL(1);
 #else
 /* Do not allow basename to be used if there is no prototype seen.  We
    either need to use the above prototype or have one from

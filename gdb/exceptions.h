@@ -106,6 +106,34 @@ enum errors {
 
 struct gdb_exception
 {
+#ifdef __cplusplus
+  gdb_exception()
+  {}
+
+  gdb_exception volatile & operator=(gdb_exception const &other) volatile
+  {
+    this->reason = other.reason;
+    this->error = other.error;
+    this->message = other.message;
+    return *this;
+  }
+  gdb_exception& operator=(gdb_exception const volatile &other)
+  {
+    this->reason = other.reason;
+    this->error = other.error;
+    this->message = other.message;
+    return *this;
+  }
+
+  gdb_exception(volatile const gdb_exception& ex)
+  : reason (ex.reason), error(ex.error), message(ex.message)
+  {}
+
+  gdb_exception(const gdb_exception& ex)
+  : reason (ex.reason), error(ex.error), message(ex.message)
+  {}
+#endif
+
   enum return_reason reason;
   enum errors error;
   const char *message;

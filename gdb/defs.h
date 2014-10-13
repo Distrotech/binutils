@@ -280,11 +280,19 @@ extern char *relocate_gdb_directory (const char *initial, int flag);
 extern int annotation_level;	/* in stack.c */
 
 
+#ifdef __cplusplus
+#  define EXTERN_C extern "C"
+#  define EXTERN_CONST extern const
+#else
+#  define EXTERN_C extern
+#  define EXTERN_CONST const
+#endif
+
 /* From regex.c or libc.  BSD 4.4 declares this with the argument type as
    "const char *" in unistd.h, so we can't declare the argument
    as "char *".  */
 
-extern char *re_comp (const char *);
+EXTERN_C char *re_comp (const char *);
 
 /* From symfile.c */
 

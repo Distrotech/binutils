@@ -286,14 +286,16 @@ amd64_linux_dr_get (ptid_t ptid, int regnum)
 {
   int tid;
   unsigned long value;
+  int offset;
 
   tid = ptid_get_lwp (ptid);
   if (tid == 0)
     tid = ptid_get_pid (ptid);
 
   errno = 0;
-  value = ptrace (PTRACE_PEEKUSER, tid,
-		  offsetof (struct user, u_debugreg[regnum]), 0);
+
+  offset = offsetof (struct user, u_debugreg) + sizeof (((struct user *)0)->u_debugreg[0]) * regnum;
+  value = ptrace (PTRACE_PEEKUSER, tid, offset, 0);
   if (errno != 0)
     perror_with_name (_("Couldn't read debug register"));
 
@@ -306,14 +308,15 @@ static void
 amd64_linux_dr_set (ptid_t ptid, int regnum, unsigned long value)
 {
   int tid;
+  int offset;
 
   tid = ptid_get_lwp (ptid);
   if (tid == 0)
     tid = ptid_get_pid (ptid);
 
   errno = 0;
-  ptrace (PTRACE_POKEUSER, tid,
-	  offsetof (struct user, u_debugreg[regnum]), value);
+  offset = offsetof (struct user, u_debugreg) + sizeof (((struct user *)0)->u_debugreg[0]) * regnum;
+  ptrace (PTRACE_POKEUSER, tid, offset, value);
   if (errno != 0)
     perror_with_name (_("Couldn't write debug register"));
 }

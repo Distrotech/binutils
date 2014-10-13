@@ -42,7 +42,17 @@
 #include "inf-ptrace.h"
 #include "auxv.h"
 #include <sys/procfs.h>		/* for elf_gregset etc.  */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "elf-bfd.h"		/* for elfcore_write_* */
+
+#ifdef __cplusplus
+}
+#endif
+
 #include "gregset.h"		/* for gregset */
 #include "gdbcore.h"		/* for get_exec_file */
 #include <ctype.h>		/* for isdigit */

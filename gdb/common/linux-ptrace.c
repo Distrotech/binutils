@@ -64,7 +64,7 @@ linux_ptrace_attach_fail_reason (pid_t pid, struct buffer *buffer)
 #if defined __i386__ || defined __x86_64__
 
 /* Address of the 'ret' instruction in asm code block below.  */
-extern void (linux_ptrace_test_ret_to_nx_instr) (void);
+EXTERN_C void (linux_ptrace_test_ret_to_nx_instr) (void);
 
 #include <sys/reg.h>
 #include <sys/mman.h>

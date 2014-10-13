@@ -105,7 +105,7 @@ const struct extension_language_defn extension_language_python =
 
 int gdb_python_initialized;
 
-static PyMethodDef GdbMethods[];
+static PyMethodDef *get_GdbMethods (void);
 
 #ifdef IS_PY3K
 static struct PyModuleDef GdbModuleDef;
@@ -1684,7 +1684,7 @@ message == an error message without a stack will be printed."),
   /* Add _gdb module to the list of known built-in modules.  */
   _PyImport_FixupBuiltin (gdb_module, "_gdb");
 #else
-  gdb_module = Py_InitModule ("_gdb", GdbMethods);
+  gdb_module = Py_InitModule ("_gdb", get_GdbMethods());
 #endif
   if (gdb_module == NULL)
     goto fail;
@@ -1996,6 +1996,12 @@ Return the selected inferior object." },
 Return a tuple containing all inferiors." },
   {NULL, NULL, 0, NULL}
 };
+
+static PyMethodDef *
+get_GdbMethods (void)
+{
+  return GdbMethods;
+}
 
 #ifdef IS_PY3K
 static struct PyModuleDef GdbModuleDef =

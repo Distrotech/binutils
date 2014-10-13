@@ -1148,6 +1148,8 @@ struct stap_parse_info;
 struct ravenscar_arch_ops;
 struct elf_internal_linux_prpsinfo;
 
+#include "regcache.h"
+
 /* The architecture associated with the inferior through the
    connection to the target.
 
@@ -1802,7 +1804,7 @@ do
     then
 	printf "  fprintf_unfiltered (file,\n"
 	printf "                      \"gdbarch_dump: ${function} = <%%s>\\\\n\",\n"
-	printf "                      host_address_to_string (gdbarch->${function}));\n"
+	printf "                      host_address_to_string ((void *) gdbarch->${function}));\n"
     else
 	# It is a variable
 	case "${print}:${returntype}" in
@@ -2159,7 +2161,7 @@ gdbarch_register (enum bfd_architecture bfd_architecture,
   if (gdbarch_debug)
     fprintf_unfiltered (gdb_stdlog, "register_gdbarch_init (%s, %s)\n",
 			bfd_arch_info->printable_name,
-			host_address_to_string (init));
+			host_address_to_string ((void *) init));
   /* Append it */
   (*curr) = XNEW (struct gdbarch_registration);
   (*curr)->bfd_architecture = bfd_architecture;

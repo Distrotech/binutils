@@ -138,7 +138,7 @@ debug_qf_map_symtabs_matching_filename (struct objfile *objfile,
 		    "qf->map_symtabs_matching_filename (%s, \"%s\", \"%s\", %s, %s)\n",
 		    debug_objfile_name (objfile), name,
 		    real_path ? real_path : NULL,
-		    host_address_to_string (callback),
+		    host_address_to_string ((void *) callback),
 		    host_address_to_string (data));
 
   retval = debug_data->real_sf->qf->map_symtabs_matching_filename
@@ -270,10 +270,10 @@ debug_qf_map_matching_symbols (struct objfile *objfile,
 		    "qf->map_matching_symbols (%s, \"%s\", %s, %d, %s, %s, %s, %s)\n",
 		    debug_objfile_name (objfile), name,
 		    domain_name (the_namespace), global,
-		    host_address_to_string (callback),
+		    host_address_to_string ((void *) callback),
 		    host_address_to_string (data),
-		    host_address_to_string (match),
-		    host_address_to_string (ordered_compare));
+		    host_address_to_string ((void *) match),
+		    host_address_to_string ((void *) ordered_compare));
 
   debug_data->real_sf->qf->map_matching_symbols (objfile, name,
 						 the_namespace, global,
@@ -295,8 +295,8 @@ debug_qf_expand_symtabs_matching
   fprintf_filtered (gdb_stdlog,
 		    "qf->expand_symtabs_matching (%s, %s, %s, %s, %s)\n",
 		    debug_objfile_name (objfile),
-		    host_address_to_string (file_matcher),
-		    host_address_to_string (symbol_matcher),
+		    host_address_to_string ((void *) file_matcher),
+		    host_address_to_string ((void *) symbol_matcher),
 		    search_domain_name (kind),
 		    host_address_to_string (data));
 
@@ -345,7 +345,7 @@ debug_qf_map_symbol_filenames (struct objfile *objfile,
   fprintf_filtered (gdb_stdlog,
 		    "qf->map_symbol_filenames (%s, %s, %s, %d)\n",
 		    debug_objfile_name (objfile),
-		    host_address_to_string (fun),
+		    host_address_to_string ((void *) fun),
 		    host_address_to_string (data),
 		    need_fullname);
 

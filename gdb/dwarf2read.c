@@ -8871,7 +8871,7 @@ find_file_and_directory (struct die_info *die, struct dwarf2_cu *cu,
     {
       /* Irix 6.2 native cc prepends <machine>.: to the compilation
 	 directory, get rid of it.  */
-      char *cp = strchr (*comp_dir, ':');
+      const char *cp = strchr (*comp_dir, ':');
 
       if (cp && cp != *comp_dir && cp[-1] == '.' && cp[1] == '/')
 	*comp_dir = cp + 1;
@@ -18510,7 +18510,7 @@ static char *
 anonymous_struct_prefix (struct die_info *die, struct dwarf2_cu *cu)
 {
   struct attribute *attr;
-  char *base;
+  const char *base;
 
   if (die->tag != DW_TAG_class_type && die->tag != DW_TAG_interface_type
       && die->tag != DW_TAG_structure_type && die->tag != DW_TAG_union_type)
@@ -18871,7 +18871,7 @@ dwarf2_name (struct die_info *die, struct dwarf2_cu *cu)
 
 	  if (demangled)
 	    {
-	      char *base;
+	      const char *base;
 
 	      /* FIXME: we already did this for the partial symbol... */
 	      DW_STRING (attr) = (const char *) obstack_copy0 (&cu->objfile->objfile_obstack,

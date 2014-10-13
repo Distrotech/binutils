@@ -38,6 +38,17 @@ struct static_tracepoint_marker;
 struct traceframe_info;
 struct expression;
 struct dcache_struct;
+struct target_section;
+
+/* Holds an array of target sections.  Defined by [SECTIONS..SECTIONS_END[.  */
+
+struct target_section_table
+{
+  struct target_section *sections;
+  struct target_section *sections_end;
+};
+
+#include "inferior.h"
 
 /* This include file defines the interface between the main part
    of the debugger, and the part which is target-specific, or
@@ -2083,14 +2094,6 @@ struct target_section
        for shlibs it is the so_list pointer.  */
     void *owner;
   };
-
-/* Holds an array of target sections.  Defined by [SECTIONS..SECTIONS_END[.  */
-
-struct target_section_table
-{
-  struct target_section *sections;
-  struct target_section *sections_end;
-};
 
 /* Return the "section" containing the specified address.  */
 struct target_section *target_section_by_addr (struct target_ops *target,

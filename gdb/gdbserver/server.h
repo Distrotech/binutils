@@ -22,6 +22,14 @@
 #include "config.h"
 #include "build-gnulib-gdbserver/config.h"
 
+#ifdef __cplusplus
+#  define EXTERN_C extern "C"
+#  define EXTERN_CONST extern const
+#else
+#  define EXTERN_C extern
+#  define EXTERN_CONST const
+#endif
+
 #ifdef __MINGW32CE__
 #include "wincecompat.h"
 #endif

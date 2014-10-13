@@ -188,7 +188,7 @@ thread_db_create_event (CORE_ADDR where)
   td_event_msg_t msg;
   td_err_e err;
   struct lwp_info *lwp;
-  struct thread_db *thread_db = current_process ()->private->thread_db;
+  struct thread_db *thread_db = current_process ()->priv->thread_db;
 
   if (thread_db->td_ta_event_getmsg_p == NULL)
     fatal ("unexpected thread_db->td_ta_event_getmsg_p == NULL");
@@ -225,7 +225,7 @@ thread_db_enable_reporting (void)
   td_thr_events_t events;
   td_notify_t notify;
   td_err_e err;
-  struct thread_db *thread_db = current_process ()->private->thread_db;
+  struct thread_db *thread_db = current_process ()->priv->thread_db;
 
   if (thread_db->td_ta_set_event_p == NULL
       || thread_db->td_ta_event_addr_p == NULL
@@ -269,7 +269,7 @@ find_one_thread (ptid_t ptid)
   td_err_e err;
   struct thread_info *inferior;
   struct lwp_info *lwp;
-  struct thread_db *thread_db = current_process ()->private->thread_db;
+  struct thread_db *thread_db = current_process ()->priv->thread_db;
   int lwpid = ptid_get_lwp (ptid);
 
   inferior = (struct thread_info *) find_inferior_id (&all_threads, ptid);
@@ -349,7 +349,7 @@ attach_thread (const td_thrhandle_t *th_p, td_thrinfo_t *ti_p)
   if (thread_db_use_events)
     {
       td_err_e err;
-      struct thread_db *thread_db = proc->private->thread_db;
+      struct thread_db *thread_db = proc->priv->thread_db;
 
       err = thread_db->td_thr_event_enable_p (th_p, 1);
       if (err != TD_OK)
@@ -388,7 +388,7 @@ find_new_threads_callback (const td_thrhandle_t *th_p, void *data)
 {
   td_thrinfo_t ti;
   td_err_e err;
-  struct thread_db *thread_db = current_process ()->private->thread_db;
+  struct thread_db *thread_db = current_process ()->priv->thread_db;
 
   err = thread_db->td_thr_get_info_p (th_p, &ti);
   if (err != TD_OK)
@@ -413,7 +413,7 @@ thread_db_find_new_threads (void)
 {
   td_err_e err;
   ptid_t ptid = current_ptid;
-  struct thread_db *thread_db = current_process ()->private->thread_db;
+  struct thread_db *thread_db = current_process ()->priv->thread_db;
   int loop, iteration;
 
   /* This function is only called when we first initialize thread_db.
@@ -459,7 +459,7 @@ thread_db_find_new_threads (void)
 static void
 thread_db_look_up_symbols (void)
 {
-  struct thread_db *thread_db = current_process ()->private->thread_db;
+  struct thread_db *thread_db = current_process ()->priv->thread_db;
   const char **sym_list;
   CORE_ADDR unused;
 
@@ -474,7 +474,7 @@ thread_db_look_up_symbols (void)
 int
 thread_db_look_up_one_symbol (const char *name, CORE_ADDR *addrp)
 {
-  struct thread_db *thread_db = current_process ()->private->thread_db;
+  struct thread_db *thread_db = current_process ()->priv->thread_db;
   int may_ask_gdb = !thread_db->all_symbols_looked_up;
 
   /* If we've passed the call to thread_db_look_up_symbols, then
@@ -497,7 +497,7 @@ thread_db_get_tls_address (struct thread_info *thread, CORE_ADDR offset,
   struct thread_db *thread_db;
 
   proc = get_thread_process (thread);
-  thread_db = proc->private->thread_db;
+  thread_db = proc->priv->thread_db;
 
   /* If the thread layer is not (yet) initialized, fail.  */
   if (thread_db == NULL || !thread_db->all_symbols_looked_up)
@@ -539,11 +539,11 @@ thread_db_load_search (void)
   struct thread_db *tdb;
   struct process_info *proc = current_process ();
 
-  if (proc->private->thread_db != NULL)
-    fatal ("unexpected: proc->private->thread_db != NULL");
+  if (proc->priv->thread_db != NULL)
+    fatal ("unexpected: proc->priv->thread_db != NULL");
 
   tdb = xcalloc (1, sizeof (*tdb));
-  proc->private->thread_db = tdb;
+  proc->priv->thread_db = tdb;
 
   tdb->td_ta_new_p = &td_ta_new;
 
@@ -554,7 +554,7 @@ thread_db_load_search (void)
       if (debug_threads)
 	debug_printf ("td_ta_new(): %s\n", thread_db_err_str (err));
       free (tdb);
-      proc->private->thread_db = NULL;
+      proc->priv->thread_db = NULL;
       return 0;
     }
 
@@ -584,11 +584,11 @@ try_thread_db_load_1 (void *handle)
   struct thread_db *tdb;
   struct process_info *proc = current_process ();
 
-  if (proc->private->thread_db != NULL)
-    fatal ("unexpected: proc->private->thread_db != NULL");
+  if (proc->priv->thread_db != NULL)
+    fatal ("unexpected: proc->priv->thread_db != NULL");
 
   tdb = xcalloc (1, sizeof (*tdb));
-  proc->private->thread_db = tdb;
+  proc->priv->thread_db = tdb;
 
   tdb->handle = handle;
 
@@ -605,7 +605,7 @@ try_thread_db_load_1 (void *handle)
 	  if (required)						\
 	    {							\
 	      free (tdb);					\
-	      proc->private->thread_db = NULL;			\
+	      proc->priv->thread_db = NULL;			\
 	      return 0;						\
 	    }							\
 	}							\
@@ -621,7 +621,7 @@ try_thread_db_load_1 (void *handle)
       if (debug_threads)
 	debug_printf ("td_ta_new(): %s\n", thread_db_err_str (err));
       free (tdb);
-      proc->private->thread_db = NULL;
+      proc->priv->thread_db = NULL;
       return 0;
     }
 
@@ -858,7 +858,7 @@ switch_to_process (struct process_info *proc)
 static void
 disable_thread_event_reporting (struct process_info *proc)
 {
-  struct thread_db *thread_db = proc->private->thread_db;
+  struct thread_db *thread_db = proc->priv->thread_db;
   if (thread_db)
     {
       td_err_e (*td_ta_clear_event_p) (const td_thragent_t *ta,
@@ -890,7 +890,7 @@ disable_thread_event_reporting (struct process_info *proc)
 static void
 remove_thread_event_breakpoints (struct process_info *proc)
 {
-  struct thread_db *thread_db = proc->private->thread_db;
+  struct thread_db *thread_db = proc->priv->thread_db;
 
   if (thread_db->td_create_bp != NULL)
     {
@@ -908,7 +908,7 @@ remove_thread_event_breakpoints (struct process_info *proc)
 void
 thread_db_detach (struct process_info *proc)
 {
-  struct thread_db *thread_db = proc->private->thread_db;
+  struct thread_db *thread_db = proc->priv->thread_db;
 
   if (thread_db)
     {
@@ -922,7 +922,7 @@ thread_db_detach (struct process_info *proc)
 void
 thread_db_mourn (struct process_info *proc)
 {
-  struct thread_db *thread_db = proc->private->thread_db;
+  struct thread_db *thread_db = proc->priv->thread_db;
   if (thread_db)
     {
       td_err_e (*td_ta_delete_p) (td_thragent_t *);
@@ -941,7 +941,7 @@ thread_db_mourn (struct process_info *proc)
 #endif  /* USE_LIBTHREAD_DB_DIRECTLY  */
 
       free (thread_db);
-      proc->private->thread_db = NULL;
+      proc->priv->thread_db = NULL;
     }
 }
 

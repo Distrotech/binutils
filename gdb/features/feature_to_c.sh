@@ -63,7 +63,13 @@ for input; do
 done
 
 echo >> $output
-echo "const char *const xml_builtin[][2] = {" >> $output
+
+echo "#ifdef __cplusplus"                  >> $output
+echo "#  define EXTERN_CONST extern const" >> $output
+echo "#else"                               >> $output
+echo "#  define EXTERN_CONST const"        >> $output
+echo "#endif"                              >> $output
+echo "EXTERN_CONST char *const xml_builtin[][2] = {" >> $output
 
 for input; do
   basename=`echo $input | sed 's,.*/,,'`

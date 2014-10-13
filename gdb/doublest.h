@@ -33,7 +33,15 @@ struct floatformat;
    number.  Typically, this is useful for native ports, where the actual format
    is irrelevant, since no conversions will be taking place.  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "floatformat.h"	/* For struct floatformat */
+
+#ifdef __cplusplus
+}
+#endif
 
 /* Use `long double' if the host compiler supports it.  (Note that this is not
    necessarily any longer than `double'.  On SunOS/gcc, it's the same as

@@ -522,7 +522,7 @@ do_set_command (char *arg, int from_tty, struct cmd_list_element *c)
 	  break;
 	case var_boolean:
 	  {
-	    char *opt = *(int *) c->var ? "on" : "off";
+	    const char *opt = *(int *) c->var ? "on" : "off";
 
 	    observer_notify_command_param_changed (name, opt);
 	  }

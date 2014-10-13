@@ -29,7 +29,11 @@
 #include "serial.h"
 #include "gdbthread.h"
 
-const struct gdb_exception exception_none = { 0, GDB_NO_ERROR, NULL };
+const struct gdb_exception exception_none
+#ifndef __cplusplus
+  = { 0, GDB_NO_ERROR, NULL };
+#endif
+;
 
 /* Possible catcher states.  */
 enum catcher_state {

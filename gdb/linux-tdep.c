@@ -26,8 +26,18 @@
 #include "gdbcore.h"
 #include "regcache.h"
 #include "regset.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "elf/common.h"
 #include "elf-bfd.h"            /* for elfcore_write_* */
+
+#ifdef __cplusplus
+}
+#endif
+
 #include "inferior.h"
 #include "cli/cli-utils.h"
 #include "arch-utils.h"

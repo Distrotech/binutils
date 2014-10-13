@@ -31,6 +31,13 @@ struct ui_out;
 struct terminal_info;
 struct target_desc_info;
 
+/* Reverse execution.  */
+enum exec_direction_kind
+  {
+    EXEC_FORWARD,
+    EXEC_REVERSE
+  };
+
 #include "ptid.h"
 
 /* For bpstat.  */
@@ -329,13 +336,6 @@ enum stop_kind
     STOP_QUIETLY,
     STOP_QUIETLY_REMOTE,
     STOP_QUIETLY_NO_SIGSTOP
-  };
-
-/* Reverse execution.  */
-enum exec_direction_kind
-  {
-    EXEC_FORWARD,
-    EXEC_REVERSE
   };
 
 /* The current execution direction.  This should only be set to enum

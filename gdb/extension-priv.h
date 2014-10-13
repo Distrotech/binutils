@@ -266,7 +266,7 @@ struct signal_handler
   int handler_saved;
 
   /* The signal handler.  */
-  RETSIGTYPE (*handler) ();
+  RETSIGTYPE (*handler) (int);
 };
 
 /* State necessary to restore the currently active extension language

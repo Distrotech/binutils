@@ -44,6 +44,7 @@
 /* This redefines CTRL if it is not already defined, so it must come
    after terminal state releated include files like <term.h> and
    "gdb_curses.h".  */
+
 #include "readline/readline.h"
 
 int
@@ -129,9 +130,9 @@ static struct ui_file *tui_old_stderr;
 struct ui_out *tui_old_uiout;
 
 /* Readline previous hooks.  */
-static Function *tui_old_rl_getc_function;
+static rl_getc_func_t *tui_old_rl_getc_function;
 static VFunction *tui_old_rl_redisplay_function;
-static VFunction *tui_old_rl_prep_terminal;
+static rl_vintfunc_t *tui_old_rl_prep_terminal;
 static VFunction *tui_old_rl_deprep_terminal;
 static int tui_old_rl_echoing_p;
 
@@ -207,7 +208,7 @@ tui_redisplay_readline (void)
   int c_line;
   int in;
   WINDOW *w;
-  char *prompt;
+  const char *prompt;
   int start_line;
 
   /* Detect when we temporarily left SingleKey and now the readline
@@ -371,12 +372,13 @@ print_filename (const char *to_print, const char *full_pathname)
   return printed_len;
 }
 
+EXTERN_C int _rl_abort_internal ();
+
 /* The user must press "y" or "n".  Non-zero return means "y" pressed.
    Comes from readline/complete.c.  */
 static int
 get_y_or_n (void)
 {
-  extern int _rl_abort_internal ();
   int c;
 
   for (;;)
@@ -392,6 +394,11 @@ get_y_or_n (void)
     }
 }
 
+typedef int QSFUNC (const void *, const void *);
+EXTERN_C int _rl_qsort_string_compare (const void *,
+				       const void *);
+extern int _rl_print_completions_horizontally;
+
 /* A convenience function for displaying a list of strings in
    columnar format on readline's output stream.  MATCHES is the list
    of strings, in argv format, LEN is the number of strings in MATCHES,
@@ -402,11 +409,6 @@ get_y_or_n (void)
 static void
 tui_rl_display_match_list (char **matches, int len, int max)
 {
-  typedef int QSFUNC (const void *, const void *);
-  extern int _rl_qsort_string_compare (const void *, 
-				       const void *);
-  extern int _rl_print_completions_horizontally;
-  
   int count, limit, printed_len;
   int i, j, k, l;
   const char *temp;

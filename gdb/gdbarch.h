@@ -59,6 +59,8 @@ struct stap_parse_info;
 struct ravenscar_arch_ops;
 struct elf_internal_linux_prpsinfo;
 
+#include "regcache.h"
+
 /* The architecture associated with the inferior through the
    connection to the target.
 
