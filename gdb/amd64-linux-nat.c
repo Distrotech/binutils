@@ -66,6 +66,8 @@
 #define PTRACE_SETREGSET	0x4205
 #endif
 
+#include "gdb_ptrace.h"
+
 /* Per-thread arch-specific data we want to keep.  */
 
 struct arch_lwp_info

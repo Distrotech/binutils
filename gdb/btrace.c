@@ -297,7 +297,7 @@ ftrace_new_tailcall (struct btrace_function *caller,
   bfun = ftrace_new_function (caller, mfun, fun);
   bfun->up = caller;
   bfun->level = caller->level + 1;
-  bfun->flags |= BFUN_UP_LINKS_TO_TAILCALL;
+  bfun->flags = (enum btrace_function_flag) (bfun->flags | BFUN_UP_LINKS_TO_TAILCALL);
 
   ftrace_debug (bfun, "new tail call");
 

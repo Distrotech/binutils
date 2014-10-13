@@ -29,6 +29,9 @@
 #include "buffer.h"
 #include "gdb_assert.h"
 #include "gdb_wait.h"
+#ifndef GDBSERVER
+#include "gdb_ptrace.h"
+#endif
 
 #include <stdint.h>
 

@@ -606,10 +606,11 @@ i386_insert_watchpoint (struct target_ops *self,
   if (((len != 1 && len !=2 && len !=4) && !(TARGET_HAS_DR_LEN_8 && len == 8))
       || addr % len != 0)
     retval = i386_handle_nonaligned_watchpoint (&local_state,
-						WP_INSERT, addr, len, type);
+						WP_INSERT, addr, len,
+						(enum target_hw_bp_type) type);
   else
     {
-      unsigned len_rw = i386_length_and_rw_bits (len, type);
+      unsigned len_rw = i386_length_and_rw_bits (len, (enum target_hw_bp_type) type);
 
       retval = i386_insert_aligned_watchpoint (&local_state,
 					       addr, len_rw);
@@ -619,7 +620,7 @@ i386_insert_watchpoint (struct target_ops *self,
     i386_update_inferior_debug_regs (&local_state);
 
   if (maint_show_dr)
-    i386_show_dr (state, "insert_watchpoint", addr, len, type);
+    i386_show_dr (state, "insert_watchpoint", addr, len, (enum target_hw_bp_type) type);
 
   return retval;
 }
@@ -642,10 +643,11 @@ i386_remove_watchpoint (struct target_ops *self,
   if (((len != 1 && len !=2 && len !=4) && !(TARGET_HAS_DR_LEN_8 && len == 8))
       || addr % len != 0)
     retval = i386_handle_nonaligned_watchpoint (&local_state,
-						WP_REMOVE, addr, len, type);
+						WP_REMOVE, addr, len,
+						(enum target_hw_bp_type) type);
   else
     {
-      unsigned len_rw = i386_length_and_rw_bits (len, type);
+      unsigned len_rw = i386_length_and_rw_bits (len, (enum target_hw_bp_type) type);
 
       retval = i386_remove_aligned_watchpoint (&local_state,
 					       addr, len_rw);
@@ -655,7 +657,7 @@ i386_remove_watchpoint (struct target_ops *self,
     i386_update_inferior_debug_regs (&local_state);
 
   if (maint_show_dr)
-    i386_show_dr (state, "remove_watchpoint", addr, len, type);
+    i386_show_dr (state, "remove_watchpoint", addr, len, (enum target_hw_bp_type) type);
 
   return retval;
 }

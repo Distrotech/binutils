@@ -578,7 +578,6 @@ static inline int VEC_OP (T,iterate)					  \
     }									  \
   else									  \
     {									  \
-      *ptr = 0;								  \
       return 0;								  \
     }									  \
 }									  \

@@ -540,7 +540,7 @@ enable_thread_event (int event, CORE_ADDR *bp)
   info->proc_handle.ptid = inferior_ptid;
 
   /* Get the breakpoint address for thread EVENT.  */
-  err = info->td_ta_event_addr_p (info->thread_agent, event, &notify);
+  err = info->td_ta_event_addr_p (info->thread_agent, (td_event_e) event, &notify);
   if (err != TD_OK)
     return err;
 

@@ -144,6 +144,9 @@ extern PTRACE_TYPE_RET ptrace();
 #  define ptrace(request, pid, addr, data) \
           ptrace (request, pid, addr, data, 0)
 # endif
+#else
+# define ptrace(request, pid, addr, data) \
+         ptrace ((enum __ptrace_request) request, pid, addr, data)
 #endif
 
 #endif /* gdb_ptrace.h */

@@ -607,9 +607,9 @@ set_osabi (char *args, int from_tty, struct cmd_list_element *c)
       int i;
 
       for (i = 1; i < GDB_OSABI_INVALID; i++)
-	if (strcmp (set_osabi_string, gdbarch_osabi_name (i)) == 0)
+	if (strcmp (set_osabi_string, gdbarch_osabi_name ((enum gdb_osabi) i)) == 0)
 	  {
-	    user_selected_osabi = i;
+	    user_selected_osabi = (enum gdb_osabi) i;
 	    user_osabi_state = osabi_user;
 	    break;
 	  }

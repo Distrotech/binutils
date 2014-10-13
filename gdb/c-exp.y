@@ -880,7 +880,7 @@ exp	:	string_exp
 				  if (type != C_STRING
 				      && type != $1.tokens[i].type)
 				    error (_("Undefined string concatenation."));
-				  type = $1.tokens[i].type;
+				  type = (enum c_string_type) $1.tokens[i].type;
 				  break;
 				default:
 				  /* internal error */
@@ -2213,7 +2213,7 @@ parse_string_or_char (const char *tokptr, const char **outptr,
   /* Skip the quote.  */
   quote = *tokptr;
   if (quote == '\'')
-    type |= C_CHAR;
+    type = (enum c_string_type) (type | C_CHAR);
   ++tokptr;
 
   *host_chars = 0;

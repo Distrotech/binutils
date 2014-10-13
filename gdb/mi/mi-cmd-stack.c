@@ -254,7 +254,8 @@ mi_cmd_stack_list_locals (char *command, char **argv, int argc)
      {
        int flags = PRINT_LEVEL | PRINT_LOCALS;
 
-       result = apply_ext_lang_frame_filter (frame, flags, print_value,
+       result = apply_ext_lang_frame_filter (frame, flags,
+					     (enum ext_lang_frame_args) print_value,
 					     current_uiout, 0, 0);
      }
 
@@ -279,7 +280,7 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
   int i;
   struct frame_info *fi;
   struct cleanup *cleanup_stack_args;
-  enum print_values print_values;
+  enum ext_lang_frame_args  print_values;
   struct ui_out *uiout = current_uiout;
   int raw_arg = 0;
   int oind = 0;
@@ -334,7 +335,7 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
       frame_high = -1;
     }
 
-  print_values = mi_parse_print_values (argv[oind]);
+  print_values = (enum ext_lang_frame_args) mi_parse_print_values (argv[oind]);
 
   /* Let's position fi on the frame at which to start the
      display. Could be the innermost frame if the whole stack needs
@@ -361,7 +362,7 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
 	py_frame_low++;
 
       result = apply_ext_lang_frame_filter (get_current_frame (), flags,
-					    print_values, current_uiout,
+					    (enum ext_lang_frame_args) print_values, current_uiout,
 					    py_frame_low, frame_high);
     }
 
@@ -380,7 +381,7 @@ mi_cmd_stack_list_args (char *command, char **argv, int argc)
 	  QUIT;
 	  cleanup_frame = make_cleanup_ui_out_tuple_begin_end (uiout, "frame");
 	  ui_out_field_int (uiout, "level", i);
-	  list_args_or_locals (arguments, print_values, fi, skip_unavailable);
+	  list_args_or_locals (arguments, (enum print_values) print_values, fi, skip_unavailable);
 	  do_cleanups (cleanup_frame);
 	}
     }
@@ -450,7 +451,8 @@ mi_cmd_stack_list_variables (char *command, char **argv, int argc)
      {
        int flags = PRINT_LEVEL | PRINT_ARGS | PRINT_LOCALS;
 
-       result = apply_ext_lang_frame_filter (frame, flags, print_value,
+       result = apply_ext_lang_frame_filter (frame, flags,
+					     (enum ext_lang_frame_args) print_value,
 					     current_uiout, 0, 0);
      }
 

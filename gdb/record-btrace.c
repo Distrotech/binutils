@@ -692,7 +692,7 @@ record_btrace_call_history (struct target_ops *self, int size, int flags)
     }
 
   if (covered > 0)
-    btrace_call_history (uiout, btinfo, &begin, &end, flags);
+    btrace_call_history (uiout, btinfo, &begin, &end, (enum record_print_flag) flags);
   else
     {
       if (size < 0)
@@ -752,7 +752,7 @@ record_btrace_call_history_range (struct target_ops *self,
       btrace_call_next (&end, 1);
     }
 
-  btrace_call_history (uiout, btinfo, &begin, &end, flags);
+  btrace_call_history (uiout, btinfo, &begin, &end, (enum record_print_flag) flags);
   btrace_set_call_history (btinfo, &begin, &end);
 
   do_cleanups (uiout_cleanup);
@@ -1347,7 +1347,7 @@ record_btrace_resume_thread (struct thread_info *tp,
   /* Fetch the latest branch trace.  */
   btrace_fetch (tp);
 
-  btinfo->flags |= flag;
+  btinfo->flags = (enum btrace_thread_flag) (btinfo->flags | flag);
 }
 
 /* Find the thread to resume given a PTID.  */
@@ -1586,8 +1586,8 @@ record_btrace_step_thread (struct thread_info *tp)
   btinfo = &tp->btrace;
   replay = btinfo->replay;
 
-  flags = btinfo->flags & BTHR_MOVE;
-  btinfo->flags &= ~BTHR_MOVE;
+  flags = (enum btrace_thread_flag) (btinfo->flags & BTHR_MOVE);
+  btinfo->flags = (enum btrace_thread_flag) (btinfo->flags & ~BTHR_MOVE);
 
   DEBUG ("stepping %d (%s): %u", tp->num, target_pid_to_str (tp->ptid), flags);
 
@@ -1729,7 +1729,9 @@ record_btrace_wait (struct target_ops *ops, ptid_t ptid,
   /* Stop all other threads. */
   if (!non_stop)
     ALL_THREADS (other)
-      other->btrace.flags &= ~BTHR_MOVE;
+    {
+      other->btrace.flags = (enum btrace_thread_flag) (other->btrace.flags & ~BTHR_MOVE);
+    }
 
   /* Start record histories anew from the current position.  */
   record_btrace_clear_histories (&tp->btrace);

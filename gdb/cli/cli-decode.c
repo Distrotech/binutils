@@ -856,7 +856,7 @@ add_info (const char *name, void (*fun) (char *, int), char *doc)
 struct cmd_list_element *
 add_info_alias (const char *name, char *oldname, int abbrev_flag)
 {
-  return add_alias_cmd (name, oldname, 0, abbrev_flag, &infolist);
+  return add_alias_cmd (name, oldname, class_run, abbrev_flag, &infolist);
 }
 
 /* Add an element to the list of commands.  */

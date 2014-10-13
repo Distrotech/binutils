@@ -198,8 +198,8 @@ c_printstr (struct ui_file *stream, struct type *type,
   const char *type_encoding;
   const char *encoding;
 
-  str_type = (classify_type (type, get_type_arch (type), &type_encoding)
-	      & ~C_CHAR);
+  str_type = classify_type (type, get_type_arch (type), &type_encoding);
+  str_type = (enum c_string_type) (str_type & ~C_CHAR);
   switch (str_type)
     {
     case C_STRING:

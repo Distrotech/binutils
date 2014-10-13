@@ -80,6 +80,8 @@
 # endif
 #endif /* HAVE_PERSONALITY */
 
+#include "gdb_ptrace.h"
+
 /* This comment documents high-level logic of this file.
 
 Waiting for events in sync mode
@@ -4097,7 +4099,7 @@ linux_proc_xfer_partial (struct target_ops *ops, enum target_object object,
   char filename[64];
 
   if (object != TARGET_OBJECT_MEMORY || !readbuf)
-    return 0;
+    return TARGET_XFER_E_IO;
 
   /* Don't bother for one word.  */
   if (len < 3 * sizeof (long))
