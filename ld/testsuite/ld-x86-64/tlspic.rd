@@ -15,13 +15,13 @@ Section Headers:
  +\[[ 0-9]+\] .dynstr +.*
  +\[[ 0-9]+\] .rela.dyn +.*
  +\[[ 0-9]+\] .rela.plt +.*
- +\[[ 0-9]+\] .plt +.*
  +\[[ 0-9]+\] .text +PROGBITS +0+1000 0+1000 0+31a 00 +AX +0 +0 4096
- +\[[ 0-9]+\] .tdata +PROGBITS +0+20131a 0+131a 0+60 00 WAT +0 +0 +1
- +\[[ 0-9]+\] .tbss +NOBITS +0+20137a 0+137a 0+20 00 WAT +0 +0 +1
- +\[[ 0-9]+\] .dynamic +DYNAMIC +0+201380 0+1380 0+130 10 +WA +3 +0 +8
- +\[[ 0-9]+\] .got +PROGBITS +0+2014b0 0+14b0 0+90 08 +WA +0 +0 +8
- +\[[ 0-9]+\] .got.plt +PROGBITS +0+201540 0+1540 0+20 08 +WA +0 +0 +8
+ +\[[ 0-9]+\] .plt +.*
+ +\[[ 0-9]+\] .tdata +PROGBITS +0+201340 0+1340 0+60 00 WAT +0 +0 +1
+ +\[[ 0-9]+\] .tbss +NOBITS +0+2013a0 0+13a0 0+20 00 WAT +0 +0 +1
+ +\[[ 0-9]+\] .dynamic +DYNAMIC +0+2013a0 0+13a0 0+130 10 +WA +3 +0 +8
+ +\[[ 0-9]+\] .got +PROGBITS +0+2014d0 0+14d0 0+90 08 +WA +0 +0 +8
+ +\[[ 0-9]+\] .got.plt +PROGBITS +0+201560 0+1560 0+20 08 +WA +0 +0 +8
  +\[[ 0-9]+\] .shstrtab +.*
  +\[[ 0-9]+\] .symtab +.*
  +\[[ 0-9]+\] .strtab +.*
@@ -37,13 +37,13 @@ There are [0-9]+ program headers, starting at offset [0-9]+
 Program Headers:
  +Type +Offset +VirtAddr +PhysAddr +FileSiz +MemSiz +Flg Align
  +LOAD +0x0+ 0x0+ 0x0+ 0x[0-9a-f]+ 0x[0-9a-f]+ R E 0x200000
- +LOAD +0x0+131a 0x0+20131a 0x0+20131a 0x0+246 0x0+246 RW +0x200000
- +DYNAMIC +0x0+1380 0x0+201380 0x0+201380 0x0+130 0x0+130 RW +0x8
- +TLS +0x0+131a 0x0+20131a 0x0+20131a 0x0+60 0x0+80 R +0x1
+ +LOAD +0x0+1340 0x0+201340 0x0+201340 0x0+240 0x0+240 RW +0x200000
+ +DYNAMIC +0x0+13a0 0x0+2013a0 0x0+2013a0 0x0+130 0x0+130 RW +0x8
+ +TLS +0x0+1340 0x0+201340 0x0+201340 0x0+60 0x0+80 R +0x1
 
  Section to Segment mapping:
  +Segment Sections...
- +00 +.hash .dynsym .dynstr .rela.dyn .rela.plt .plt .text *
+ +00 +.hash .dynsym .dynstr .rela.dyn .rela.plt .text .plt *
  +01 +.tdata .dynamic .got .got.plt *
  +02 +.dynamic *
  +03 +.tdata .tbss *
@@ -72,7 +72,7 @@ Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 1 entries:
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
 .* NOTYPE +LOCAL +DEFAULT +UND *
-.* SECTION +LOCAL +DEFAULT +7 *
+.* SECTION +LOCAL +DEFAULT +6 *
 .* SECTION +LOCAL +DEFAULT +8 *
 .* TLS +GLOBAL +DEFAULT +8 sg8
 .* TLS +GLOBAL +DEFAULT +8 sg3
@@ -80,7 +80,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +8 sg5
 .* NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
 .* TLS +GLOBAL +DEFAULT +8 sg1
-.* FUNC +GLOBAL +DEFAULT +7 fn1
+.* FUNC +GLOBAL +DEFAULT +6 fn1
 .* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
 .* TLS +GLOBAL +DEFAULT +8 sg2
 .* TLS +GLOBAL +DEFAULT +8 sg6
@@ -137,7 +137,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +GLOBAL +DEFAULT +8 sg5
 .* NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
 .* TLS +GLOBAL +DEFAULT +8 sg1
-.* FUNC +GLOBAL +DEFAULT +7 fn1
+.* FUNC +GLOBAL +DEFAULT +6 fn1
 .* NOTYPE +GLOBAL +DEFAULT +12 __bss_start
 .* TLS +GLOBAL +DEFAULT +8 sg2
 .* TLS +GLOBAL +DEFAULT +8 sg6

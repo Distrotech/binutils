@@ -16,13 +16,13 @@ Section Headers:
  +\[[ 0-9]+\] .dynstr +.*
  +\[[ 0-9]+\] .rela.dyn +.*
  +\[[ 0-9]+\] .rela.plt +.*
- +\[[ 0-9]+\] .plt +.*
  +\[[ 0-9]+\] .text +PROGBITS +0+401000 0+1000 0+231 00 +AX +0 +0 +4096
- +\[[ 0-9]+\] .tdata +PROGBITS +0+601231 0+1231 0+60 00 WAT +0 +0 +1
- +\[[ 0-9]+\] .tbss +NOBITS +0+601291 0+1291 0+40 00 WAT +0 +0 +1
- +\[[ 0-9]+\] .dynamic +DYNAMIC +0+601298 0+1298 0+140 10 +WA +4 +0 +8
- +\[[ 0-9]+\] .got +PROGBITS +0+6013d8 0+13d8 0+20 08 +WA +0 +0 +8
- +\[[ 0-9]+\] .got.plt +PROGBITS +0+6013f8 0+13f8 0+20 08 +WA +0 +0 +8
+ +\[[ 0-9]+\] .plt +.*
+ +\[[ 0-9]+\] .tdata +PROGBITS +0+601260 0+1260 0+60 00 WAT +0 +0 +1
+ +\[[ 0-9]+\] .tbss +NOBITS +0+6012c0 0+12c0 0+40 00 WAT +0 +0 +1
+ +\[[ 0-9]+\] .dynamic +DYNAMIC +0+6012c0 0+12c0 0+140 10 +WA +4 +0 +8
+ +\[[ 0-9]+\] .got +PROGBITS +0+601400 0+1400 0+20 08 +WA +0 +0 +8
+ +\[[ 0-9]+\] .got.plt +PROGBITS +0+601420 0+1420 0+20 08 +WA +0 +0 +8
  +\[[ 0-9]+\] .shstrtab +.*
  +\[[ 0-9]+\] .symtab +.*
  +\[[ 0-9]+\] .strtab +.*
@@ -40,16 +40,16 @@ Program Headers:
  +PHDR.*
  +INTERP.*
 .*Requesting program interpreter.*
- +LOAD +0x0+ 0x0+400000 0x0+400000 0x0+1231 0x0+1231 R E 0x200000
- +LOAD +0x0+1231 0x0+601231 0x0+601231 0x0+1e7 0x0+1e7 RW +0x200000
- +DYNAMIC +0x0+1298 0x0+601298 0x0+601298 0x0+140 0x0+140 RW +0x8
- +TLS +0x0+1231 0x0+601231 0x0+601231 0x0+60 0x0+a0 R +0x1
+ +LOAD +0x0+ 0x0+400000 0x0+400000 0x0+1260 0x0+1260 R E 0x200000
+ +LOAD +0x0+1260 0x0+601260 0x0+601260 0x0+1e0 0x0+1e0 RW +0x200000
+ +DYNAMIC +0x0+12c0 0x0+6012c0 0x0+6012c0 0x0+140 0x0+140 RW +0x8
+ +TLS +0x0+1260 0x0+601260 0x0+601260 0x0+60 0x0+a0 R +0x1
 
  Section to Segment mapping:
  +Segment Sections...
  +00 *
  +01 +.interp *
- +02 +.interp .hash .dynsym .dynstr .rela.dyn .rela.plt .plt .text *
+ +02 +.interp .hash .dynsym .dynstr .rela.dyn .rela.plt .text .plt *
  +03 +.tdata .dynamic .got .got.plt *
  +04 +.dynamic *
  +05 +.tdata .tbss *
@@ -129,13 +129,13 @@ Symbol table '\.symtab' contains [0-9]+ entries:
 .* TLS +GLOBAL +HIDDEN +9 sh7
 .* TLS +GLOBAL +HIDDEN +9 sh8
 .* TLS +GLOBAL +DEFAULT +9 sg1
-.* FUNC +GLOBAL +DEFAULT +8 _start
+.* FUNC +GLOBAL +DEFAULT +7 _start
 .* TLS +GLOBAL +HIDDEN +9 sh4
 .* TLS +GLOBAL +DEFAULT +10 bg7
 .* TLS +GLOBAL +HIDDEN +9 sh5
 .* NOTYPE +GLOBAL +DEFAULT +13 __bss_start
 .* TLS +GLOBAL +DEFAULT +UND sG6
-.* FUNC +GLOBAL +DEFAULT +8 fn2
+.* FUNC +GLOBAL +DEFAULT +7 fn2
 .* TLS +GLOBAL +DEFAULT +9 sg2
 .* TLS +GLOBAL +DEFAULT +UND sG1
 .* TLS +GLOBAL +HIDDEN +9 sh1

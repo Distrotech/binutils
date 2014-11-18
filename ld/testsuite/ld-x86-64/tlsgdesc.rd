@@ -14,8 +14,8 @@ Section Headers:
  +\[[ 0-9]+\] \.dynstr +.*
  +\[[ 0-9]+\] \.rela.dyn +.*
  +\[[ 0-9]+\] \.rela.plt +.*
- +\[[ 0-9]+\] \.plt +.*
  +\[[ 0-9]+\] \.text +.*
+ +\[[ 0-9]+\] \.plt +.*
  +\[[ 0-9]+\] \.dynamic +.*
  +\[[ 0-9]+\] \.got +.*
  +\[[ 0-9]+\] \.got.plt +.*
@@ -39,7 +39,7 @@ Program Headers:
 
  Section to Segment mapping:
  +Segment Sections...
- +00 +.hash .dynsym .dynstr .rela.dyn .rela.plt .plt .text *
+ +00 +.hash .dynsym .dynstr .rela.dyn .rela.plt .text .plt *
  +01 +.dynamic .got .got.plt *
  +02 +.dynamic *
 
@@ -63,7 +63,7 @@ Relocation section '.rela.plt' at offset 0x[0-9a-f]+ contains 3 entries:
 Symbol table '\.dynsym' contains [0-9]+ entries:
  +Num: +Value +Size +Type +Bind +Vis +Ndx +Name
  +[0-9]+: 0+ +0 +NOTYPE +LOCAL +DEFAULT +UND *
- +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +7 *
+ +[0-9]+: [0-9a-f]+ +0 +SECTION +LOCAL +DEFAULT +6 *
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG3
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG5
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG2
@@ -71,7 +71,7 @@ Symbol table '\.dynsym' contains [0-9]+ entries:
  +[0-9]+: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
  +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 __bss_start
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG6
- +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +7 fc1
+ +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +6 fc1
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
  +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _edata
  +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _end
@@ -98,7 +98,7 @@ Symbol table '\.symtab' contains [0-9]+ entries:
  +[0-9]+: 0+ +0 +NOTYPE +GLOBAL +DEFAULT +UND __tls_get_addr
  +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 __bss_start
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG6
- +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +7 fc1
+ +[0-9]+: [0-9a-f]+ +0 +FUNC +GLOBAL +DEFAULT +6 fc1
  +[0-9]+: 0+ +0 +TLS +GLOBAL +DEFAULT +UND sG1
  +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _edata
  +[0-9]+: [0-9a-f]+ +0 +NOTYPE +GLOBAL +DEFAULT +10 _end
