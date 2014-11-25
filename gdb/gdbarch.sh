@@ -500,10 +500,10 @@ m:int:convert_register_p:int regnum, struct type *type:regnum, type:0:generic_co
 f:int:register_to_value:struct frame_info *frame, int regnum, struct type *type, gdb_byte *buf, int *optimizedp, int *unavailablep:frame, regnum, type, buf, optimizedp, unavailablep:0
 f:void:value_to_register:struct frame_info *frame, int regnum, struct type *type, const gdb_byte *buf:frame, regnum, type, buf:0
 # Construct a value representing the contents of register REGNUM in
-# frame FRAME, interpreted as type TYPE.  The routine needs to
+# frame FRAME_ID, interpreted as type TYPE.  The routine needs to
 # allocate and return a struct value with all value attributes
 # (but not the value contents) filled in.
-f:struct value *:value_from_register:struct type *type, int regnum, struct frame_info *frame:type, regnum, frame::default_value_from_register::0
+m:struct value *:value_from_register:struct type *type, int regnum, struct frame_id frame_id:type, regnum, frame_id::default_value_from_register::0
 #
 m:CORE_ADDR:pointer_to_address:struct type *type, const gdb_byte *buf:type, buf::unsigned_pointer_to_address::0
 m:void:address_to_pointer:struct type *type, gdb_byte *buf, CORE_ADDR addr:type, buf, addr::unsigned_address_to_pointer::0
@@ -651,12 +651,13 @@ m:int:register_reggroup_p:int regnum, struct reggroup *reggroup:regnum, reggroup
 # Fetch the pointer to the ith function argument.
 F:CORE_ADDR:fetch_pointer_argument:struct frame_info *frame, int argi, struct type *type:frame, argi, type
 
-# Return the appropriate register set for a core file section with
-# name SECT_NAME and size SECT_SIZE.
-M:const struct regset *:regset_from_core_section:const char *sect_name, size_t sect_size:sect_name, sect_size
-
-# Supported register notes in a core file.
-v:struct core_regset_section *:core_regset_sections:const char *name, int len::::::host_address_to_string (gdbarch->core_regset_sections)
+# Iterate over all supported register notes in a core file.  For each
+# supported register note section, the iterator must call CB and pass
+# CB_DATA unchanged.  If REGCACHE is not NULL, the iterator can limit
+# the supported register note sections based on the current register
+# values.  Otherwise it should enumerate all supported register note
+# sections.
+M:void:iterate_over_regset_sections:iterate_over_regset_sections_cb *cb, void *cb_data, const struct regcache *regcache:cb, cb_data, regcache
 
 # Create core file notes
 M:char *:make_corefile_notes:bfd *obfd, int *note_size:obfd, note_size
@@ -698,7 +699,7 @@ v:int:vtable_function_descriptors:::0:0::0
 v:int:vbit_in_delta:::0:0::0
 
 # Advance PC to next instruction in order to skip a permanent breakpoint.
-F:void:skip_permanent_breakpoint:struct regcache *regcache:regcache
+f:void:skip_permanent_breakpoint:struct regcache *regcache:regcache:default_skip_permanent_breakpoint:default_skip_permanent_breakpoint::0
 
 # The maximum length of an instruction on this architecture in bytes.
 V:ULONGEST:max_insn_length:::0:0
@@ -843,6 +844,12 @@ M:void:record_special_symbol:struct objfile *objfile, asymbol *sym:objfile, sym
 
 # Get architecture-specific system calls information from registers.
 M:LONGEST:get_syscall_number:ptid_t ptid:ptid
+
+# The filename of the XML syscall for this architecture.
+v:const char *:xml_syscall_file:::0:0::0:pstring (gdbarch->xml_syscall_file)
+
+# Information about system calls from this architecture
+v:struct syscalls_info *:syscalls_info:::0:0::0:host_address_to_string (gdbarch->syscalls_info)
 
 # SystemTap related fields and functions.
 
@@ -990,12 +997,12 @@ v:int:has_dos_based_file_system:::0:0::0
 m:void:gen_return_address:struct agent_expr *ax, struct axs_value *value, CORE_ADDR scope:ax, value, scope::default_gen_return_address::0
 
 # Implement the "info proc" command.
-M:void:info_proc:char *args, enum info_proc_what what:args, what
+M:void:info_proc:const char *args, enum info_proc_what what:args, what
 
 # Implement the "info proc" command for core files.  Noe that there
 # are two "info_proc"-like methods on gdbarch -- one for core files,
 # one for live targets.
-M:void:core_info_proc:char *args, enum info_proc_what what:args, what
+M:void:core_info_proc:const char *args, enum info_proc_what what:args, what
 
 # Iterate over all objfiles in the order that makes the most sense
 # for the architecture to make global symbol searches.
@@ -1023,6 +1030,18 @@ m:int:insn_is_ret:CORE_ADDR addr:addr::default_insn_is_ret::0
 
 # Return non-zero if the instruction at ADDR is a jump; zero otherwise.
 m:int:insn_is_jump:CORE_ADDR addr:addr::default_insn_is_jump::0
+
+# Read one auxv entry from *READPTR, not reading locations >= ENDPTR.
+# Return 0 if *READPTR is already at the end of the buffer.
+# Return -1 if there is insufficient buffer for a whole entry.
+# Return 1 if an entry was read into *TYPEP and *VALP.
+M:int:auxv_parse:gdb_byte **readptr, gdb_byte *endptr, CORE_ADDR *typep, CORE_ADDR *valp:readptr, endptr, typep, valp
+
+# Find the address range of the current inferior's vsyscall/vDSO, and
+# write it to *RANGE.  If the vsyscall's length can't be determined, a
+# range with zero length is returned.  Returns true if the vsyscall is
+# found, false otherwise.
+m:int:vsyscall_range:struct mem_range *range:range::default_vsyscall_range::0
 EOF
 }
 
@@ -1118,9 +1137,10 @@ cat <<EOF
 #ifndef GDBARCH_H
 #define GDBARCH_H
 
+#include "frame.h"
+
 struct floatformat;
 struct ui_file;
-struct frame_info;
 struct value;
 struct objfile;
 struct obj_section;
@@ -1141,6 +1161,8 @@ struct axs_value;
 struct stap_parse_info;
 struct ravenscar_arch_ops;
 struct elf_internal_linux_prpsinfo;
+struct mem_range;
+struct syscalls_info;
 
 /* The architecture associated with the inferior through the
    connection to the target.
@@ -1162,6 +1184,10 @@ extern struct gdbarch *target_gdbarch (void);
 
 typedef int (iterate_over_objfiles_in_search_order_cb_ftype)
   (struct objfile *objfile, void *cb_data);
+
+typedef void (iterate_over_regset_sections_cb)
+  (const char *sect_name, int size, const struct regset *regset,
+   const char *human_name, void *cb_data);
 EOF
 
 # function typedef's
@@ -1466,9 +1492,6 @@ cat <<EOF
 #include "symcat.h"
 
 #include "floatformat.h"
-
-#include "gdb_assert.h"
-#include <string.h>
 #include "reggroups.h"
 #include "osabi.h"
 #include "gdb_obstack.h"

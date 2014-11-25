@@ -18,6 +18,7 @@
 int
 foo (int i, int j)
 {
+  asm ("foo_label: .globl foo_label");
   return 0;
 }
 
@@ -26,6 +27,7 @@ bar (int i)
 {
   int j = 2;
 
+  asm ("bar_label: .globl bar_label");
   return foo (i, j);
 }
 

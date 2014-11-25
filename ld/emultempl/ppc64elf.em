@@ -1,6 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-# Copyright 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-# Free Software Foundation, Inc.
+# Copyright (C) 2002-2014 Free Software Foundation, Inc.
 #
 # This file is part of the GNU Binutils.
 #
@@ -30,6 +29,7 @@ fragment <<EOF
 #include "elf-bfd.h"
 #include "elf64-ppc.h"
 #include "ldlex.h"
+#include "elf/ppc64.h"
 
 static asection *ppc_add_stub_section (const char *, asection *);
 static void ppc_layout_sections_again (void);
@@ -43,7 +43,6 @@ static struct ppc64_elf_params params = { NULL,
 
 /* Fake input file for stubs.  */
 static lang_input_statement_type *stub_file;
-static int stub_added = 0;
 
 /* Whether we need to call ppc_layout_sections_again.  */
 static int need_laying_out = 0;
@@ -62,9 +61,6 @@ static int no_toc_opt = 0;
 
 /* Whether to sort input toc and got sections.  */
 static int no_toc_sort = 0;
-
-/* Set if individual PLT call stubs should be aligned.  */
-static int plt_stub_align = 0;
 
 static asection *toc_section = 0;
 
@@ -378,7 +374,9 @@ ppc_add_stub_section (const char *stub_sec_name, asection *input_section)
 						 stub_sec_name, flags);
   if (stub_sec == NULL
       || !bfd_set_section_alignment (stub_file->the_bfd, stub_sec,
-				     plt_stub_align > 5 ? plt_stub_align : 5))
+				     (params.plt_stub_align > 5
+				      ? params.plt_stub_align
+				      : 5)))
     goto err_ret;
 
   output_section = input_section->output_section;
@@ -391,7 +389,6 @@ ppc_add_stub_section (const char *stub_sec_name, asection *input_section)
   if (info.add.head == NULL)
     goto err_ret;
 
-  stub_added = 1;
   if (hook_in_stub (&info, &os->children.head))
     return stub_sec;
 
@@ -460,21 +457,16 @@ build_section_lists (lang_statement_union_type *statement)
 static void
 gld${EMULATION_NAME}_after_allocation (void)
 {
-  /* bfd_elf_discard_info just plays with data and debugging sections,
-     ie. doesn't affect code size, so we can delay resizing the
-     sections.  It's likely we'll resize everything in the process of
-     adding stubs.  */
-  if (bfd_elf_discard_info (link_info.output_bfd, &link_info))
-    need_laying_out = 1;
+  int ret;
 
   /* If generating a relocatable output file, then we don't have any
      stubs.  */
   if (stub_file != NULL && !link_info.relocatable)
     {
-      int ret = ppc64_elf_setup_section_lists (&link_info);
+      ret = ppc64_elf_setup_section_lists (&link_info);
       if (ret < 0)
 	einfo ("%X%P: can not size stub section: %E\n");
-      else if (ret > 0)
+      else
 	{
 	  ppc64_elf_start_multitoc_partition (&link_info);
 
@@ -504,6 +496,19 @@ gld${EMULATION_NAME}_after_allocation (void)
 	}
     }
 
+  /* We can't parse and merge .eh_frame until the glink .eh_frame has
+     been generated.  Otherwise the glink .eh_frame CIE won't be
+     merged with other CIEs, and worse, the glink .eh_frame FDEs won't
+     be listed in .eh_frame_hdr.  */
+  ret = bfd_elf_discard_info (link_info.output_bfd, &link_info);
+  if (ret < 0)
+    {
+      einfo ("%X%P: .eh_frame/.stab edit: %E\n");
+      return;
+    }
+  else if (ret > 0)
+    need_laying_out = 1;
+
   if (need_laying_out != -1)
     {
       gld${EMULATION_NAME}_map_segments (need_laying_out);
@@ -519,33 +524,34 @@ gld${EMULATION_NAME}_after_allocation (void)
 static void
 gld${EMULATION_NAME}_finish (void)
 {
+  char *msg = NULL;
+  char *line, *endline;
+
   /* e_entry on PowerPC64 points to the function descriptor for
      _start.  If _start is missing, default to the first function
      descriptor in the .opd section.  */
-  entry_section = ".opd";
+  if (stub_file != NULL
+      && (elf_elfheader (link_info.output_bfd)->e_flags & EF_PPC64_ABI) == 1)
+    entry_section = ".opd";
 
-  if (stub_added)
+  if (params.emit_stub_syms < 0)
+    params.emit_stub_syms = 1;
+  if (stub_file != NULL
+      && !link_info.relocatable
+      && !ppc64_elf_build_stubs (&link_info, config.stats ? &msg : NULL))
+    einfo ("%X%P: can not build stubs: %E\n");
+
+  fflush (stdout);
+  for (line = msg; line != NULL; line = endline)
     {
-      char *msg = NULL;
-      char *line, *endline;
-
-      if (params.emit_stub_syms < 0)
-	params.emit_stub_syms = 1;
-      if (!ppc64_elf_build_stubs (&link_info, config.stats ? &msg : NULL))
-	einfo ("%X%P: can not build stubs: %E\n");
-
-      fflush (stdout);
-      for (line = msg; line != NULL; line = endline)
-	{
-	  endline = strchr (line, '\n');
-	  if (endline != NULL)
-	    *endline++ = '\0';
-	  fprintf (stderr, "%s: %s\n", program_name, line);
-	}
-      fflush (stderr);
-      if (msg != NULL)
-	free (msg);
+      endline = strchr (line, '\n');
+      if (endline != NULL)
+	*endline++ = '\0';
+      fprintf (stderr, "%s: %s\n", program_name, line);
     }
+  fflush (stderr);
+  if (msg != NULL)
+    free (msg);
 
   ppc64_elf_restore_symbols (&link_info);
   finish_default ();
@@ -793,14 +799,14 @@ PARSE_AND_LIST_ARGS_CASES=${PARSE_AND_LIST_ARGS_CASES}'
 	  unsigned long val = strtoul (optarg, &end, 0);
 	  if (*end || val > 8)
 	    einfo (_("%P%F: invalid --plt-align `%s'\''\n"), optarg);
-	  plt_stub_align = val;
+	  params.plt_stub_align = val;
 	}
       else
-	plt_stub_align = 5;
+	params.plt_stub_align = 5;
       break;
 
     case OPTION_NO_PLT_ALIGN:
-      plt_stub_align = 0;
+      params.plt_stub_align = 0;
       break;
 
     case OPTION_STUBSYMS:

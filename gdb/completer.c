@@ -22,8 +22,6 @@
 #include "expression.h"
 #include "filenames.h"		/* For DOSish file names.  */
 #include "language.h"
-#include "gdb_assert.h"
-#include "exceptions.h"
 #include "gdb_signals.h"
 
 #include "cli/cli-decode.h"
@@ -450,6 +448,21 @@ expression_completer (struct cmd_list_element *ignore,
   return location_completer (ignore, p, word);
 }
 
+/* See definition in completer.h.  */
+
+void
+set_gdb_completion_word_break_characters (completer_ftype *fn)
+{
+  /* So far we are only interested in differentiating filename
+     completers from everything else.  */
+  if (fn == filename_completer)
+    rl_completer_word_break_characters
+      = gdb_completer_file_name_break_characters;
+  else
+    rl_completer_word_break_characters
+      = gdb_completer_command_word_break_characters;
+}
+
 /* Here are some useful test cases for completion.  FIXME: These
    should be put in the test suite.  They should be tested with both
    M-? and TAB.
@@ -678,6 +691,9 @@ complete_line_internal (const char *text,
 			   p--)
 			;
 		    }
+		  if (reason == handle_brkchars
+		      && c->completer_handle_brkchars != NULL)
+		    (*c->completer_handle_brkchars) (c, p, word);
 		  if (reason != handle_brkchars && c->completer != NULL)
 		    list = (*c->completer) (c, p, word);
 		}
@@ -751,6 +767,9 @@ complete_line_internal (const char *text,
 		       p--)
 		    ;
 		}
+	      if (reason == handle_brkchars
+		  && c->completer_handle_brkchars != NULL)
+		(*c->completer_handle_brkchars) (c, p, word);
 	      if (reason != handle_brkchars && c->completer != NULL)
 		list = (*c->completer) (c, p, word);
 	    }
@@ -772,7 +791,7 @@ complete_line_internal (const char *text,
    should pretend that the line ends at POINT.  */
 
 VEC (char_ptr) *
-complete_line (const char *text, char *line_buffer, int point)
+complete_line (const char *text, const char *line_buffer, int point)
 {
   return complete_line_internal (text, line_buffer, 
 				 point, handle_completions);

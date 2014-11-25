@@ -61,6 +61,18 @@ extern void (*call_readline) (void *);
 extern void (*input_handler) (char *);
 extern int input_fd;
 extern void (*after_char_processing_hook) (void);
+extern int call_stdin_event_handler_again_p;
+
+/* Wrappers for rl_callback_handler_remove and
+   rl_callback_handler_install that keep track of whether the callback
+   handler is installed in readline.  Do not call the readline
+   versions directly.  */
+extern void gdb_rl_callback_handler_remove (void);
+extern void gdb_rl_callback_handler_install (const char *prompt);
+
+/* Reinstall the readline callback handler (with no prompt), if not
+   currently installed.  */
+extern void gdb_rl_callback_handler_reinstall (void);
 
 extern void cli_command_loop (void *);
 

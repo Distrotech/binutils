@@ -32,9 +32,7 @@
 #if HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#if HAVE_ERRNO_H
 #include <errno.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -50,12 +48,9 @@
 #if HAVE_NETINET_TCP_H
 #include <netinet/tcp.h>
 #endif
-#if HAVE_ALLOCA_H
+
 #include <alloca.h>
-#endif
-#if HAVE_MALLOC_H
-#include <malloc.h>
-#endif
+
 #if USE_WIN32API
 #include <winsock2.h>
 #endif

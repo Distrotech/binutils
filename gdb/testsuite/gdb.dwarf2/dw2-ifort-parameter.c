@@ -18,9 +18,10 @@
 int value = 0xdeadf00d;
 int *ptr = &value;
 
-void
+static void
 func (void)
 {
+  asm ("func_label: .globl func_label");
 }
 
 int

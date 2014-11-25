@@ -24,9 +24,9 @@
 #include "gdbcmd.h"
 #include "gdbcore.h"
 #include "inferior.h"
+#include "infrun.h"
 #include "target.h"
 #include "regcache.h"
-#include <string.h>
 #include "gdbthread.h"
 #include <ctype.h>
 #include <signal.h>
@@ -179,7 +179,7 @@ get_ack (void)
 
 /* Send data to the target and check an ack packet.  */
 static int
-send_data (void *buf, int len)
+send_data (const void *buf, int len)
 {
   if (!sdi_desc)
     return -1;
@@ -339,7 +339,7 @@ m32r_create_inferior (struct target_ops *ops, char *execfile,
   /* The "process" (board) is already stopped awaiting our commands, and
      the program is already downloaded.  We just set its PC and go.  */
 
-  clear_proceed_status ();
+  clear_proceed_status (0);
 
   /* Tell wait_for_inferior that we've started a new process.  */
   init_wait_for_inferior ();
@@ -358,7 +358,7 @@ m32r_create_inferior (struct target_ops *ops, char *execfile,
    NAME is the filename used for communication.  */
 
 static void
-m32r_open (char *args, int from_tty)
+m32r_open (const char *args, int from_tty)
 {
   struct hostent *host_ent;
   struct sockaddr_in server_addr;
@@ -1032,11 +1032,12 @@ m32r_files_info (struct target_ops *target)
     }
 }
 
-/* Read/Write memory.  */
-static int
-m32r_xfer_memory (CORE_ADDR memaddr, gdb_byte *myaddr, int len,
-		  int write,
-		  struct mem_attrib *attrib, struct target_ops *target)
+/* Helper for m32r_xfer_partial that handles memory transfers.
+   Arguments are like target_xfer_partial.  */
+
+static enum target_xfer_status
+m32r_xfer_memory (gdb_byte *readbuf, const gdb_byte *writebuf,
+		  ULONGEST memaddr, ULONGEST len, ULONGEST *xfered_len)
 {
   unsigned long taddr;
   unsigned char buf[0x2000];
@@ -1052,22 +1053,24 @@ m32r_xfer_memory (CORE_ADDR memaddr, gdb_byte *myaddr, int len,
 
   if (remote_debug)
     {
-      if (write)
-	fprintf_unfiltered (gdb_stdlog, "m32r_xfer_memory(%s,%d,write)\n",
-			    paddress (target_gdbarch (), memaddr), len);
+      if (writebuf != NULL)
+	fprintf_unfiltered (gdb_stdlog, "m32r_xfer_memory(%s,%s,write)\n",
+			    paddress (target_gdbarch (), memaddr),
+			    plongest (len));
       else
-	fprintf_unfiltered (gdb_stdlog, "m32r_xfer_memory(%s,%d,read)\n",
-			    paddress (target_gdbarch (), memaddr), len);
+	fprintf_unfiltered (gdb_stdlog, "m32r_xfer_memory(%s,%s,read)\n",
+			    paddress (target_gdbarch (), memaddr),
+			    plongest (len));
     }
 
-  if (write)
+  if (writebuf != NULL)
     {
       buf[0] = SDI_WRITE_MEMORY;
       store_long_parameter (buf + 1, taddr);
       store_long_parameter (buf + 5, len);
       if (len < 0x1000)
 	{
-	  memcpy (buf + 9, myaddr, len);
+	  memcpy (buf + 9, writebuf, len);
 	  ret = send_data (buf, len + 9) - 9;
 	}
       else
@@ -1077,9 +1080,9 @@ m32r_xfer_memory (CORE_ADDR memaddr, gdb_byte *myaddr, int len,
 	      if (remote_debug)
 		fprintf_unfiltered (gdb_stdlog,
 				    "m32r_xfer_memory() failed\n");
-	      return 0;
+	      return TARGET_XFER_EOF;
 	    }
-	  ret = send_data (myaddr, len);
+	  ret = send_data (writebuf, len);
 	}
     }
   else
@@ -1091,7 +1094,7 @@ m32r_xfer_memory (CORE_ADDR memaddr, gdb_byte *myaddr, int len,
 	{
 	  if (remote_debug)
 	    fprintf_unfiltered (gdb_stdlog, "m32r_xfer_memory() failed\n");
-	  return 0;
+	  return TARGET_XFER_EOF;
 	}
 
       c = serial_readchar (sdi_desc, SDI_TIMEOUT);
@@ -1099,20 +1102,41 @@ m32r_xfer_memory (CORE_ADDR memaddr, gdb_byte *myaddr, int len,
 	{
 	  if (remote_debug)
 	    fprintf_unfiltered (gdb_stdlog, "m32r_xfer_memory() failed\n");
-	  return 0;
+	  return TARGET_XFER_EOF;
 	}
 
-      ret = recv_data (myaddr, len);
+      ret = recv_data (readbuf, len);
     }
 
   if (ret <= 0)
     {
       if (remote_debug)
 	fprintf_unfiltered (gdb_stdlog, "m32r_xfer_memory() fails\n");
-      return 0;
+      return TARGET_XFER_E_IO;
     }
 
-  return ret;
+  *xfered_len = ret;
+  return TARGET_XFER_OK;
+}
+
+/* Target to_xfer_partial implementation.  */
+
+static enum target_xfer_status
+m32r_xfer_partial (struct target_ops *ops, enum target_object object,
+		   const char *annex, gdb_byte *readbuf,
+		   const gdb_byte *writebuf, ULONGEST offset, ULONGEST len,
+		   ULONGEST *xfered_len)
+{
+  switch (object)
+    {
+    case TARGET_OBJECT_MEMORY:
+      return m32r_xfer_memory (readbuf, writebuf, offset, len, xfered_len);
+
+    default:
+      return ops->beneath->to_xfer_partial (ops->beneath, object, annex,
+					    readbuf, writebuf, offset, len,
+					    xfered_len);
+    }
 }
 
 static void
@@ -1148,7 +1172,7 @@ m32r_insert_breakpoint (struct target_ops *ops,
 			struct gdbarch *gdbarch,
 			struct bp_target_info *bp_tgt)
 {
-  CORE_ADDR addr = bp_tgt->placed_address;
+  CORE_ADDR addr = bp_tgt->placed_address = bp_tgt->reqstd_address;
   int ib_breakpoints;
   unsigned char buf[13];
   int i, c;
@@ -1213,9 +1237,9 @@ m32r_remove_breakpoint (struct target_ops *ops,
 }
 
 static void
-m32r_load (struct target_ops *self, char *args, int from_tty)
+m32r_load (struct target_ops *self, const char *args, int from_tty)
 {
-  struct cleanup *old_chain;
+  struct cleanup *old_chain = make_cleanup (null_cleanup, NULL);
   asection *section;
   bfd *pbfd;
   bfd_vma entry;
@@ -1233,17 +1257,11 @@ m32r_load (struct target_ops *self, char *args, int from_tty)
 
   while (*args != '\000')
     {
-      char *arg;
+      char *arg = extract_arg_const (&args);
 
-      args = skip_spaces (args);
-
-      arg = args;
-
-      while ((*args != '\000') && !isspace (*args))
-	args++;
-
-      if (*args != '\000')
-	*args++ = '\000';
+      if (arg == NULL)
+	break;
+      make_cleanup (xfree, arg);
 
       if (*arg != '-')
 	filename = arg;
@@ -1260,11 +1278,8 @@ m32r_load (struct target_ops *self, char *args, int from_tty)
 
   pbfd = gdb_bfd_open (filename, gnutarget, -1);
   if (pbfd == NULL)
-    {
-      perror_with_name (filename);
-      return;
-    }
-  old_chain = make_cleanup_bfd_unref (pbfd);
+    perror_with_name (filename);
+  make_cleanup_bfd_unref (pbfd);
 
   if (!bfd_check_format (pbfd, bfd_object))
     error (_("\"%s\" is not an object file: %s"), filename,
@@ -1635,7 +1650,7 @@ init_m32r_ops (void)
   m32r_ops.to_fetch_registers = m32r_fetch_register;
   m32r_ops.to_store_registers = m32r_store_register;
   m32r_ops.to_prepare_to_store = m32r_prepare_to_store;
-  m32r_ops.deprecated_xfer_memory = m32r_xfer_memory;
+  m32r_ops.to_xfer_partial = m32r_xfer_partial;
   m32r_ops.to_files_info = m32r_files_info;
   m32r_ops.to_insert_breakpoint = m32r_insert_breakpoint;
   m32r_ops.to_remove_breakpoint = m32r_remove_breakpoint;

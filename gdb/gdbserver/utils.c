@@ -17,12 +17,6 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "server.h"
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#if HAVE_ERRNO_H
-#include <errno.h>
-#endif
 
 #ifdef IN_PROCESS_AGENT
 #  define PREFIX "ipa: "
@@ -55,27 +49,6 @@ xstrdup (const char *s)
   return ret;
 }
 
-#ifndef IN_PROCESS_AGENT
-
-/* Free a standard argv vector.  */
-
-void
-freeargv (char **vector)
-{
-  char **scan;
-
-  if (vector != NULL)
-    {
-      for (scan = vector; *scan != NULL; scan++)
-	{
-	  free (*scan);
-	}
-      free (vector);
-    }
-}
-
-#endif
-
 /* Print the system error message for errno, and also mention STRING
    as the file name for which the error was encountered.
    Then return to command level.  */
@@ -98,71 +71,50 @@ perror_with_name (const char *string)
   error ("%s.", combined);
 }
 
-/* Print an error message and return to command level.
-   STRING is the error message, used as a fprintf string,
-   and ARG is passed as an argument to it.  */
+/* Print an error message and return to top level.  */
 
 void
-error (const char *string,...)
+verror (const char *string, va_list args)
 {
-#ifndef IN_PROCESS_AGENT
-  extern jmp_buf toplevel;
-#endif
-  va_list args;
-  va_start (args, string);
+#ifdef IN_PROCESS_AGENT
   fflush (stdout);
   vfprintf (stderr, string, args);
   fprintf (stderr, "\n");
-#ifndef IN_PROCESS_AGENT
-  longjmp (toplevel, 1);
-#else
   exit (1);
+#else
+  throw_verror (GENERIC_ERROR, string, args);
 #endif
 }
 
-/* Print an error message and exit reporting failure.
-   This is for a error that we cannot continue from.
-   STRING and ARG are passed to fprintf.  */
-
-/* VARARGS */
 void
-fatal (const char *string,...)
+vwarning (const char *string, va_list args)
 {
-  va_list args;
-  va_start (args, string);
   fprintf (stderr, PREFIX);
   vfprintf (stderr, string, args);
   fprintf (stderr, "\n");
-  va_end (args);
-  exit (1);
-}
-
-/* VARARGS */
-void
-warning (const char *string,...)
-{
-  va_list args;
-  va_start (args, string);
-  fprintf (stderr, PREFIX);
-  vfprintf (stderr, string, args);
-  fprintf (stderr, "\n");
-  va_end (args);
 }
 
 /* Report a problem internal to GDBserver, and exit.  */
 
 void
-internal_error (const char *file, int line, const char *fmt, ...)
+internal_verror (const char *file, int line, const char *fmt, va_list args)
 {
-  va_list args;
-  va_start (args, fmt);
-
   fprintf (stderr,  "\
 %s:%d: A problem internal to " TOOLNAME " has been detected.\n", file, line);
   vfprintf (stderr, fmt, args);
   fprintf (stderr, "\n");
-  va_end (args);
   exit (1);
+}
+
+/* Report a problem internal to GDBserver.  */
+
+void
+internal_vwarning (const char *file, int line, const char *fmt, va_list args)
+{
+  fprintf (stderr,  "\
+%s:%d: A problem internal to " TOOLNAME " has been detected.\n", file, line);
+  vfprintf (stderr, fmt, args);
+  fprintf (stderr, "\n");
 }
 
 /* Convert a CORE_ADDR into a HEX string, like %lx.
@@ -184,4 +136,12 @@ pfildes (gdb_fildes_t fd)
 #else
   return plongest (fd);
 #endif
+}
+
+/* See common/common-exceptions.h.  */
+
+void
+prepare_to_throw_exception (void)
+{
+  /* No client-specific actions required.  */
 }

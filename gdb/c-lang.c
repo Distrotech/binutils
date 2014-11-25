@@ -27,15 +27,12 @@
 #include "c-lang.h"
 #include "valprint.h"
 #include "macroscope.h"
-#include "gdb_assert.h"
 #include "charset.h"
-#include <string.h>
 #include "demangle.h"
 #include "cp-abi.h"
 #include "cp-support.h"
 #include "gdb_obstack.h"
 #include <ctype.h>
-#include "exceptions.h"
 #include "gdbcore.h"
 
 extern void _initialize_c_language (void);

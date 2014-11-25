@@ -586,8 +586,24 @@ sim_resume (sd, step, siggnal)
 	      break;
 	    case 0x0f: /* nop */
 	      break;
-	    case 0x10: /* bad */
-	    case 0x11: /* bad */
+	    case 0x10: /* sex.b */
+	      {
+		int a = (inst >> 4) & 0xf;
+		int b = inst & 0xf;
+		signed char bv = cpu.asregs.regs[b];
+		TRACE("sex.b");
+		cpu.asregs.regs[a] = (int) bv;
+	      }
+	      break;
+	    case 0x11: /* sex.s */
+	      {
+		int a = (inst >> 4) & 0xf;
+		int b = inst & 0xf;
+		signed short bv = cpu.asregs.regs[b];
+		TRACE("sex.s");
+		cpu.asregs.regs[a] = (int) bv;
+	      }
+	      break;
 	    case 0x12: /* bad */
 	    case 0x13: /* bad */
 	    case 0x14: /* bad */
@@ -1230,7 +1246,7 @@ load_dtb (SIM_DESC sd, const char *filename)
 SIM_RC
 sim_load (sd, prog, abfd, from_tty)
      SIM_DESC sd;
-     char * prog;
+     const char * prog;
      bfd * abfd;
      int from_tty;
 {
@@ -1350,7 +1366,7 @@ sim_kill (sd)
 void
 sim_do_command (sd, cmd)
      SIM_DESC sd;
-     char * cmd;
+     const char *cmd;
 {
   if (sim_args_command (sd, cmd) != SIM_RC_OK)
     sim_io_printf (sd, 

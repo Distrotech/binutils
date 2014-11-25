@@ -21,10 +21,10 @@
 
 #include "defs.h"
 #include <sys/stat.h>
-#include <string.h>
 #include "nto-tdep.h"
 #include "top.h"
 #include "inferior.h"
+#include "infrun.h"
 #include "gdbarch.h"
 #include "bfd.h"
 #include "elf-bfd.h"

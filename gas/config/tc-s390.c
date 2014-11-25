@@ -1,6 +1,5 @@
 /* tc-s390.c -- Assemble for the S390
-   Copyright 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008,
-   2009, 2010  Free Software Foundation, Inc.
+   Copyright (C) 2000-2014 Free Software Foundation, Inc.
    Contributed by Martin Schwidefsky (schwidefsky@de.ibm.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -490,7 +489,7 @@ md_show_usage (FILE *stream)
 static void
 s390_setup_opcodes (void)
 {
-  register const struct s390_opcode *op;
+  const struct s390_opcode *op;
   const struct s390_opcode *op_end;
   bfd_boolean dup_insn = FALSE;
   const char *retval;
@@ -537,7 +536,7 @@ s390_setup_opcodes (void)
 void
 md_begin (void)
 {
-  register const struct s390_opcode *op;
+  const struct s390_opcode *op;
   const struct s390_opcode *op_end;
   const char *retval;
 

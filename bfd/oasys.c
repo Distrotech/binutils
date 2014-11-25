@@ -1,5 +1,5 @@
 /* BFD back-end for oasys objects.
-   Copyright 1990-2013 Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
    Written by Steve Chamberlain of Cygnus Support, <sac@cygnus.com>.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -1129,26 +1129,9 @@ oasys_openr_next_archived_file (bfd *arch, bfd *prev)
   return NULL;
 }
 
-static bfd_boolean
-oasys_find_nearest_line (bfd *abfd ATTRIBUTE_UNUSED,
-			 asection *section ATTRIBUTE_UNUSED,
-			 asymbol **symbols ATTRIBUTE_UNUSED,
-			 bfd_vma offset ATTRIBUTE_UNUSED,
-			 const char **filename_ptr ATTRIBUTE_UNUSED,
-			 const char **functionname_ptr ATTRIBUTE_UNUSED,
-			 unsigned int *line_ptr ATTRIBUTE_UNUSED)
-{
-  return FALSE;
-}
-
-static bfd_boolean
-oasys_find_inliner_info (bfd *abfd ATTRIBUTE_UNUSED,
-			 const char **filename_ptr ATTRIBUTE_UNUSED,
-			 const char **functionname_ptr ATTRIBUTE_UNUSED,
-			 unsigned int *line_ptr ATTRIBUTE_UNUSED)
-{
-  return FALSE;
-}
+#define oasys_find_nearest_line _bfd_nosymbols_find_nearest_line
+#define oasys_find_line         _bfd_nosymbols_find_line
+#define oasys_find_inliner_info _bfd_nosymbols_find_inliner_info
 
 static int
 oasys_generic_stat_arch_elt (bfd *abfd, struct stat *buf)
@@ -1204,7 +1187,6 @@ oasys_sizeof_headers (bfd *abfd ATTRIBUTE_UNUSED,
 #define oasys_section_already_linked               _bfd_generic_section_already_linked
 #define oasys_bfd_define_common_symbol             bfd_generic_define_common_symbol
 #define oasys_bfd_link_hash_table_create           _bfd_generic_link_hash_table_create
-#define oasys_bfd_link_hash_table_free             _bfd_generic_link_hash_table_free
 #define oasys_bfd_link_add_symbols                 _bfd_generic_link_add_symbols
 #define oasys_bfd_link_just_syms                   _bfd_generic_link_just_syms
 #define oasys_bfd_copy_link_hash_symbol_type \

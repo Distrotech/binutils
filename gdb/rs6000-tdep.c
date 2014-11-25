@@ -20,6 +20,7 @@
 #include "defs.h"
 #include "frame.h"
 #include "inferior.h"
+#include "infrun.h"
 #include "symtab.h"
 #include "target.h"
 #include "gdbcore.h"
@@ -54,7 +55,6 @@
 #include "ppc-tdep.h"
 #include "ppc-ravenscar-thread.h"
 
-#include "gdb_assert.h"
 #include "dis-asm.h"
 
 #include "trad-frame.h"
@@ -505,7 +505,7 @@ ppc_supply_gregset (const struct regset *regset, struct regcache *regcache,
 {
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
-  const struct ppc_reg_offsets *offsets = regset->descr;
+  const struct ppc_reg_offsets *offsets = regset->regmap;
   size_t offset;
   int regsize;
 
@@ -557,7 +557,7 @@ ppc_supply_fpregset (const struct regset *regset, struct regcache *regcache,
     return;
 
   tdep = gdbarch_tdep (gdbarch);
-  offsets = regset->descr;
+  offsets = regset->regmap;
   if (regnum == -1)
     {
       int i;
@@ -625,7 +625,7 @@ ppc_supply_vrregset (const struct regset *regset, struct regcache *regcache,
     return;
 
   tdep = gdbarch_tdep (gdbarch);
-  offsets = regset->descr;
+  offsets = regset->regmap;
   if (regnum == -1)
     {
       int i;
@@ -664,7 +664,7 @@ ppc_collect_gregset (const struct regset *regset,
 {
   struct gdbarch *gdbarch = get_regcache_arch (regcache);
   struct gdbarch_tdep *tdep = gdbarch_tdep (gdbarch);
-  const struct ppc_reg_offsets *offsets = regset->descr;
+  const struct ppc_reg_offsets *offsets = regset->regmap;
   size_t offset;
   int regsize;
 
@@ -718,7 +718,7 @@ ppc_collect_fpregset (const struct regset *regset,
     return;
 
   tdep = gdbarch_tdep (gdbarch);
-  offsets = regset->descr;
+  offsets = regset->regmap;
   if (regnum == -1)
     {
       int i;
@@ -791,7 +791,7 @@ ppc_collect_vrregset (const struct regset *regset,
     return;
 
   tdep = gdbarch_tdep (gdbarch);
-  offsets = regset->descr;
+  offsets = regset->regmap;
   if (regnum == -1)
     {
       int i;
@@ -2169,9 +2169,9 @@ rs6000_skip_main_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
          to __eabi in case the GCC option "-fleading-underscore" was
 	 used to compile the program.  */
       if (s.minsym != NULL
-          && SYMBOL_LINKAGE_NAME (s.minsym) != NULL
-	  && (strcmp (SYMBOL_LINKAGE_NAME (s.minsym), "__eabi") == 0
-	      || strcmp (SYMBOL_LINKAGE_NAME (s.minsym), "___eabi") == 0))
+          && MSYMBOL_LINKAGE_NAME (s.minsym) != NULL
+	  && (strcmp (MSYMBOL_LINKAGE_NAME (s.minsym), "__eabi") == 0
+	      || strcmp (MSYMBOL_LINKAGE_NAME (s.minsym), "___eabi") == 0))
 	pc += 4;
     }
   return pc;
@@ -2255,7 +2255,7 @@ rs6000_skip_trampoline_code (struct frame_info *frame, CORE_ADDR pc)
   msymbol = lookup_minimal_symbol_by_pc (pc);
   if (msymbol.minsym
       && rs6000_in_solib_return_trampoline (gdbarch, pc,
-					    SYMBOL_LINKAGE_NAME (msymbol.minsym)))
+					    MSYMBOL_LINKAGE_NAME (msymbol.minsym)))
     {
       /* Double-check that the third instruction from PC is relative "b".  */
       op = read_memory_integer (pc + 8, 4, byte_order);
@@ -3190,9 +3190,14 @@ rs6000_frame_cache (struct frame_info *this_frame, void **this_cache)
     }
 
   if (!fdata.frameless)
-    /* Frameless really means stackless.  */
-    cache->base
-      = read_memory_unsigned_integer (cache->base, wordsize, byte_order);
+    {
+      /* Frameless really means stackless.  */
+      LONGEST backchain;
+
+      if (safe_read_memory_integer (cache->base, wordsize,
+				    byte_order, &backchain))
+        cache->base = (CORE_ADDR) backchain;
+    }
 
   trad_frame_set_value (cache->saved_regs,
 			gdbarch_sp_regnum (gdbarch), cache->base);
@@ -3257,12 +3262,14 @@ rs6000_frame_cache (struct frame_info *this_frame, void **this_cache)
 	{
 	  int i;
 	  CORE_ADDR ev_addr = cache->base + fdata.ev_offset;
+	  CORE_ADDR off = (byte_order == BFD_ENDIAN_BIG ? 4 : 0);
+
 	  for (i = fdata.saved_ev; i < ppc_num_gprs; i++)
 	    {
 	      cache->saved_regs[tdep->ppc_ev0_regnum + i].addr = ev_addr;
-              cache->saved_regs[tdep->ppc_gp0_regnum + i].addr = ev_addr + 4;
+	      cache->saved_regs[tdep->ppc_gp0_regnum + i].addr = ev_addr + off;
 	      ev_addr += register_size (gdbarch, tdep->ppc_ev0_regnum);
-            }
+	    }
 	}
     }
 

@@ -1,6 +1,6 @@
 # configure.tgt
 #
-#   Copyright 2013 Free Software Foundation
+#   Copyright (C) 2013-2014 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@
 #  targ_emul		name of linker emulation to use
 #  targ_extra_emuls	additional linker emulations to provide
 #  targ_extra_libpath	additional linker emulations using LIB_PATH
-#  targ_extra_ofiles	additional objects needed by the emulation
+#  targ_extra_ofiles	additional host-compiled objects needed by the emulation
 #  targ64_extra_emuls	additional linker emulations to provide if
 #  			--enable-64-bit-bfd is given or if host is 64 bit.
 #  targ64_extra_libpath	additional linker emulations using LIB_PATH if
@@ -81,9 +81,11 @@ arm-*-pe)		targ_emul=armpe ; targ_extra_ofiles="deffilep.o pe-dll.o" ;;
 arm-*-aout | armel-*-aout) targ_emul=armaoutl ;;
 armeb-*-aout)		targ_emul=armaoutb ;;
 arm-*-coff)		targ_emul=armcoff ;;
-arm-*-freebsd* | arm-*-kfreebsd*-gnu)
+arm*b-*-freebsd*)	targ_emul=armelfb_fbsd
+			targ_extra_emuls="armelf_fbsd armelf" ;;
+arm*-*-freebsd* | arm-*-kfreebsd*-gnu)
 	       		targ_emul=armelf_fbsd
-			targ_extra_emuls="armelf" ;;
+			targ_extra_emuls="armelfb_fbsd armelf" ;;
 armeb-*-netbsdelf*)	targ_emul=armelfb_nbsd;
 			targ_extra_emuls="armelf_nbsd armelf armnbsd" ;;
 arm-*-netbsdelf*)	targ_emul=armelf_nbsd;
@@ -93,7 +95,8 @@ arm-*-netbsd*)		targ_emul=armnbsd;
 arm-*-nto*)		targ_emul=armnto ;;
 arm-*-openbsd*)		targ_emul=armnbsd ;;
 arm-*-rtems*)		targ_emul=armelf ;;
-armeb-*-elf)		targ_emul=armelfb ;;
+armeb-*-elf | armeb-*-eabi*)
+			targ_emul=armelfb ;;
 arm-*-elf | arm*-*-eabi*)
 	  		targ_emul=armelf ;;
 arm*-*-symbianelf*)     targ_emul=armsymbian;;
@@ -138,7 +141,7 @@ arm*-*-uclinux*)	targ_emul=armelf_linux
 arm-*-vxworks)		targ_emul=armelf_vxworks ;;
 arm*-*-conix*)		targ_emul=armelf ;;
 avr-*-*)		targ_emul=avr2
-			targ_extra_emuls="avr1 avr25 avr3 avr31 avr35 avr4 avr5 avr51 avr6 avrxmega1 avrxmega2 avrxmega3 avrxmega4 avrxmega5 avrxmega6 avrxmega7"
+			targ_extra_emuls="avr1 avr25 avr3 avr31 avr35 avr4 avr5 avr51 avr6 avrxmega1 avrxmega2 avrxmega3 avrxmega4 avrxmega5 avrxmega6 avrxmega7 avrtiny"
 			;;
 bfin-*-elf)		targ_emul=elf32bfin;
 			targ_extra_emuls="elf32bfinfd"
@@ -185,6 +188,8 @@ fr30-*-*)		targ_emul=elf32fr30
 			;;
 frv-*-*linux*)		targ_emul=elf32frvfd ;;
 frv-*-*)		targ_emul=elf32frv ; targ_extra_emuls="elf32frvfd"
+			;;
+moxie-*-moxiebox*)	targ_emul=moxiebox
 			;;
 moxie-*-*)		targ_emul=elf32moxie
 			;;
@@ -313,7 +318,7 @@ i[3-7]86-*-winnt*)	targ_emul=i386pe ;
 i[3-7]86-*-pe)		targ_emul=i386pe ;
 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
 i[3-7]86-*-cygwin*)	targ_emul=i386pe ;
-			targ_extra_ofiles="deffilep.o pe-dll.o"
+			targ_extra_ofiles="deffilep.o pe-dll.o" ;
 			test "$targ" != "$host" && LIB_PATH='${tooldir}/lib/w32api' ;;
 i[3-7]86-*-mingw32*)	targ_emul=i386pe ;
 			targ_extra_ofiles="deffilep.o pe-dll.o" ;;
@@ -454,7 +459,7 @@ mips*vr5000el-*-elf*)	targ_emul=elf32l4300 ;;
 mips*vr5000-*-elf*)	targ_emul=elf32b4300 ;;
 mips*el-sde-elf*)	targ_emul=elf32ltsmip
 			targ_extra_emuls="elf32btsmip elf32ltsmipn32 elf64ltsmip elf32btsmipn32 elf64btsmip" ;;
-mips*-sde-elf* | mips*-mti-elf*)
+mips*-sde-elf* | mips*-mti-elf* | mips*-img-elf*)
 			targ_emul=elf32btsmip
 			targ_extra_emuls="elf32ltsmip elf32btsmipn32 elf64btsmip elf32ltsmipn32 elf64ltsmip" ;;
 mips64*el-ps2-elf*)	targ_emul=elf32lr5900n32
@@ -527,10 +532,9 @@ nios2*-*-*)		targ_emul=nios2elf ;;
 ns32k-pc532-mach* | ns32k-pc532-ux*)  targ_emul=pc532macha ;;
 ns32k-*-netbsd* | ns32k-pc532-lites*) targ_emul=ns32knbsd
 			;;
-openrisc-*-*)		targ_emul=elf32openrisc ;;
-or32-*-coff)		targ_emul=or32 ;;
-or32-*-elf)		targ_emul=or32elf ;;
-or32-*-rtems*)          targ_emul=or32elf
+or1k-*-elf | or1knd-*-elf)		targ_emul=elf32or1k ;;
+or1k-*-linux* | or1knd-*-linux*)	targ_emul=elf32or1k_linux ;;
+or1k-*-rtems* | or1knd-*-rtems*)	targ_emul=elf32or1k
 			;;
 pdp11-*-*)		targ_emul=pdp11
 			;;
@@ -781,7 +785,7 @@ NATIVE_LIB_DIRS='/usr/local/lib /lib /usr/lib'
 case "${target}" in
 
 *-*-dragonfly*)
-  NATIVE_LIB_DIRS='/usr/lib /usr/pkg/lib /usr/local/lib'
+  NATIVE_LIB_DIRS='/lib /usr/lib /usr/pkg/lib /usr/local/lib'
   ;;
 
 *-*-freebsd*)

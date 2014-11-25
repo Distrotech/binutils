@@ -29,7 +29,6 @@
 #include "completer.h"
 #include "gcore.h"
 #include "cli/cli-decode.h"
-#include "gdb_assert.h"
 #include <fcntl.h>
 #include "regcache.h"
 #include "regset.h"
@@ -61,13 +60,12 @@ create_gcore_bfd (const char *filename)
   return obfd;
 }
 
-/* write_gcore_file -- helper for gcore_command (exported).
-   Compose and write the corefile data to the core file.  */
+/* write_gcore_file_1 -- do the actual work of write_gcore_file.  */
 
-
-void
-write_gcore_file (bfd *obfd)
+static void
+write_gcore_file_1 (bfd *obfd)
 {
+  struct cleanup *cleanup;
   void *note_data = NULL;
   int note_size = 0;
   asection *note_sec = NULL;
@@ -80,6 +78,8 @@ write_gcore_file (bfd *obfd)
     note_data = target_make_corefile_notes (obfd, &note_size);
   else
     note_data = gdbarch_make_corefile_notes (target_gdbarch (), obfd, &note_size);
+
+  cleanup = make_cleanup (xfree, note_data);
 
   if (note_data == NULL || note_size == 0)
     error (_("Target does not support core file generation."));
@@ -104,6 +104,27 @@ write_gcore_file (bfd *obfd)
   /* Write out the contents of the note section.  */
   if (!bfd_set_section_contents (obfd, note_sec, note_data, 0, note_size))
     warning (_("writing note section (%s)"), bfd_errmsg (bfd_get_error ()));
+
+  do_cleanups (cleanup);
+}
+
+/* write_gcore_file -- helper for gcore_command (exported).
+   Compose and write the corefile data to the core file.  */
+
+void
+write_gcore_file (bfd *obfd)
+{
+  volatile struct gdb_exception except;
+
+  target_prepare_to_generate_core ();
+
+  TRY_CATCH (except, RETURN_MASK_ALL)
+    write_gcore_file_1 (obfd);
+
+  target_done_generating_core ();
+
+  if (except.reason < 0)
+    throw_exception (except);
 }
 
 static void
@@ -268,13 +289,13 @@ call_target_sbrk (int sbrk_arg)
   struct value *sbrk_fn, *ret;
   bfd_vma tmp;
 
-  if (lookup_minimal_symbol ("sbrk", NULL, NULL) != NULL)
+  if (lookup_minimal_symbol ("sbrk", NULL, NULL).minsym != NULL)
     {
       sbrk_fn = find_function_in_inferior ("sbrk", &sbrk_objf);
       if (sbrk_fn == NULL)
 	return (bfd_vma) 0;
     }
-  else if (lookup_minimal_symbol ("_sbrk", NULL, NULL) != NULL)
+  else if (lookup_minimal_symbol ("_sbrk", NULL, NULL).minsym != NULL)
     {
       sbrk_fn = find_function_in_inferior ("_sbrk", &sbrk_objf);
       if (sbrk_fn == NULL)

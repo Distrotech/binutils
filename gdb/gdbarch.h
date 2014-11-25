@@ -35,9 +35,10 @@
 #ifndef GDBARCH_H
 #define GDBARCH_H
 
+#include "frame.h"
+
 struct floatformat;
 struct ui_file;
-struct frame_info;
 struct value;
 struct objfile;
 struct obj_section;
@@ -58,6 +59,8 @@ struct axs_value;
 struct stap_parse_info;
 struct ravenscar_arch_ops;
 struct elf_internal_linux_prpsinfo;
+struct mem_range;
+struct syscalls_info;
 
 /* The architecture associated with the inferior through the
    connection to the target.
@@ -79,6 +82,10 @@ extern struct gdbarch *target_gdbarch (void);
 
 typedef int (iterate_over_objfiles_in_search_order_cb_ftype)
   (struct objfile *objfile, void *cb_data);
+
+typedef void (iterate_over_regset_sections_cb)
+  (const char *sect_name, int size, const struct regset *regset,
+   const char *human_name, void *cb_data);
 
 
 /* The following are pre-initialized by GDBARCH.  */
@@ -422,12 +429,12 @@ extern void gdbarch_value_to_register (struct gdbarch *gdbarch, struct frame_inf
 extern void set_gdbarch_value_to_register (struct gdbarch *gdbarch, gdbarch_value_to_register_ftype *value_to_register);
 
 /* Construct a value representing the contents of register REGNUM in
-   frame FRAME, interpreted as type TYPE.  The routine needs to
+   frame FRAME_ID, interpreted as type TYPE.  The routine needs to
    allocate and return a struct value with all value attributes
    (but not the value contents) filled in. */
 
-typedef struct value * (gdbarch_value_from_register_ftype) (struct type *type, int regnum, struct frame_info *frame);
-extern struct value * gdbarch_value_from_register (struct gdbarch *gdbarch, struct type *type, int regnum, struct frame_info *frame);
+typedef struct value * (gdbarch_value_from_register_ftype) (struct gdbarch *gdbarch, struct type *type, int regnum, struct frame_id frame_id);
+extern struct value * gdbarch_value_from_register (struct gdbarch *gdbarch, struct type *type, int regnum, struct frame_id frame_id);
 extern void set_gdbarch_value_from_register (struct gdbarch *gdbarch, gdbarch_value_from_register_ftype *value_from_register);
 
 typedef CORE_ADDR (gdbarch_pointer_to_address_ftype) (struct gdbarch *gdbarch, struct type *type, const gdb_byte *buf);
@@ -731,19 +738,18 @@ typedef CORE_ADDR (gdbarch_fetch_pointer_argument_ftype) (struct frame_info *fra
 extern CORE_ADDR gdbarch_fetch_pointer_argument (struct gdbarch *gdbarch, struct frame_info *frame, int argi, struct type *type);
 extern void set_gdbarch_fetch_pointer_argument (struct gdbarch *gdbarch, gdbarch_fetch_pointer_argument_ftype *fetch_pointer_argument);
 
-/* Return the appropriate register set for a core file section with
-   name SECT_NAME and size SECT_SIZE. */
+/* Iterate over all supported register notes in a core file.  For each
+   supported register note section, the iterator must call CB and pass
+   CB_DATA unchanged.  If REGCACHE is not NULL, the iterator can limit
+   the supported register note sections based on the current register
+   values.  Otherwise it should enumerate all supported register note
+   sections. */
 
-extern int gdbarch_regset_from_core_section_p (struct gdbarch *gdbarch);
+extern int gdbarch_iterate_over_regset_sections_p (struct gdbarch *gdbarch);
 
-typedef const struct regset * (gdbarch_regset_from_core_section_ftype) (struct gdbarch *gdbarch, const char *sect_name, size_t sect_size);
-extern const struct regset * gdbarch_regset_from_core_section (struct gdbarch *gdbarch, const char *sect_name, size_t sect_size);
-extern void set_gdbarch_regset_from_core_section (struct gdbarch *gdbarch, gdbarch_regset_from_core_section_ftype *regset_from_core_section);
-
-/* Supported register notes in a core file. */
-
-extern struct core_regset_section * gdbarch_core_regset_sections (struct gdbarch *gdbarch);
-extern void set_gdbarch_core_regset_sections (struct gdbarch *gdbarch, struct core_regset_section * core_regset_sections);
+typedef void (gdbarch_iterate_over_regset_sections_ftype) (struct gdbarch *gdbarch, iterate_over_regset_sections_cb *cb, void *cb_data, const struct regcache *regcache);
+extern void gdbarch_iterate_over_regset_sections (struct gdbarch *gdbarch, iterate_over_regset_sections_cb *cb, void *cb_data, const struct regcache *regcache);
+extern void set_gdbarch_iterate_over_regset_sections (struct gdbarch *gdbarch, gdbarch_iterate_over_regset_sections_ftype *iterate_over_regset_sections);
 
 /* Create core file notes */
 
@@ -823,8 +829,6 @@ extern int gdbarch_vbit_in_delta (struct gdbarch *gdbarch);
 extern void set_gdbarch_vbit_in_delta (struct gdbarch *gdbarch, int vbit_in_delta);
 
 /* Advance PC to next instruction in order to skip a permanent breakpoint. */
-
-extern int gdbarch_skip_permanent_breakpoint_p (struct gdbarch *gdbarch);
 
 typedef void (gdbarch_skip_permanent_breakpoint_ftype) (struct regcache *regcache);
 extern void gdbarch_skip_permanent_breakpoint (struct gdbarch *gdbarch, struct regcache *regcache);
@@ -1053,6 +1057,16 @@ typedef LONGEST (gdbarch_get_syscall_number_ftype) (struct gdbarch *gdbarch, pti
 extern LONGEST gdbarch_get_syscall_number (struct gdbarch *gdbarch, ptid_t ptid);
 extern void set_gdbarch_get_syscall_number (struct gdbarch *gdbarch, gdbarch_get_syscall_number_ftype *get_syscall_number);
 
+/* The filename of the XML syscall for this architecture. */
+
+extern const char * gdbarch_xml_syscall_file (struct gdbarch *gdbarch);
+extern void set_gdbarch_xml_syscall_file (struct gdbarch *gdbarch, const char * xml_syscall_file);
+
+/* Information about system calls from this architecture */
+
+extern struct syscalls_info * gdbarch_syscalls_info (struct gdbarch *gdbarch);
+extern void set_gdbarch_syscalls_info (struct gdbarch *gdbarch, struct syscalls_info * syscalls_info);
+
 /* SystemTap related fields and functions.
    A NULL-terminated array of prefixes used to mark an integer constant
    on the architecture's assembly.
@@ -1250,8 +1264,8 @@ extern void set_gdbarch_gen_return_address (struct gdbarch *gdbarch, gdbarch_gen
 
 extern int gdbarch_info_proc_p (struct gdbarch *gdbarch);
 
-typedef void (gdbarch_info_proc_ftype) (struct gdbarch *gdbarch, char *args, enum info_proc_what what);
-extern void gdbarch_info_proc (struct gdbarch *gdbarch, char *args, enum info_proc_what what);
+typedef void (gdbarch_info_proc_ftype) (struct gdbarch *gdbarch, const char *args, enum info_proc_what what);
+extern void gdbarch_info_proc (struct gdbarch *gdbarch, const char *args, enum info_proc_what what);
 extern void set_gdbarch_info_proc (struct gdbarch *gdbarch, gdbarch_info_proc_ftype *info_proc);
 
 /* Implement the "info proc" command for core files.  Noe that there
@@ -1260,8 +1274,8 @@ extern void set_gdbarch_info_proc (struct gdbarch *gdbarch, gdbarch_info_proc_ft
 
 extern int gdbarch_core_info_proc_p (struct gdbarch *gdbarch);
 
-typedef void (gdbarch_core_info_proc_ftype) (struct gdbarch *gdbarch, char *args, enum info_proc_what what);
-extern void gdbarch_core_info_proc (struct gdbarch *gdbarch, char *args, enum info_proc_what what);
+typedef void (gdbarch_core_info_proc_ftype) (struct gdbarch *gdbarch, const char *args, enum info_proc_what what);
+extern void gdbarch_core_info_proc (struct gdbarch *gdbarch, const char *args, enum info_proc_what what);
 extern void set_gdbarch_core_info_proc (struct gdbarch *gdbarch, gdbarch_core_info_proc_ftype *core_info_proc);
 
 /* Iterate over all objfiles in the order that makes the most sense
@@ -1304,6 +1318,26 @@ extern void set_gdbarch_insn_is_ret (struct gdbarch *gdbarch, gdbarch_insn_is_re
 typedef int (gdbarch_insn_is_jump_ftype) (struct gdbarch *gdbarch, CORE_ADDR addr);
 extern int gdbarch_insn_is_jump (struct gdbarch *gdbarch, CORE_ADDR addr);
 extern void set_gdbarch_insn_is_jump (struct gdbarch *gdbarch, gdbarch_insn_is_jump_ftype *insn_is_jump);
+
+/* Read one auxv entry from *READPTR, not reading locations >= ENDPTR.
+   Return 0 if *READPTR is already at the end of the buffer.
+   Return -1 if there is insufficient buffer for a whole entry.
+   Return 1 if an entry was read into *TYPEP and *VALP. */
+
+extern int gdbarch_auxv_parse_p (struct gdbarch *gdbarch);
+
+typedef int (gdbarch_auxv_parse_ftype) (struct gdbarch *gdbarch, gdb_byte **readptr, gdb_byte *endptr, CORE_ADDR *typep, CORE_ADDR *valp);
+extern int gdbarch_auxv_parse (struct gdbarch *gdbarch, gdb_byte **readptr, gdb_byte *endptr, CORE_ADDR *typep, CORE_ADDR *valp);
+extern void set_gdbarch_auxv_parse (struct gdbarch *gdbarch, gdbarch_auxv_parse_ftype *auxv_parse);
+
+/* Find the address range of the current inferior's vsyscall/vDSO, and
+   write it to *RANGE.  If the vsyscall's length can't be determined, a
+   range with zero length is returned.  Returns true if the vsyscall is
+   found, false otherwise. */
+
+typedef int (gdbarch_vsyscall_range_ftype) (struct gdbarch *gdbarch, struct mem_range *range);
+extern int gdbarch_vsyscall_range (struct gdbarch *gdbarch, struct mem_range *range);
+extern void set_gdbarch_vsyscall_range (struct gdbarch *gdbarch, gdbarch_vsyscall_range_ftype *vsyscall_range);
 
 /* Definition for an unknown syscall, used basically in error-cases.  */
 #define UNKNOWN_SYSCALL (-1)

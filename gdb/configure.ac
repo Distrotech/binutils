@@ -24,7 +24,7 @@ AC_CONFIG_HEADER(config.h:config.in)
 AM_MAINTAINER_MODE
 
 # Set the 'development' global.
-. $srcdir/development.sh
+. $srcdir/../bfd/development.sh
 
 AC_PROG_CC
 AC_USE_SYSTEM_EXTENSIONS
@@ -546,33 +546,6 @@ AS_HELP_STRING([--with-iconv-bin=PATH], [specify where to find the iconv program
  GDB_AC_DEFINE_RELOCATABLE(ICONV_BIN, iconv, ${iconv_bin})
 ])
 
-# On alpha-osf, it appears that libtermcap and libcurses are not compatible.
-# There is a very specific comment in /usr/include/curses.h explaining that
-# termcap routines built into libcurses must not be used.
-#
-# The symptoms we observed so far is GDB unexpectedly changing
-# the terminal settings when tgetent is called - this is particularly
-# visible as the output is missing carriage returns, and so rapidly
-# becomes very hard to read.
-#
-# The readline configure script has already decided that libtermcap
-# was enough for its purposes, and so decided to build readline using
-# libtermcap.  Since the TUI mode requires curses, building GDB with
-# TUI enabled results in both libraries to be used at the same time,
-# which is not allowed.  This basically means that GDB with TUI is
-# broken on alpha-osf.
-
-case $host_os in
-  osf* )
-    if test x"$enable_tui" = xyes; then
-      AC_MSG_ERROR([Building GDB with TUI mode is not supported on this host])
-    fi
-    if test x"$enable_tui" = xauto; then
-      enable_tui=no
-    fi
-    ;;
-esac
-
 # For the TUI, we need enhanced curses functionality.
 if test x"$enable_tui" != xno; then
   prefer_curses=yes
@@ -999,15 +972,6 @@ if test "${have_libpython}" != no; then
     AC_MSG_RESULT(${PYTHON_CFLAGS})
   fi
 
-  # On IRIX, type siginfo is not defined.  Instead, sys/siginfo.h provides:
-  #    #if _SGIAPI
-  #    #define siginfo __siginfo
-  #    #endif
-  # The problem is that including Python causes some XOPEN macros to be
-  # unilaterally defined, and that in turn causes _SGIAPI to evaluate
-  # to false.  So, we work around this issue by defining siginfo ourself
-  # though the command-line.
-  #
   # On x64 Windows, Python's include headers, and pyconfig.h in
   # particular, rely on MS_WIN64 macro to detect that it's a 64bit
   # version of Windows.  Unfortunately, MS_WIN64 is only defined if
@@ -1017,10 +981,6 @@ if test "${have_libpython}" != no; then
   # solved as of 2012-10-02 (http://bugs.python.org/issue4709).
 
   case "$gdb_host" in
-    irix*) if test "${GCC}" = yes; then
-             CPPFLAGS="$CPPFLAGS -Dsiginfo=__siginfo"
-           fi
-           ;;
     mingw64)
            if test "${GCC}" = yes; then
              CPPFLAGS="$CPPFLAGS -DMS_WIN64"
@@ -1053,6 +1013,7 @@ fi
 AC_SUBST(PYTHON_CFLAGS)
 AC_SUBST(PYTHON_CPPFLAGS)
 AC_SUBST(PYTHON_LIBS)
+AM_CONDITIONAL(HAVE_PYTHON, test "${have_libpython}" != no)
 
 # -------------------- #
 # Check for libguile.  #
@@ -1142,8 +1103,9 @@ dnl        It could be a shell script.  It is invoked as:
 dnl        pkg-config --exists $version
 dnl        pkg-config --cflags $version
 dnl        pkg-config --libs $version
-dnl        $version will be the default guile version (currently guile-2.0),
-dnl        but the program is free to ignore this.
+dnl        pkg-config --variable guild $version
+dnl        The script will be called with $version having each value in
+dnl        $try_guile_versions until --exists indicates success.
 
 AC_ARG_WITH(guile,
   AS_HELP_STRING([--with-guile@<:@=GUILE@:>@], [include guile support (auto/yes/no/<guile-version>/<pkg-config-program>)]),
@@ -1154,7 +1116,7 @@ AC_MSG_RESULT([$with_guile])
 dnl We check guile with pkg-config.
 AC_PATH_PROG(pkg_config_prog_path, pkg-config, missing)
 
-try_guile_versions="guile-2.0"
+try_guile_versions="guile-2.2 guile-2.0"
 have_libguile=no
 case "${with_guile}" in
 no)
@@ -1194,12 +1156,41 @@ yes)
 esac
 
 if test "${have_libguile}" != no; then
+  dnl Get the name of the 'guild' program.
+  case "${with_guile}" in
+  [[\\/]]* | ?:[[\\/]]*)
+    GDB_GUILE_PROGRAM_NAMES(["${with_guile}"], ["${guile_version}"])
+    ;;
+  *)
+    GDB_GUILE_PROGRAM_NAMES(["${pkg_config_prog_path}"], ["${guile_version}"])
+    ;;
+  esac
+
+  dnl Make sure guild can handle this host.
+  GDB_TRY_GUILD([$srcdir/guile/lib/gdb/support.scm])
+  dnl If not, disable guile support.
+  if test "$ac_cv_guild_ok" = no; then
+    have_libguile=no
+    AC_MSG_WARN(disabling guile support, $GUILD fails compiling for $host)
+  fi
+fi
+
+if test "${have_libguile}" != no; then
   AC_DEFINE(HAVE_GUILE, 1, [Define if Guile interpreter is being linked in.])
   CONFIG_OBS="$CONFIG_OBS \$(SUBDIR_GUILE_OBS)"
   CONFIG_DEPS="$CONFIG_DEPS \$(SUBDIR_GUILE_DEPS)"
   CONFIG_SRCS="$CONFIG_SRCS \$(SUBDIR_GUILE_SRCS)"
   CONFIG_INSTALL="$CONFIG_INSTALL install-guile"
   ENABLE_CFLAGS="$ENABLE_CFLAGS \$(SUBDIR_GUILE_CFLAGS)"
+
+  dnl The 'scm_new_smob' function appeared in Guile 2.0.6.
+  save_LIBS="$LIBS"
+  save_CPPFLAGS="$CPPFLAGS"
+  LIBS="$GUILE_LIBS"
+  CPPFLAGS="$GUILE_CPPFLAGS"
+  AC_CHECK_FUNCS([scm_new_smob])
+  LIBS="$save_LIBS"
+  CPPFLAGS="$save_CPPFLAGS"
 else
   # Even if Guile support is not compiled in, we need to have these files
   # included.
@@ -1208,6 +1199,7 @@ else
 fi
 AC_SUBST(GUILE_CPPFLAGS)
 AC_SUBST(GUILE_LIBS)
+AM_CONDITIONAL(HAVE_GUILE, test "${have_libguile}" != no)
 
 # --------------------- #
 # Check for libmcheck.  #
@@ -1310,7 +1302,6 @@ AC_C_BIGENDIAN
 # Checks for library functions.  #
 # ------------------------------ #
 
-AC_FUNC_ALLOCA
 AC_FUNC_MMAP
 AC_FUNC_VFORK
 AC_CHECK_FUNCS([canonicalize_file_name realpath getrusage getuid getgid \
@@ -1319,7 +1310,7 @@ AC_CHECK_FUNCS([canonicalize_file_name realpath getrusage getuid getgid \
 		sigaction sigprocmask sigsetmask socketpair \
 		ttrace wborder wresize setlocale iconvlist libiconvlist btowc \
 		setrlimit getrlimit posix_madvise waitpid lstat \
-		ptrace64])
+		ptrace64 sigaltstack])
 AM_LANGINFO_CODESET
 GDB_AC_COMMON
 
@@ -1410,17 +1401,6 @@ else
 if test $ac_cv_func_setpgrp_void = yes; then
   AC_DEFINE(SETPGRP_VOID, 1)
 fi
-fi
-
-# Check if sigsetjmp is available.  Using AC_CHECK_FUNCS won't do
-# since sigsetjmp might only be defined as a macro.
-AC_CACHE_CHECK([for sigsetjmp], gdb_cv_func_sigsetjmp,
-[AC_TRY_COMPILE([
-#include <setjmp.h>
-], [sigjmp_buf env; while (! sigsetjmp (env, 1)) siglongjmp (env, 1);],
-gdb_cv_func_sigsetjmp=yes, gdb_cv_func_sigsetjmp=no)])
-if test $gdb_cv_func_sigsetjmp = yes; then
-  AC_DEFINE(HAVE_SIGSETJMP, 1, [Define if sigsetjmp is available. ])
 fi
 
 # Assume we'll default to using the included libiberty regex.
@@ -2408,6 +2388,7 @@ else
 			struct bt_ctf_event *event = NULL;
 			const struct bt_definition *scope;
 
+			bt_iter_set_pos (bt_ctf_get_iter (NULL), pos);
 			scope = bt_ctf_get_top_level_scope (event,
 			      				   BT_STREAM_EVENT_HEADER);
 		        bt_ctf_get_uint64 (bt_ctf_get_field (event, scope, "id"));

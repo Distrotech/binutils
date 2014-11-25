@@ -1,7 +1,5 @@
 /* tc-m68k.c -- Assemble for the m68k family
-   Copyright 1987, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1987-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -1397,11 +1395,11 @@ static struct hash_control *op_hash;
 static void
 m68k_ip (char *instring)
 {
-  register char *p;
-  register struct m68k_op *opP;
-  register const struct m68k_incant *opcode;
-  register const char *s;
-  register int tmpreg = 0, baseo = 0, outro = 0, nextword;
+  char *p;
+  struct m68k_op *opP;
+  const struct m68k_incant *opcode;
+  const char *s;
+  int tmpreg = 0, baseo = 0, outro = 0, nextword;
   char *pdot, *pdotmove;
   enum m68k_size siz1, siz2;
   char c;
@@ -3957,9 +3955,9 @@ install_gen_operand (int mode, int val)
 static char *
 crack_operand (char *str, struct m68k_op *opP)
 {
-  register int parens;
-  register int c;
-  register char *beg_str;
+  int parens;
+  int c;
+  char *beg_str;
   int inquote = 0;
 
   if (!str)
@@ -4513,7 +4511,8 @@ md_assemble (char *str)
 		       (relax_substateT) (the_ins.fragb[n].fragty),
 		       the_ins.fragb[n].fadd, the_ins.fragb[n].foff, to_beg_P);
     }
-  n = (the_ins.numo - the_ins.fragb[n - 1].fragoff);
+  gas_assert (the_ins.nfrag >= 1);
+  n = the_ins.numo - the_ins.fragb[the_ins.nfrag - 1].fragoff;
   shorts_this_frag = 0;
   if (n)
     {
@@ -5034,12 +5033,12 @@ md_convert_frag_1 (fragS *fragP)
   fixS *fixP = NULL;
 
   /* Address in object code of the displacement.  */
-  register int object_address = fragP->fr_fix + fragP->fr_address;
+  int object_address = fragP->fr_fix + fragP->fr_address;
 
   /* Address in gas core of the place to store the displacement.  */
   /* This convinces the native rs6000 compiler to generate the code we
      want.  */
-  register char *buffer_address = fragP->fr_literal;
+  char *buffer_address = fragP->fr_literal;
   buffer_address += fragP->fr_fix;
   /* End ibm compiler workaround.  */
 
@@ -5168,10 +5167,6 @@ md_convert_frag_1 (fragS *fragP)
       /* Only DBcc instructions can come here.
 	 Change dbcc into dbcc/bral.
 	 JF: these used to be fr_opcode[2-7], but that's wrong.  */
-      if (flag_keep_pcrel)
-    	as_bad_where (fragP->fr_file, fragP->fr_line,
-		  _("Conversion of DBcc to absolute jump"));
-
       *buffer_address++ = 0x00;	/* Branch offset = 4.  */
       *buffer_address++ = 0x04;
       *buffer_address++ = 0x60;	/* Put in bra pc+6.  */
@@ -5668,8 +5663,8 @@ s_bss (int ignore ATTRIBUTE_UNUSED)
 static void
 s_even (int ignore ATTRIBUTE_UNUSED)
 {
-  register int temp;
-  register long temp_fill;
+  int temp;
+  long temp_fill;
 
   temp = 1;			/* JF should be 2? */
   temp_fill = get_absolute_expression ();

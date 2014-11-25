@@ -22,7 +22,6 @@
 
 #include "defs.h"
 #include "charset.h"
-#include "gdb_assert.h"
 #include "symtab.h" /* Needed by language.h.  */
 #include "language.h"
 #include "objfiles.h"
@@ -111,11 +110,8 @@ static const char pretty_printer_worker_smob_name[] =
 static scm_t_bits pretty_printer_smob_tag;
 static scm_t_bits pretty_printer_worker_smob_tag;
 
-/* Global list of pretty-printers.  */
-static const char pretty_printer_list_name[] = "*pretty-printers*";
-
-/* The *pretty-printer* variable.  */
-static SCM pretty_printer_list_var;
+/* The global pretty-printer list.  */
+static SCM pretty_printer_list;
 
 /* gdb:pp-type-error.  */
 static SCM pp_type_error_symbol;
@@ -126,20 +122,6 @@ static SCM ppscm_array_string;
 static SCM ppscm_string_string;
 
 /* Administrivia for pretty-printer matcher smobs.  */
-
-/* The smob "mark" function for <gdb:pretty-printer>.  */
-
-static SCM
-ppscm_mark_pretty_printer_smob (SCM self)
-{
-  pretty_printer_smob *pp_smob = (pretty_printer_smob *) SCM_SMOB_DATA (self);
-
-  scm_gc_mark (pp_smob->name);
-  scm_gc_mark (pp_smob->enabled);
-  scm_gc_mark (pp_smob->lookup);
-  /* Do this last.  */
-  return gdbscm_mark_gsmob (&pp_smob->base);
-}
 
 /* The smob "print" function for <gdb:pretty-printer>.  */
 
@@ -253,24 +235,32 @@ gdbscm_set_pretty_printer_enabled_x (SCM self, SCM enabled)
 
   return SCM_UNSPECIFIED;
 }
+
+/* (pretty-printers) -> list
+   Returns the list of global pretty-printers.  */
+
+static SCM
+gdbscm_pretty_printers (void)
+{
+  return pretty_printer_list;
+}
+
+/* (set-pretty-printers! list) -> unspecified
+   Set the global pretty-printers list.  */
+
+static SCM
+gdbscm_set_pretty_printers_x (SCM printers)
+{
+  SCM_ASSERT_TYPE (gdbscm_is_true (scm_list_p (printers)), printers,
+		   SCM_ARG1, FUNC_NAME, _("list"));
+
+  pretty_printer_list = printers;
+
+  return SCM_UNSPECIFIED;
+}
 
 /* Administrivia for pretty-printer-worker smobs.
    These are created when a matcher recognizes a value.  */
-
-/* The smob "mark" function for <gdb:pretty-printer-worker>.  */
-
-static SCM
-ppscm_mark_pretty_printer_worker_smob (SCM self)
-{
-  pretty_printer_worker_smob *w_smob
-    = (pretty_printer_worker_smob *) SCM_SMOB_DATA (self);
-
-  scm_gc_mark (w_smob->display_hint);
-  scm_gc_mark (w_smob->to_string);
-  scm_gc_mark (w_smob->children);
-  /* Do this last.  */
-  return gdbscm_mark_gsmob (&w_smob->base);
-}
 
 /* The smob "print" function for <gdb:pretty-printer-worker>.  */
 
@@ -470,7 +460,11 @@ ppscm_find_pretty_printer_from_objfiles (SCM value)
 static SCM
 ppscm_find_pretty_printer_from_progspace (SCM value)
 {
-  return SCM_BOOL_F; /*TODO*/
+  pspace_smob *p_smob = psscm_pspace_smob_from_pspace (current_program_space);
+  SCM pp
+    = ppscm_search_pp_list (psscm_pspace_smob_pretty_printers (p_smob), value);
+
+  return pp;
 }
 
 /* Subroutine of find_pretty_printer to simplify it.
@@ -482,11 +476,8 @@ ppscm_find_pretty_printer_from_progspace (SCM value)
 static SCM
 ppscm_find_pretty_printer_from_gdb (SCM value)
 {
-  SCM pp_list, pp;
+  SCM pp = ppscm_search_pp_list (pretty_printer_list, value);
 
-  /* Fetch the global pretty printer list.  */
-  pp_list = scm_variable_ref (pretty_printer_list_var);
-  pp = ppscm_search_pp_list (pp_list, value);
   return pp;
 }
 
@@ -1099,6 +1090,15 @@ Create a <gdb:pretty-printer-worker> object.\n\
     "\
 Return #t if the object is a <gdb:pretty-printer-worker> object." },
 
+  { "pretty-printers", 0, 0, 0, gdbscm_pretty_printers,
+    "\
+Return the list of global pretty-printers." },
+
+  { "set-pretty-printers!", 1, 0, 0,
+    gdbscm_set_pretty_printers_x,
+    "\
+Set the list of global pretty-printers." },
+
   END_FUNCTIONS
 };
 
@@ -1108,27 +1108,18 @@ gdbscm_initialize_pretty_printers (void)
   pretty_printer_smob_tag
     = gdbscm_make_smob_type (pretty_printer_smob_name,
 			     sizeof (pretty_printer_smob));
-  scm_set_smob_mark (pretty_printer_smob_tag,
-		     ppscm_mark_pretty_printer_smob);
   scm_set_smob_print (pretty_printer_smob_tag,
 		      ppscm_print_pretty_printer_smob);
 
   pretty_printer_worker_smob_tag
     = gdbscm_make_smob_type (pretty_printer_worker_smob_name,
 			     sizeof (pretty_printer_worker_smob));
-  scm_set_smob_mark (pretty_printer_worker_smob_tag,
-		     ppscm_mark_pretty_printer_worker_smob);
   scm_set_smob_print (pretty_printer_worker_smob_tag,
 		      ppscm_print_pretty_printer_worker_smob);
 
   gdbscm_define_functions (pretty_printer_functions, 1);
 
-  scm_c_define (pretty_printer_list_name, SCM_EOL);
-
-  pretty_printer_list_var
-    = scm_c_private_variable (gdbscm_module_name,
-			      pretty_printer_list_name);
-  gdb_assert (!gdbscm_is_false (pretty_printer_list_var));
+  pretty_printer_list = SCM_EOL;
 
   pp_type_error_symbol = scm_from_latin1_symbol ("gdb:pp-type-error");
 

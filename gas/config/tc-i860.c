@@ -1,6 +1,5 @@
 /* tc-i860.c -- Assembler for the Intel i860 architecture.
-   Copyright 1989, 1992, 1993, 1994, 1995, 1998, 1999, 2000, 2001, 2002,
-   2003, 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
 
    Brought back from the dead and completely reworked
    by Jason Eckhardt <jle@cygnus.com>.
@@ -1029,7 +1028,7 @@ md_number_to_chars (char *buf, valueT val, int n)
 
 /* This should never be called for i860.  */
 int
-md_estimate_size_before_relax (register fragS *fragP ATTRIBUTE_UNUSED,
+md_estimate_size_before_relax (fragS *fragP ATTRIBUTE_UNUSED,
 			       segT segtype ATTRIBUTE_UNUSED)
 {
   as_fatal (_("relaxation not supported\n"));

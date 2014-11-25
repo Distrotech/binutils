@@ -54,6 +54,12 @@ struct builtin_d_type
   struct type *builtin_dchar;
 };
 
+/* Defined in d-exp.y.  */
+
+extern int d_parse (struct parser_state *);
+
+extern void d_error (char *);
+
 /* Defined in d-lang.c  */
 
 extern const char *d_main_name (void);
@@ -61,10 +67,6 @@ extern const char *d_main_name (void);
 extern char *d_demangle (const char *mangled, int options);
 
 extern const struct builtin_d_type *builtin_d_type (struct gdbarch *);
-
-/* Defined in d-support.c  */
-
-extern const char *d_parse_symbol (struct obstack *, const char *);
 
 /* Defined in d-valprint.c  */
 

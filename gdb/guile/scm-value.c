@@ -24,7 +24,6 @@
 #include "arch-utils.h"
 #include "charset.h"
 #include "cp-abi.h"
-#include "gdb_assert.h"
 #include "infcall.h"
 #include "symtab.h" /* Needed by language.h.  */
 #include "language.h"
@@ -121,20 +120,6 @@ vlscm_forget_value_smob (value_smob *v_smob)
     }
   if (v_smob->next)
     v_smob->next->prev = v_smob->prev;
-}
-
-/* The smob "mark" function for <gdb:value>.  */
-
-static SCM
-vlscm_mark_value_smob (SCM self)
-{
-  value_smob *v_smob = (value_smob *) SCM_SMOB_DATA (self);
-
-  scm_gc_mark (v_smob->address);
-  scm_gc_mark (v_smob->type);
-  scm_gc_mark (v_smob->dynamic_type);
-  /* Do this last.  */
-  return gdbscm_mark_gsmob (&v_smob->base);
 }
 
 /* The smob "free" function for <gdb:value>.  */
@@ -580,12 +565,15 @@ gdbscm_value_dynamic_type (SCM self)
 
       if (((TYPE_CODE (type) == TYPE_CODE_PTR)
 	   || (TYPE_CODE (type) == TYPE_CODE_REF))
-	  && (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_CLASS))
+	  && (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_STRUCT))
 	{
 	  struct value *target;
 	  int was_pointer = TYPE_CODE (type) == TYPE_CODE_PTR;
 
-	  target = value_ind (value);
+	  if (was_pointer)
+	    target = value_ind (value);
+	  else
+	    target = coerce_ref (value);
 	  type = value_rtti_type (target, NULL, NULL, NULL);
 
 	  if (type)
@@ -596,7 +584,7 @@ gdbscm_value_dynamic_type (SCM self)
 		type = lookup_reference_type (type);
 	    }
 	}
-      else if (TYPE_CODE (type) == TYPE_CODE_CLASS)
+      else if (TYPE_CODE (type) == TYPE_CODE_STRUCT)
 	type = value_rtti_type (value, NULL, NULL, NULL);
       else
 	{
@@ -1027,9 +1015,11 @@ gdbscm_value_to_real (SCM self)
    the target's charset.
 
    ERRORS is one of #f, 'error or 'substitute.
-   An error setting of #f means use the default, which is
-   Guile's %default-port-conversion-strategy.  If the default is not one
-   of 'error or 'substitute, 'substitute is used.
+   An error setting of #f means use the default, which is Guile's
+   %default-port-conversion-strategy when using Guile >= 2.0.6, or 'error if
+   using an earlier version of Guile.  Earlier versions do not properly
+   support obtaining the default port conversion strategy.
+   If the default is not one of 'error or 'substitute, 'substitute is used.
    An error setting of "error" causes an exception to be thrown if there's
    a decoding error.  An error setting of "substitute" causes invalid
    characters to be replaced with "?".
@@ -1080,7 +1070,14 @@ gdbscm_value_to_string (SCM self, SCM rest)
       gdbscm_throw (excp);
     }
   if (errors == SCM_BOOL_F)
-    errors = scm_port_conversion_strategy (SCM_BOOL_F);
+    {
+      /* N.B. scm_port_conversion_strategy in Guile versions prior to 2.0.6
+	 will throw a Scheme error when passed #f.  */
+      if (gdbscm_guile_version_is_at_least (2, 0, 6))
+	errors = scm_port_conversion_strategy (SCM_BOOL_F);
+      else
+	errors = error_symbol;
+    }
   /* We don't assume anything about the result of scm_port_conversion_strategy.
      From this point on, if errors is not 'errors, use 'substitute.  */
 
@@ -1297,6 +1294,29 @@ gdbscm_history_ref (SCM index)
 
   return vlscm_scm_from_value (res_val);
 }
+
+/* (history-append! <gdb:value>) -> index
+   Append VALUE to GDB's value history.  Return its index in the history.  */
+
+static SCM
+gdbscm_history_append_x (SCM value)
+{
+  int res_index = -1;
+  struct value *v;
+  value_smob *v_smob;
+  volatile struct gdb_exception except;
+
+  v_smob = vlscm_get_value_smob_arg_unsafe (value, SCM_ARG1, FUNC_NAME);
+  v = v_smob->value;
+
+  TRY_CATCH (except, RETURN_MASK_ALL)
+    {
+      res_index = record_latest_value (v);
+    }
+  GDBSCM_HANDLE_GDB_EXCEPTION (except);
+
+  return scm_from_int (res_index);
+}
 
 /* Initialize the Scheme value code.  */
 
@@ -1459,6 +1479,10 @@ Evaluates string in gdb and returns the result as a <gdb:value> object." },
     "\
 Return the specified value from GDB's value history." },
 
+  { "history-append!", 1, 0, 0, gdbscm_history_append_x,
+    "\
+Append the specified value onto GDB's value history." },
+
   END_FUNCTIONS
 };
 
@@ -1467,7 +1491,6 @@ gdbscm_initialize_values (void)
 {
   value_smob_tag = gdbscm_make_smob_type (value_smob_name,
 					  sizeof (value_smob));
-  scm_set_smob_mark (value_smob_tag, vlscm_mark_value_smob);
   scm_set_smob_free (value_smob_tag, vlscm_free_value_smob);
   scm_set_smob_print (value_smob_tag, vlscm_print_value_smob);
   scm_set_smob_equalp (value_smob_tag, vlscm_equal_p_value_smob);

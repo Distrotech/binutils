@@ -22,7 +22,6 @@
 
 #include "defs.h"
 #include "block.h"
-#include "exceptions.h"
 #include "frame.h"
 #include "symtab.h"
 #include "objfiles.h"
@@ -82,7 +81,7 @@ syscm_eq_symbol_smob (const void *ap, const void *bp)
 static htab_t
 syscm_objfile_symbol_map (struct symbol *symbol)
 {
-  struct objfile *objfile = SYMBOL_SYMTAB (symbol)->objfile;
+  struct objfile *objfile = SYMBOL_OBJFILE (symbol);
   htab_t htab = objfile_data (objfile, syscm_objfile_data_key);
 
   if (htab == NULL)
@@ -93,17 +92,6 @@ syscm_objfile_symbol_map (struct symbol *symbol)
     }
 
   return htab;
-}
-
-/* The smob "mark" function for <gdb:symbol>.  */
-
-static SCM
-syscm_mark_symbol_smob (SCM self)
-{
-  symbol_smob *s_smob = (symbol_smob *) SCM_SMOB_DATA (self);
-
-  /* Do this last.  */
-  return gdbscm_mark_eqable_gsmob (&s_smob->base);
 }
 
 /* The smob "free" function for <gdb:symbol>.  */
@@ -159,7 +147,7 @@ syscm_make_symbol_smob (void)
 
   s_smob->symbol = NULL;
   s_scm = scm_new_smob (symbol_smob_tag, (scm_t_bits) s_smob);
-  gdbscm_init_eqable_gsmob (&s_smob->base);
+  gdbscm_init_eqable_gsmob (&s_smob->base, s_scm);
 
   return s_scm;
 }
@@ -202,7 +190,7 @@ syscm_scm_from_symbol (struct symbol *symbol)
   s_scm = syscm_make_symbol_smob ();
   s_smob = (symbol_smob *) SCM_SMOB_DATA (s_scm);
   s_smob->symbol = symbol;
-  gdbscm_fill_eqable_gsmob_ptr_slot (slot, &s_smob->base, s_scm);
+  gdbscm_fill_eqable_gsmob_ptr_slot (slot, &s_smob->base);
 
   return s_scm;
 }
@@ -619,7 +607,7 @@ gdbscm_lookup_global_symbol (SCM name_scm, SCM rest)
 
   TRY_CATCH (except, RETURN_MASK_ALL)
     {
-      symbol = lookup_symbol_global (name, NULL, domain);
+      symbol = lookup_global_symbol (name, NULL, domain);
     }
   do_cleanups (cleanups);
   GDBSCM_HANDLE_GDB_EXCEPTION (except);
@@ -759,7 +747,6 @@ gdbscm_initialize_symbols (void)
 {
   symbol_smob_tag
     = gdbscm_make_smob_type (symbol_smob_name, sizeof (symbol_smob));
-  scm_set_smob_mark (symbol_smob_tag, syscm_mark_symbol_smob);
   scm_set_smob_free (symbol_smob_tag, syscm_free_symbol_smob);
   scm_set_smob_print (symbol_smob_tag, syscm_print_symbol_smob);
 

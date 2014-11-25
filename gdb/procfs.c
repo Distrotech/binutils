@@ -22,6 +22,7 @@
 
 #include "defs.h"
 #include "inferior.h"
+#include "infrun.h"
 #include "target.h"
 #include "gdbcore.h"
 #include "elf-bfd.h"		/* for elfcore_write_* */
@@ -41,13 +42,10 @@
 #ifdef HAVE_SYS_SYSCALL_H
 #include <sys/syscall.h>
 #endif
-#include <sys/errno.h>
 #include "gdb_wait.h"
 #include <signal.h>
 #include <ctype.h>
 #include "gdb_bfd.h"
-#include <string.h>
-#include "gdb_assert.h"
 #include "inflow.h"
 #include "auxv.h"
 #include "procfs.h"
@@ -109,7 +107,7 @@
 
 /* This module defines the GDB target vector and its methods.  */
 
-static void procfs_attach (struct target_ops *, char *, int);
+static void procfs_attach (struct target_ops *, const char *, int);
 static void procfs_detach (struct target_ops *, const char *, int);
 static void procfs_resume (struct target_ops *,
 			   ptid_t, int, enum gdb_signal);
@@ -127,14 +125,15 @@ static void procfs_create_inferior (struct target_ops *, char *,
 				    char *, char **, int);
 static ptid_t procfs_wait (struct target_ops *,
 			   ptid_t, struct target_waitstatus *, int);
-static int procfs_xfer_memory (CORE_ADDR, gdb_byte *, int, int,
-			       struct mem_attrib *attrib,
-			       struct target_ops *);
+static enum target_xfer_status procfs_xfer_memory (gdb_byte *,
+						   const gdb_byte *,
+						   ULONGEST, ULONGEST,
+						   ULONGEST *);
 static target_xfer_partial_ftype procfs_xfer_partial;
 
 static int procfs_thread_alive (struct target_ops *ops, ptid_t);
 
-static void procfs_find_new_threads (struct target_ops *ops);
+static void procfs_update_thread_list (struct target_ops *ops);
 static char *procfs_pid_to_str (struct target_ops *, ptid_t);
 
 static int proc_find_memory_regions (struct target_ops *self,
@@ -146,7 +145,7 @@ static char * procfs_make_note_section (struct target_ops *self,
 static int procfs_can_use_hw_breakpoint (struct target_ops *self,
 					 int, int, int);
 
-static void procfs_info_proc (struct target_ops *, char *,
+static void procfs_info_proc (struct target_ops *, const char *,
 			      enum info_proc_what);
 
 #if defined (PR_MODEL_NATIVE) && (PR_MODEL_NATIVE == PR_MODEL_LP64)
@@ -183,10 +182,6 @@ procfs_target (void)
 {
   struct target_ops *t = inf_child_target ();
 
-  t->to_shortname = "procfs";
-  t->to_longname = "Unix /proc child process";
-  t->to_doc =
-    "Unix /proc child process (started by the \"run\" command).";
   t->to_create_inferior = procfs_create_inferior;
   t->to_kill = procfs_kill_inferior;
   t->to_mourn_inferior = procfs_mourn_inferior;
@@ -197,12 +192,11 @@ procfs_target (void)
   t->to_fetch_registers = procfs_fetch_registers;
   t->to_store_registers = procfs_store_registers;
   t->to_xfer_partial = procfs_xfer_partial;
-  t->deprecated_xfer_memory = procfs_xfer_memory;
   t->to_pass_signals = procfs_pass_signals;
   t->to_files_info = procfs_files_info;
   t->to_stop = procfs_stop;
 
-  t->to_find_new_threads = procfs_find_new_threads;
+  t->to_update_thread_list = procfs_update_thread_list;
   t->to_thread_alive = procfs_thread_alive;
   t->to_pid_to_str = procfs_pid_to_str;
 
@@ -2908,13 +2902,6 @@ static void do_detach (int signo);
 static void proc_trace_syscalls_1 (procinfo *pi, int syscallnum,
 				   int entry_or_exit, int mode, int from_tty);
 
-/* On mips-irix, we need to insert a breakpoint at __dbx_link during
-   the startup phase.  The following two variables are used to record
-   the address of the breakpoint, and the code that was replaced by
-   a breakpoint.  */
-static int dbx_link_bpt_addr = 0;
-static void *dbx_link_bpt;
-
 /* Sets up the inferior to be debugged.  Registers to trace signals,
    hardware faults, and syscalls.  Note: does not set RLC flag: caller
    may want to customize that.  Returns zero for success (note!
@@ -2930,16 +2917,9 @@ procfs_debug_inferior (procinfo *pi)
   sysset_t *traced_syscall_exits;
   int status;
 
-#ifdef PROCFS_DONT_TRACE_FAULTS
-  /* On some systems (OSF), we don't trace hardware faults.
-     Apparently it's enough that we catch them as signals.
-     Wonder why we don't just do that in general?  */
-  premptyset (&traced_faults);		/* don't trace faults.  */
-#else
   /* Register to trace hardware faults in the child.  */
   prfillset (&traced_faults);		/* trace all faults...  */
   gdb_prdelset  (&traced_faults, FLTPAGE);	/* except page fault.  */
-#endif
   if (!proc_set_traced_faults  (pi, &traced_faults))
     return __LINE__;
 
@@ -3042,7 +3022,7 @@ procfs_debug_inferior (procinfo *pi)
 }
 
 static void
-procfs_attach (struct target_ops *ops, char *args, int from_tty)
+procfs_attach (struct target_ops *ops, const char *args, int from_tty)
 {
   char *exec_file;
   int   pid;
@@ -3066,7 +3046,8 @@ procfs_attach (struct target_ops *ops, char *args, int from_tty)
       fflush (stdout);
     }
   inferior_ptid = do_attach (pid_to_ptid (pid));
-  push_target (ops);
+  if (!target_is_pushed (ops))
+    push_target (ops);
 }
 
 static void
@@ -3095,7 +3076,7 @@ procfs_detach (struct target_ops *ops, const char *args, int from_tty)
 
   inferior_ptid = null_ptid;
   detach_inferior (pid);
-  unpush_target (ops);
+  inf_child_maybe_unpush_target (ops);
 }
 
 static ptid_t
@@ -3385,23 +3366,6 @@ syscall_is_lwp_create (procinfo *pi, int scall)
   return 0;
 }
 
-/* Remove the breakpoint that we inserted in __dbx_link().
-   Does nothing if the breakpoint hasn't been inserted or has already
-   been removed.  */
-
-static void
-remove_dbx_link_breakpoint (void)
-{
-  if (dbx_link_bpt_addr == 0)
-    return;
-
-  if (deprecated_remove_raw_breakpoint (target_gdbarch (), dbx_link_bpt) != 0)
-    warning (_("Unable to remove __dbx_link breakpoint."));
-
-  dbx_link_bpt_addr = 0;
-  dbx_link_bpt = NULL;
-}
-
 #ifdef SYS_syssgi
 /* Return the address of the __dbx_link() function in the file
    refernced by ABFD by scanning its symbol table.  Return 0 if
@@ -3466,10 +3430,12 @@ insert_dbx_link_bpt_in_file (int fd, CORE_ADDR ignored)
   sym_addr = dbx_link_addr (abfd);
   if (sym_addr != 0)
     {
+      struct breakpoint *dbx_link_bpt;
+
       /* Insert the breakpoint.  */
-      dbx_link_bpt_addr = sym_addr;
-      dbx_link_bpt = deprecated_insert_raw_breakpoint (target_gdbarch (), NULL,
-						       sym_addr);
+      dbx_link_bpt
+	= create_and_insert_solib_event_breakpoint (target_gdbarch (),
+						    sym_addr);
       if (dbx_link_bpt == NULL)
 	{
 	  warning (_("Failed to insert dbx_link breakpoint."));
@@ -3899,14 +3865,6 @@ wait_again:
 #if (FLTTRACE != FLTBPT)	/* Avoid "duplicate case" error.  */
 		case FLTTRACE:
 #endif
-		  /* If we hit our __dbx_link() internal breakpoint,
-		     then remove it.  See comments in procfs_init_inferior()
-		     for more details.	*/
-		  if (dbx_link_bpt_addr != 0
-		      && dbx_link_bpt_addr
-			 == regcache_read_pc (get_current_regcache ()))
-		    remove_dbx_link_breakpoint ();
-
 		  wstat = (SIGTRAP << 8) | 0177;
 		  break;
 		case FLTSTACK:
@@ -3986,13 +3944,7 @@ procfs_xfer_partial (struct target_ops *ops, enum target_object object,
   switch (object)
     {
     case TARGET_OBJECT_MEMORY:
-      if (readbuf)
-	return (*ops->deprecated_xfer_memory) (offset, readbuf,
-					       len, 0/*read*/, NULL, ops);
-      if (writebuf)
-	return (*ops->deprecated_xfer_memory) (offset, (gdb_byte *) writebuf,
-					       len, 1/*write*/, NULL, ops);
-      return TARGET_XFER_E_IO;
+      return procfs_xfer_memory (readbuf, writebuf, offset, len, xfered_len);
 
 #ifdef NEW_PROC_API
     case TARGET_OBJECT_AUXV:
@@ -4001,31 +3953,21 @@ procfs_xfer_partial (struct target_ops *ops, enum target_object object,
 #endif
 
     default:
-      if (ops->beneath != NULL)
-	return ops->beneath->to_xfer_partial (ops->beneath, object, annex,
-					      readbuf, writebuf, offset, len,
-					      xfered_len);
-      return TARGET_XFER_E_IO;
+      return ops->beneath->to_xfer_partial (ops->beneath, object, annex,
+					    readbuf, writebuf, offset, len,
+					    xfered_len);
     }
 }
 
+/* Helper for procfs_xfer_partial that handles memory transfers.
+   Arguments are like target_xfer_partial.  */
 
-/* Transfer LEN bytes between GDB address MYADDR and target address
-   MEMADDR.  If DOWRITE is non-zero, transfer them to the target,
-   otherwise transfer them from the target.  TARGET is unused.
-
-   The return value is 0 if an error occurred or no bytes were
-   transferred.  Otherwise, it will be a positive value which
-   indicates the number of bytes transferred between gdb and the
-   target.  (Note that the interface also makes provisions for
-   negative values, but this capability isn't implemented here.)  */
-
-static int
-procfs_xfer_memory (CORE_ADDR memaddr, gdb_byte *myaddr, int len, int dowrite,
-		    struct mem_attrib *attrib, struct target_ops *target)
+static enum target_xfer_status
+procfs_xfer_memory (gdb_byte *readbuf, const gdb_byte *writebuf,
+		    ULONGEST memaddr, ULONGEST len, ULONGEST *xfered_len)
 {
   procinfo *pi;
-  int nbytes = 0;
+  int nbytes;
 
   /* Find procinfo for main process.  */
   pi = find_procinfo_or_die (ptid_get_pid (inferior_ptid), 0);
@@ -4033,31 +3975,26 @@ procfs_xfer_memory (CORE_ADDR memaddr, gdb_byte *myaddr, int len, int dowrite,
       open_procinfo_files (pi, FD_AS) == 0)
     {
       proc_warn (pi, "xfer_memory, open_proc_files", __LINE__);
-      return 0;
+      return TARGET_XFER_E_IO;
     }
 
-  if (lseek (pi->as_fd, (off_t) memaddr, SEEK_SET) == (off_t) memaddr)
+  if (lseek (pi->as_fd, (off_t) memaddr, SEEK_SET) != (off_t) memaddr)
+    return TARGET_XFER_E_IO;
+
+  if (writebuf != NULL)
     {
-      if (dowrite)
-	{
-#ifdef NEW_PROC_API
-	  PROCFS_NOTE ("write memory:\n");
-#else
-	  PROCFS_NOTE ("write memory:\n");
-#endif
-	  nbytes = write (pi->as_fd, myaddr, len);
-	}
-      else
-	{
-	  PROCFS_NOTE ("read  memory:\n");
-	  nbytes = read (pi->as_fd, myaddr, len);
-	}
-      if (nbytes < 0)
-	{
-	  nbytes = 0;
-	}
+      PROCFS_NOTE ("write memory:\n");
+      nbytes = write (pi->as_fd, writebuf, len);
     }
-  return nbytes;
+  else
+    {
+      PROCFS_NOTE ("read  memory:\n");
+      nbytes = read (pi->as_fd, readbuf, len);
+    }
+  if (nbytes <= 0)
+    return TARGET_XFER_E_IO;
+  *xfered_len = nbytes;
+  return TARGET_XFER_OK;
 }
 
 /* Called by target_resume before making child runnable.  Mark cached
@@ -4283,16 +4220,6 @@ unconditionally_kill_inferior (procinfo *pi)
   int parent_pid;
 
   parent_pid = proc_parent_pid (pi);
-#ifdef PROCFS_NEED_CLEAR_CURSIG_FOR_KILL
-  /* FIXME: use access functions.  */
-  /* Alpha OSF/1-3.x procfs needs a clear of the current signal
-     before the PIOCKILL, otherwise it might generate a corrupted core
-     file for the inferior.  */
-  if (ioctl (pi->ctl_fd, PIOCSSIG, NULL) < 0)
-    {
-      printf_filtered ("unconditionally_kill: SSIG failed!\n");
-    }
-#endif
 #ifdef PROCFS_NEED_PIOCSSIG_FOR_KILL
   /* Alpha OSF/1-2.x procfs needs a PIOCSSIG call with a SIGKILL signal
      to kill the inferior, otherwise it might remain stopped with a
@@ -4363,16 +4290,10 @@ procfs_mourn_inferior (struct target_ops *ops)
       if (pi)
 	destroy_procinfo (pi);
     }
-  unpush_target (ops);
-
-  if (dbx_link_bpt != NULL)
-    {
-      deprecated_remove_raw_breakpoint (target_gdbarch (), dbx_link_bpt);
-      dbx_link_bpt_addr = 0;
-      dbx_link_bpt = NULL;
-    }
 
   generic_mourn_inferior ();
+
+  inf_child_maybe_unpush_target (ops);
 }
 
 /* When GDB forks to create a runnable inferior process, this function
@@ -4390,7 +4311,8 @@ procfs_init_inferior (struct target_ops *ops, int pid)
 
   /* This routine called on the parent side (GDB side)
      after GDB forks the inferior.  */
-  push_target (ops);
+  if (!target_is_pushed (ops))
+    push_target (ops);
 
   if ((pi = create_procinfo (pid, 0)) == NULL)
     perror (_("procfs: out of memory in 'init_inferior'"));
@@ -4707,7 +4629,7 @@ procfs_inferior_created (struct target_ops *ops, int from_tty)
 #endif
 }
 
-/* Callback for find_new_threads.  Calls "add_thread".  */
+/* Callback for update_thread_list.  Calls "add_thread".  */
 
 static int
 procfs_notice_thread (procinfo *pi, procinfo *thread, void *ptr)
@@ -4724,9 +4646,11 @@ procfs_notice_thread (procinfo *pi, procinfo *thread, void *ptr)
    back to GDB to add to its list.  */
 
 static void
-procfs_find_new_threads (struct target_ops *ops)
+procfs_update_thread_list (struct target_ops *ops)
 {
   procinfo *pi;
+
+  prune_threads ();
 
   /* Find procinfo for main process.  */
   pi = find_procinfo_or_die (ptid_get_pid (inferior_ptid), 0);
@@ -5160,7 +5084,7 @@ info_proc_mappings (procinfo *pi, int summary)
 /* Implement the "info proc" command.  */
 
 static void
-procfs_info_proc (struct target_ops *ops, char *args,
+procfs_info_proc (struct target_ops *ops, const char *args,
 		  enum info_proc_what what)
 {
   struct cleanup *old_chain;
@@ -5395,7 +5319,7 @@ procfs_do_thread_registers (bfd *obfd, ptid_t ptid,
   /* This part is the old method for fetching registers.
      It should be replaced by the newer one using regsets
      once it is implemented in this platform:
-     gdbarch_regset_from_core_section() and regset->collect_regset().  */
+     gdbarch_iterate_over_regset_sections().  */
 
   old_chain = save_inferior_ptid ();
   inferior_ptid = ptid;
@@ -5541,7 +5465,6 @@ procfs_make_note_section (struct target_ops *self, bfd *obfd, int *note_size)
       xfree (auxv);
     }
 
-  make_cleanup (xfree, note_data);
   return note_data;
 }
 #else /* !Solaris */

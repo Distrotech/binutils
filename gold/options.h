@@ -1,7 +1,6 @@
 // options.h -- handle command line options for gold  -*- C++ -*-
 
-// Copyright 2006, 2007, 2008, 2009, 2010, 2011, 2013
-// Free Software Foundation, Inc.
+// Copyright (C) 2006-2014 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -973,9 +972,11 @@ class General_options
 	      N_("(ARM only) Ignore for backward compatibility"), NULL);
 
   DEFINE_bool(pie, options::ONE_DASH, '\0', false,
-	      N_("Create a position independent executable"), NULL);
+	      N_("Create a position independent executable"),
+	      N_("Do not create a position independent executable"));
   DEFINE_bool_alias(pic_executable, pie, options::TWO_DASHES, '\0',
-		    N_("Create a position independent executable"), NULL,
+		    N_("Create a position independent executable"),
+		    N_("Do not create a position independent executable"),
 		    false);
 
   DEFINE_bool(pipeline_knowledge, options::ONE_DASH, '\0', false,

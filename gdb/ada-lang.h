@@ -23,6 +23,7 @@
 struct frame_info;
 struct inferior;
 struct type_print_options;
+struct parser_state;
 
 #include "value.h"
 #include "gdbtypes.h"
@@ -33,11 +34,7 @@ struct type_print_options;
    system and that might consider (confusing) debugging information.
    Each name (a basic regular expression string) is followed by a
    comma.  FIXME: Should be part of a configuration file.  */
-#if defined(__alpha__) && defined(__osf__)
-#define ADA_KNOWN_RUNTIME_FILE_NAME_PATTERNS \
-   "^[agis]-.*\\.ad[bs]$", \
-   "/usr/shlib/libpthread\\.so",
-#elif defined (__linux__)
+#if defined (__linux__)
 #define ADA_KNOWN_RUNTIME_FILE_NAME_PATTERNS \
    "^[agis]-.*\\.ad[bs]$", \
    "/lib.*/libpthread\\.so[.0-9]*$", "/lib.*/libpthread\\.a$", \
@@ -169,7 +166,7 @@ extern int ada_get_field_index (const struct type *type,
                                 const char *field_name,
                                 int maybe_missing);
 
-extern int ada_parse (void);    /* Defined in ada-exp.y */
+extern int ada_parse (struct parser_state *);    /* Defined in ada-exp.y */
 
 extern void ada_error (char *); /* Defined in ada-exp.y */
 

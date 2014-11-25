@@ -114,7 +114,7 @@ struct general_symbol_info
   {
     LONGEST ivalue;
 
-    struct block *block;
+    const struct block *block;
 
     const gdb_byte *bytes;
 
@@ -122,7 +122,7 @@ struct general_symbol_info
 
     /* A common block.  Used with LOC_COMMON_BLOCK.  */
 
-    struct common_block *common_block;
+    const struct common_block *common_block;
 
     /* For opaque typedef struct chain.  */
 
@@ -180,8 +180,8 @@ extern const char *symbol_get_demangled_name
 extern CORE_ADDR symbol_overlayed_address (CORE_ADDR, struct obj_section *);
 
 /* Note that all the following SYMBOL_* macros are used with the
-   SYMBOL argument being either a partial symbol, a minimal symbol or
-   a full symbol.  All three types have a ginfo field.  In particular
+   SYMBOL argument being either a partial symbol or
+   a full symbol.  Both types have a ginfo field.  In particular
    the SYMBOL_SET_LANGUAGE, SYMBOL_DEMANGLED_NAME, etc.
    macros cannot be entirely substituted by
    functions, unless the callers are changed to pass in the ginfo
@@ -271,7 +271,7 @@ extern const char *symbol_demangled_name
 extern int demangle;
 
 /* Macro that returns the name to be used when sorting and searching symbols.
-   In  C++, Chill, and Java, we search for the demangled form of a name,
+   In  C++ and Java, we search for the demangled form of a name,
    and so sort symbols accordingly.  In Ada, however, we search by mangled
    name.  If there is no distinct demangled name, then SYMBOL_SEARCH_NAME
    returns the same value (same pointer) as SYMBOL_LINKAGE_NAME.  */
@@ -339,7 +339,7 @@ struct minimal_symbol
      The SYMBOL_VALUE_ADDRESS contains the address that this symbol
      corresponds to.  */
 
-  struct general_symbol_info ginfo;
+  struct general_symbol_info mginfo;
 
   /* Size of this symbol.  end_psymtab in dbxread.c uses this
      information to calculate the end of the partial symtab based on the
@@ -389,6 +389,45 @@ struct minimal_symbol
     } while (0)
 #define MSYMBOL_HAS_SIZE(msymbol)	((msymbol)->has_size + 0)
 #define MSYMBOL_TYPE(msymbol)		(msymbol)->type
+
+#define MSYMBOL_VALUE(symbol)		(symbol)->mginfo.value.ivalue
+/* The unrelocated address of the minimal symbol.  */
+#define MSYMBOL_VALUE_RAW_ADDRESS(symbol) ((symbol)->mginfo.value.address + 0)
+/* The relocated address of the minimal symbol, using the section
+   offsets from OBJFILE.  */
+#define MSYMBOL_VALUE_ADDRESS(objfile, symbol)				\
+  ((symbol)->mginfo.value.address					\
+   + ANOFFSET ((objfile)->section_offsets, ((symbol)->mginfo.section)))
+/* For a bound minsym, we can easily compute the address directly.  */
+#define BMSYMBOL_VALUE_ADDRESS(symbol) \
+  MSYMBOL_VALUE_ADDRESS ((symbol).objfile, (symbol).minsym)
+#define SET_MSYMBOL_VALUE_ADDRESS(symbol, new_value)	\
+  ((symbol)->mginfo.value.address = (new_value))
+#define MSYMBOL_VALUE_BYTES(symbol)	(symbol)->mginfo.value.bytes
+#define MSYMBOL_BLOCK_VALUE(symbol)	(symbol)->mginfo.value.block
+#define MSYMBOL_VALUE_CHAIN(symbol)	(symbol)->mginfo.value.chain
+#define MSYMBOL_LANGUAGE(symbol)	(symbol)->mginfo.language
+#define MSYMBOL_SECTION(symbol)		(symbol)->mginfo.section
+#define MSYMBOL_OBJ_SECTION(objfile, symbol)			\
+  (((symbol)->mginfo.section >= 0)				\
+   ? (&(((objfile)->sections)[(symbol)->mginfo.section]))	\
+   : NULL)
+
+#define MSYMBOL_NATURAL_NAME(symbol) \
+  (symbol_natural_name (&(symbol)->mginfo))
+#define MSYMBOL_LINKAGE_NAME(symbol)	(symbol)->mginfo.name
+#define MSYMBOL_PRINT_NAME(symbol)					\
+  (demangle ? MSYMBOL_NATURAL_NAME (symbol) : MSYMBOL_LINKAGE_NAME (symbol))
+#define MSYMBOL_DEMANGLED_NAME(symbol) \
+  (symbol_demangled_name (&(symbol)->mginfo))
+#define MSYMBOL_SET_LANGUAGE(symbol,language,obstack)	\
+  (symbol_set_language (&(symbol)->mginfo, (language), (obstack)))
+#define MSYMBOL_SEARCH_NAME(symbol)					 \
+   (symbol_search_name (&(symbol)->mginfo))
+#define MSYMBOL_MATCHES_SEARCH_NAME(symbol, name)			\
+  (strcmp_iw (MSYMBOL_SEARCH_NAME (symbol), (name)) == 0)
+#define MSYMBOL_SET_NAMES(symbol,linkage_name,len,copy_name,objfile)	\
+  symbol_set_names (&(symbol)->mginfo, linkage_name, len, copy_name, objfile)
 
 #include "minsyms.h"
 
@@ -735,7 +774,7 @@ extern const struct symbol_impl *symbol_impls;
 #define SYMBOL_BLOCK_OPS(symbol)	(SYMBOL_IMPL (symbol).ops_block)
 #define SYMBOL_REGISTER_OPS(symbol)	(SYMBOL_IMPL (symbol).ops_register)
 #define SYMBOL_LOCATION_BATON(symbol)   (symbol)->aux_value
-#define SYMBOL_OBJFILE(symbol) 		(SYMBOL_SYMTAB (symbol)->objfile)
+#define SYMBOL_OBJFILE(symbol)		SYMTAB_OBJFILE (SYMBOL_SYMTAB (symbol))
 
 extern int register_symbol_computed_impl (enum address_class,
 					  const struct symbol_computed_ops *);
@@ -831,6 +870,7 @@ struct section_offsets
    + sizeof (((struct section_offsets *) 0)->offsets) * ((n)-1))
 
 /* Each source file or header is represented by a struct symtab.
+   The name "symtab" is historical, another name for it is "filetab".
    These objects are chained through the `next' field.  */
 
 struct symtab
@@ -839,51 +879,18 @@ struct symtab
 
   struct symtab *next;
 
-  /* List of all symbol scope blocks for this symtab.  May be shared
-     between different symtabs (and normally is for all the symtabs
-     in a given compilation unit).  */
+  /* Backlink to containing compunit symtab.  */
 
-  struct blockvector *blockvector;
+  struct compunit_symtab *compunit_symtab;
 
   /* Table mapping core addresses to line numbers for this file.
      Can be NULL if none.  Never shared between different symtabs.  */
 
   struct linetable *linetable;
 
-  /* Section in objfile->section_offsets for the blockvector and
-     the linetable.  Probably always SECT_OFF_TEXT.  */
-
-  int block_line_section;
-
-  /* If several symtabs share a blockvector, exactly one of them
-     should be designated the primary, so that the blockvector
-     is relocated exactly once by objfile_relocate.  */
-
-  unsigned int primary : 1;
-
-  /* Symtab has been compiled with both optimizations and debug info so that
-     GDB may stop skipping prologues as variables locations are valid already
-     at function entry points.  */
-
-  unsigned int locations_valid : 1;
-
-  /* DWARF unwinder for this CU is valid even for epilogues (PC at the return
-     instruction).  This is supported by GCC since 4.5.0.  */
-
-  unsigned int epilogue_unwind_valid : 1;
-
-  /* The macro table for this symtab.  Like the blockvector, this
-     may be shared between different symtabs --- and normally is for
-     all the symtabs in a given compilation unit.  */
-  struct macro_table *macro_table;
-
   /* Name of this source file.  This pointer is never NULL.  */
 
   const char *filename;
-
-  /* Directory in which it was compiled, or NULL if we don't know.  */
-
-  const char *dirname;
 
   /* Total number of lines found in source file.  */
 
@@ -899,57 +906,169 @@ struct symtab
 
   enum language language;
 
-  /* String that identifies the format of the debugging information, such
-     as "stabs", "dwarf 1", "dwarf 2", "coff", etc.  This is mostly useful
-     for automated testing of gdb but may also be information that is
-     useful to the user.  */
-
-  const char *debugformat;
-
-  /* String of producer version information.  May be zero.  */
-
-  const char *producer;
-
   /* Full name of file as found by searching the source path.
      NULL if not yet known.  */
 
   char *fullname;
-
-  /* Object file from which this symbol information was read.  */
-
-  struct objfile *objfile;
-
-  /* struct call_site entries for this compilation unit or NULL.  */
-
-  htab_t call_site_htab;
-
-  /* If non-NULL, then this points to a NULL-terminated vector of
-     included symbol tables.  When searching the static or global
-     block of this symbol table, the corresponding block of all
-     included symbol tables will also be searched.  Note that this
-     list must be flattened -- the symbol reader is responsible for
-     ensuring that this vector contains the transitive closure of all
-     included symbol tables.  */
-
-  struct symtab **includes;
-
-  /* If this is an included symbol table, this points to one includer
-     of the table.  This user is considered the canonical symbol table
-     containing this one.  An included symbol table may itself be
-     included by another.  */
-
-  struct symtab *user;
 };
 
-#define BLOCKVECTOR(symtab)	(symtab)->blockvector
-#define LINETABLE(symtab)	(symtab)->linetable
-#define SYMTAB_PSPACE(symtab)	(symtab)->objfile->pspace
-
-/* Call this to set the "primary" field in struct symtab.  */
-extern void set_symtab_primary (struct symtab *, int primary);
+#define SYMTAB_COMPUNIT(symtab) ((symtab)->compunit_symtab)
+#define SYMTAB_LINETABLE(symtab) ((symtab)->linetable)
+#define SYMTAB_LANGUAGE(symtab) ((symtab)->language)
+#define SYMTAB_BLOCKVECTOR(symtab) \
+  COMPUNIT_BLOCKVECTOR (SYMTAB_COMPUNIT (symtab))
+#define SYMTAB_OBJFILE(symtab) \
+  COMPUNIT_OBJFILE (SYMTAB_COMPUNIT (symtab))
+#define SYMTAB_PSPACE(symtab) (SYMTAB_OBJFILE (symtab)->pspace)
+#define SYMTAB_DIRNAME(symtab) \
+  COMPUNIT_DIRNAME (SYMTAB_COMPUNIT (symtab))
 
 typedef struct symtab *symtab_ptr;
 DEF_VEC_P (symtab_ptr);
+
+/* Compunit symtabs contain the actual "symbol table", aka blockvector, as well
+   as the list of all source files (what gdb has historically associated with
+   the term "symtab").
+   Additional information is recorded here that is common to all symtabs in a
+   compilation unit (DWARF or otherwise).
+
+   Example:
+   For the case of a program built out of these files:
+
+   foo.c
+     foo1.h
+     foo2.h
+   bar.c
+     foo1.h
+     bar.h
+
+   This is recorded as:
+
+   objfile -> foo.c(cu) -> bar.c(cu) -> NULL
+                |            |
+                v            v
+              foo.c        bar.c
+                |            |
+                v            v
+              foo1.h       foo1.h
+                |            |
+                v            v
+              foo2.h       bar.h
+                |            |
+                v            v
+               NULL         NULL
+
+   where "foo.c(cu)" and "bar.c(cu)" are struct compunit_symtab objects,
+   and the files foo.c, etc. are struct symtab objects.  */
+
+struct compunit_symtab
+{
+  /* Unordered chain of all compunit symtabs of this objfile.  */
+  struct compunit_symtab *next;
+
+  /* Object file from which this symtab information was read.  */
+  struct objfile *objfile;
+
+  /* Name of the symtab.
+     This is *not* intended to be a usable filename, and is
+     for debugging purposes only.  */
+  const char *name;
+
+  /* Unordered list of file symtabs, except that by convention the "main"
+     source file (e.g., .c, .cc) is guaranteed to be first.
+     Each symtab is a file, either the "main" source file (e.g., .c, .cc)
+     or header (e.g., .h).  */
+  struct symtab *filetabs;
+
+  /* Last entry in FILETABS list.
+     Subfiles are added to the end of the list so they accumulate in order,
+     with the main source subfile living at the front.
+     The main reason is so that the main source file symtab is at the head
+     of the list, and the rest appear in order for debugging convenience.  */
+  struct symtab *last_filetab;
+
+  /* Non-NULL string that identifies the format of the debugging information,
+     such as "stabs", "dwarf 1", "dwarf 2", "coff", etc.  This is mostly useful
+     for automated testing of gdb but may also be information that is
+     useful to the user.  */
+  const char *debugformat;
+
+  /* String of producer version information, or NULL if we don't know.  */
+  const char *producer;
+
+  /* Directory in which it was compiled, or NULL if we don't know.  */
+  const char *dirname;
+
+  /* List of all symbol scope blocks for this symtab.  It is shared among
+     all symtabs in a given compilation unit.  */
+  const struct blockvector *blockvector;
+
+  /* Section in objfile->section_offsets for the blockvector and
+     the linetable.  Probably always SECT_OFF_TEXT.  */
+  int block_line_section;
+
+  /* Symtab has been compiled with both optimizations and debug info so that
+     GDB may stop skipping prologues as variables locations are valid already
+     at function entry points.  */
+  unsigned int locations_valid : 1;
+
+  /* DWARF unwinder for this CU is valid even for epilogues (PC at the return
+     instruction).  This is supported by GCC since 4.5.0.  */
+  unsigned int epilogue_unwind_valid : 1;
+
+  /* struct call_site entries for this compilation unit or NULL.  */
+  htab_t call_site_htab;
+
+  /* The macro table for this symtab.  Like the blockvector, this
+     is shared between different symtabs in a given compilation unit.
+     It's debatable whether it *should* be shared among all the symtabs in
+     the given compilation unit, but it currently is.  */
+  struct macro_table *macro_table;
+
+  /* If non-NULL, then this points to a NULL-terminated vector of
+     included compunits.  When searching the static or global
+     block of this compunit, the corresponding block of all
+     included compunits will also be searched.  Note that this
+     list must be flattened -- the symbol reader is responsible for
+     ensuring that this vector contains the transitive closure of all
+     included compunits.  */
+  struct compunit_symtab **includes;
+
+  /* If this is an included compunit, this points to one includer
+     of the table.  This user is considered the canonical compunit
+     containing this one.  An included compunit may itself be
+     included by another.  */
+  struct compunit_symtab *user;
+};
+
+#define COMPUNIT_OBJFILE(cust) ((cust)->objfile)
+#define COMPUNIT_FILETABS(cust) ((cust)->filetabs)
+#define COMPUNIT_DEBUGFORMAT(cust) ((cust)->debugformat)
+#define COMPUNIT_PRODUCER(cust) ((cust)->producer)
+#define COMPUNIT_DIRNAME(cust) ((cust)->dirname)
+#define COMPUNIT_BLOCKVECTOR(cust) ((cust)->blockvector)
+#define COMPUNIT_BLOCK_LINE_SECTION(cust) ((cust)->block_line_section)
+#define COMPUNIT_LOCATIONS_VALID(cust) ((cust)->locations_valid)
+#define COMPUNIT_EPILOGUE_UNWIND_VALID(cust) ((cust)->epilogue_unwind_valid)
+#define COMPUNIT_CALL_SITE_HTAB(cust) ((cust)->call_site_htab)
+#define COMPUNIT_MACRO_TABLE(cust) ((cust)->macro_table)
+
+/* Iterate over all file tables (struct symtab) within a compunit.  */
+
+#define ALL_COMPUNIT_FILETABS(cu, s) \
+  for ((s) = (cu) -> filetabs; (s) != NULL; (s) = (s) -> next)
+
+/* Return the primary symtab of CUST.  */
+
+extern struct symtab *
+  compunit_primary_filetab (const struct compunit_symtab *cust);
+
+/* Return the language of CUST.  */
+
+extern enum language compunit_language (const struct compunit_symtab *cust);
+
+typedef struct compunit_symtab *compunit_symtab_ptr;
+DEF_VEC_P (compunit_symtab_ptr);
 
 
 
@@ -971,6 +1090,10 @@ DEF_VEC_P (symtab_ptr);
 /* True if we are nested inside psymtab_to_symtab.  */
 
 extern int currently_reading_symtab;
+
+/* The block in which the most recently looked up symbol was found.  */
+
+extern const struct block *block_found;
 
 /* symtab.c lookup functions */
 
@@ -1004,13 +1127,22 @@ struct field_of_this_result
 
   struct field *field;
 
-  /* If the symbol was found as an function field of 'this', then this
+  /* If the symbol was found as a function field of 'this', then this
      is non-NULL and points to the particular field.  */
 
   struct fn_fieldlist *fn_field;
 };
 
-/* lookup a symbol by name (optional block) in language.  */
+/* Find the definition for a specified symbol name NAME
+   in domain DOMAIN in language LANGUAGE, visible from lexical block BLOCK
+   if non-NULL or from global/static blocks if BLOCK is NULL.
+   Returns the struct symbol pointer, or NULL if no symbol is found.
+   C++: if IS_A_FIELD_OF_THIS is non-NULL on entry, check to see if
+   NAME is a field of the current implied argument `this'.  If so fill in the
+   fields of IS_A_FIELD_OF_THIS, otherwise the fields are set to NULL.
+   BLOCK_FOUND is set to the block in which NAME is found (in the case of
+   a field of `this', value_of_this sets BLOCK_FOUND to the proper value).
+   The symbol's section is fixed up if necessary.  */
 
 extern struct symbol *lookup_symbol_in_language (const char *,
 						 const struct block *,
@@ -1018,15 +1150,15 @@ extern struct symbol *lookup_symbol_in_language (const char *,
 						 enum language,
 						 struct field_of_this_result *);
 
-/* lookup a symbol by name (optional block, optional symtab)
-   in the current language.  */
+/* Same as lookup_symbol_in_language, but using the current language.  */
 
 extern struct symbol *lookup_symbol (const char *, const struct block *,
 				     const domain_enum,
 				     struct field_of_this_result *);
 
 /* A default version of lookup_symbol_nonlocal for use by languages
-   that can't think of anything better to do.  */
+   that can't think of anything better to do.
+   This implements the C lookup rules.  */
 
 extern struct symbol *basic_lookup_symbol_nonlocal (const char *,
 						    const struct block *,
@@ -1036,42 +1168,52 @@ extern struct symbol *basic_lookup_symbol_nonlocal (const char *,
    lookup_symbol_nonlocal functions.  */
 
 /* Lookup a symbol in the static block associated to BLOCK, if there
-   is one; do nothing if BLOCK is NULL or a global block.  */
+   is one; do nothing if BLOCK is NULL or a global block.
+   Upon success sets BLOCK_FOUND and fixes up the symbol's section
+   if necessary.  */
 
-extern struct symbol *lookup_symbol_static (const char *name,
+extern struct symbol *lookup_symbol_in_static_block (const char *name,
+						     const struct block *block,
+						     const domain_enum domain);
+
+/* Search all static file-level symbols for NAME from DOMAIN.
+   Upon success sets BLOCK_FOUND and fixes up the symbol's section
+   if necessary.  */
+
+extern struct symbol *lookup_static_symbol (const char *name,
+					    const domain_enum domain);
+
+/* Lookup a symbol in all files' global blocks.
+
+   If BLOCK is non-NULL then it is used for two things:
+   1) If a target-specific lookup routine for libraries exists, then use the
+      routine for the objfile of BLOCK, and
+   2) The objfile of BLOCK is used to assist in determining the search order
+      if the target requires it.
+      See gdbarch_iterate_over_objfiles_in_search_order.
+
+   Upon success sets BLOCK_FOUND and fixes up the symbol's section
+   if necessary.  */
+
+extern struct symbol *lookup_global_symbol (const char *name,
 					    const struct block *block,
 					    const domain_enum domain);
 
-/* Lookup a symbol in all files' global blocks (searching psymtabs if
-   necessary).  */
+/* Lookup a symbol in block BLOCK.
+   Upon success sets BLOCK_FOUND and fixes up the symbol's section
+   if necessary.  */
 
-extern struct symbol *lookup_symbol_global (const char *name,
-					    const struct block *block,
-					    const domain_enum domain);
+extern struct symbol *lookup_symbol_in_block (const char *name,
+					      const struct block *block,
+					      const domain_enum domain);
 
-/* Lookup a symbol within the block BLOCK.  This, unlike
-   lookup_symbol_block, will set SYMTAB and BLOCK_FOUND correctly, and
-   will fix up the symbol if necessary.  */
-
-extern struct symbol *lookup_symbol_aux_block (const char *name,
-					       const struct block *block,
-					       const domain_enum domain);
+/* Look up the `this' symbol for LANG in BLOCK.  Return the symbol if
+   found, or NULL if not found.  */
 
 extern struct symbol *lookup_language_this (const struct language_defn *lang,
 					    const struct block *block);
 
-/* Lookup a symbol only in the file static scope of all the objfiles.  */
-
-struct symbol *lookup_static_symbol_aux (const char *name,
-					 const domain_enum domain);
-
-
-/* lookup a symbol by name, within a specified block.  */
-
-extern struct symbol *lookup_block_symbol (const struct block *, const char *,
-					   const domain_enum);
-
-/* lookup a [struct, union, enum] by name, within a specified block.  */
+/* Lookup a [struct, union, enum] by name, within a specified block.  */
 
 extern struct type *lookup_struct (const char *, const struct block *);
 
@@ -1101,26 +1243,30 @@ extern int find_pc_partial_function (CORE_ADDR, const char **, CORE_ADDR *,
 
 extern void clear_pc_function_cache (void);
 
-/* lookup partial symbol table by address and section.  */
+/* Expand symtab containing PC, SECTION if not already expanded.  */
 
-extern struct symtab *find_pc_sect_symtab_via_partial (CORE_ADDR,
-						       struct obj_section *);
+extern void expand_symtab_containing_pc (CORE_ADDR, struct obj_section *);
 
 /* lookup full symbol table by address.  */
 
-extern struct symtab *find_pc_symtab (CORE_ADDR);
+extern struct compunit_symtab *find_pc_compunit_symtab (CORE_ADDR);
 
 /* lookup full symbol table by address and section.  */
 
-extern struct symtab *find_pc_sect_symtab (CORE_ADDR, struct obj_section *);
+extern struct compunit_symtab *
+  find_pc_sect_compunit_symtab (CORE_ADDR, struct obj_section *);
 
 extern int find_pc_line_pc_range (CORE_ADDR, CORE_ADDR *, CORE_ADDR *);
 
 extern void reread_symbols (void);
 
-extern struct type *lookup_transparent_type (const char *);
-extern struct type *basic_lookup_transparent_type (const char *);
+/* Look up a type named NAME in STRUCT_DOMAIN in the current language.
+   The type returned must not be opaque -- i.e., must have at least one field
+   defined.  */
 
+extern struct type *lookup_transparent_type (const char *);
+
+extern struct type *basic_lookup_transparent_type (const char *);
 
 /* Macro for name of symbol to indicate a file compiled with gcc.  */
 #ifndef GCC_COMPILED_FLAG_SYMBOL
@@ -1182,6 +1328,9 @@ struct symtab_and_line
 
   /* The probe associated with this symtab_and_line.  */
   struct probe *probe;
+  /* If PROBE is not NULL, then this is the objfile in which the probe
+     originated.  */
+  struct objfile *objfile;
 };
 
 extern void init_sal (struct symtab_and_line *sal);
@@ -1202,6 +1351,10 @@ extern struct symtab_and_line find_pc_line (CORE_ADDR, int);
 
 extern struct symtab_and_line find_pc_sect_line (CORE_ADDR,
 						 struct obj_section *, int);
+
+/* Wrapper around find_pc_line to just return the symtab.  */
+
+extern struct symtab *find_pc_line_symtab (CORE_ADDR);
 
 /* Given a symtab and line number, return the pc there.  */
 
@@ -1278,9 +1431,6 @@ extern enum language deduce_language_from_filename (const char *);
 
 /* symtab.c */
 
-extern int in_prologue (struct gdbarch *gdbarch,
-			CORE_ADDR pc, CORE_ADDR func_start);
-
 extern CORE_ADDR skip_prologue_using_sal (struct gdbarch *gdbarch,
 					  CORE_ADDR func_addr);
 
@@ -1314,8 +1464,8 @@ struct symbol_search
   struct symbol_search *next;
 };
 
-extern void search_symbols (char *, enum search_domain, int, char **,
-			    struct symbol_search **);
+extern void search_symbols (const char *, enum search_domain, int,
+			    const char **, struct symbol_search **);
 extern void free_search_symbols (struct symbol_search *);
 extern struct cleanup *make_cleanup_free_search_symbols (struct symbol_search
 							 **);
@@ -1327,10 +1477,16 @@ extern struct cleanup *make_cleanup_free_search_symbols (struct symbol_search
 extern /*const */ char *main_name (void);
 extern enum language main_language (void);
 
-/* Check global symbols in objfile.  */
-struct symbol *lookup_global_symbol_from_objfile (const struct objfile *,
-						  const char *name,
-						  const domain_enum domain);
+/* Lookup symbol NAME from DOMAIN in MAIN_OBJFILE's global blocks.
+   This searches MAIN_OBJFILE as well as any associated separate debug info
+   objfiles of MAIN_OBJFILE.
+   Upon success sets BLOCK_FOUND and fixes up the symbol's section
+   if necessary.  */
+
+extern struct symbol *
+  lookup_global_symbol_from_objfile (const struct objfile *main_objfile,
+				     const char *name,
+				     const domain_enum domain);
 
 /* Return 1 if the supplied producer string matches the ARM RealView
    compiler (armcc).  */
@@ -1338,6 +1494,8 @@ int producer_is_realview (const char *producer);
 
 void fixup_section (struct general_symbol_info *ginfo,
 		    CORE_ADDR addr, struct objfile *objfile);
+
+/* Look up objfile containing BLOCK.  */
 
 struct objfile *lookup_objfile_from_block (const struct block *block);
 
@@ -1353,8 +1511,8 @@ int iterate_over_some_symtabs (const char *name,
 			       int (*callback) (struct symtab *symtab,
 						void *data),
 			       void *data,
-			       struct symtab *first,
-			       struct symtab *after_last);
+			       struct compunit_symtab *first,
+			       struct compunit_symtab *after_last);
 
 void iterate_over_symtabs (const char *name,
 			   int (*callback) (struct symtab *symtab,

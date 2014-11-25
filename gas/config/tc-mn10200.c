@@ -1,5 +1,5 @@
 /* tc-mn10200.c -- Assembler code for the Matsushita 10200
-   Copyright 1996-2013 Free Software Foundation, Inc.
+   Copyright (C) 1996-2014 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -686,7 +686,7 @@ void
 md_begin (void)
 {
   char *prev_name = "";
-  register const struct mn10200_opcode *op;
+  const struct mn10200_opcode *op;
 
   mn10200_hash = hash_new ();
 

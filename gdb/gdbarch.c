@@ -41,9 +41,6 @@
 #include "symcat.h"
 
 #include "floatformat.h"
-
-#include "gdb_assert.h"
-#include <string.h>
 #include "reggroups.h"
 #include "osabi.h"
 #include "gdb_obstack.h"
@@ -262,8 +259,7 @@ struct gdbarch
   gdbarch_address_class_name_to_type_flags_ftype *address_class_name_to_type_flags;
   gdbarch_register_reggroup_p_ftype *register_reggroup_p;
   gdbarch_fetch_pointer_argument_ftype *fetch_pointer_argument;
-  gdbarch_regset_from_core_section_ftype *regset_from_core_section;
-  struct core_regset_section * core_regset_sections;
+  gdbarch_iterate_over_regset_sections_ftype *iterate_over_regset_sections;
   gdbarch_make_corefile_notes_ftype *make_corefile_notes;
   gdbarch_elfcore_write_linux_prpsinfo_ftype *elfcore_write_linux_prpsinfo;
   gdbarch_find_memory_regions_ftype *find_memory_regions;
@@ -292,6 +288,8 @@ struct gdbarch
   gdbarch_get_siginfo_type_ftype *get_siginfo_type;
   gdbarch_record_special_symbol_ftype *record_special_symbol;
   gdbarch_get_syscall_number_ftype *get_syscall_number;
+  const char * xml_syscall_file;
+  struct syscalls_info * syscalls_info;
   const char *const * stap_integer_prefixes;
   const char *const * stap_integer_suffixes;
   const char *const * stap_register_prefixes;
@@ -318,6 +316,8 @@ struct gdbarch
   gdbarch_insn_is_call_ftype *insn_is_call;
   gdbarch_insn_is_ret_ftype *insn_is_ret;
   gdbarch_insn_is_jump_ftype *insn_is_jump;
+  gdbarch_auxv_parse_ftype *auxv_parse;
+  gdbarch_vsyscall_range_ftype *vsyscall_range;
 };
 
 /* Create a new ``struct gdbarch'' based on information provided by
@@ -395,6 +395,7 @@ gdbarch_alloc (const struct gdbarch_info *info,
   gdbarch->elf_make_msymbol_special = default_elf_make_msymbol_special;
   gdbarch->coff_make_msymbol_special = default_coff_make_msymbol_special;
   gdbarch->register_reggroup_p = default_register_reggroup_p;
+  gdbarch->skip_permanent_breakpoint = default_skip_permanent_breakpoint;
   gdbarch->displaced_step_hw_singlestep = default_displaced_step_hw_singlestep;
   gdbarch->displaced_step_fixup = NULL;
   gdbarch->displaced_step_free_closure = NULL;
@@ -410,6 +411,7 @@ gdbarch_alloc (const struct gdbarch_info *info,
   gdbarch->insn_is_call = default_insn_is_call;
   gdbarch->insn_is_ret = default_insn_is_ret;
   gdbarch->insn_is_jump = default_insn_is_jump;
+  gdbarch->vsyscall_range = default_vsyscall_range;
   /* gdbarch_alloc() */
 
   return gdbarch;
@@ -572,7 +574,7 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of address_class_name_to_type_flags, has predicate.  */
   /* Skip verify of register_reggroup_p, invalid_p == 0 */
   /* Skip verify of fetch_pointer_argument, has predicate.  */
-  /* Skip verify of regset_from_core_section, has predicate.  */
+  /* Skip verify of iterate_over_regset_sections, has predicate.  */
   /* Skip verify of make_corefile_notes, has predicate.  */
   /* Skip verify of elfcore_write_linux_prpsinfo, has predicate.  */
   /* Skip verify of find_memory_regions, has predicate.  */
@@ -582,7 +584,7 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of gcore_bfd_target, has predicate.  */
   /* Skip verify of vtable_function_descriptors, invalid_p == 0 */
   /* Skip verify of vbit_in_delta, invalid_p == 0 */
-  /* Skip verify of skip_permanent_breakpoint, has predicate.  */
+  /* Skip verify of skip_permanent_breakpoint, invalid_p == 0 */
   /* Skip verify of max_insn_length, has predicate.  */
   /* Skip verify of displaced_step_copy_insn, has predicate.  */
   /* Skip verify of displaced_step_hw_singlestep, invalid_p == 0 */
@@ -603,6 +605,8 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of get_siginfo_type, has predicate.  */
   /* Skip verify of record_special_symbol, has predicate.  */
   /* Skip verify of get_syscall_number, has predicate.  */
+  /* Skip verify of xml_syscall_file, invalid_p == 0 */
+  /* Skip verify of syscalls_info, invalid_p == 0 */
   /* Skip verify of stap_integer_prefixes, invalid_p == 0 */
   /* Skip verify of stap_integer_suffixes, invalid_p == 0 */
   /* Skip verify of stap_register_prefixes, invalid_p == 0 */
@@ -628,6 +632,8 @@ verify_gdbarch (struct gdbarch *gdbarch)
   /* Skip verify of insn_is_call, invalid_p == 0 */
   /* Skip verify of insn_is_ret, invalid_p == 0 */
   /* Skip verify of insn_is_jump, invalid_p == 0 */
+  /* Skip verify of auxv_parse, has predicate.  */
+  /* Skip verify of vsyscall_range, invalid_p == 0 */
   buf = ui_file_xstrdup (log, &length);
   make_cleanup (xfree, buf);
   if (length > 0)
@@ -690,6 +696,12 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: auto_wide_charset = <%s>\n",
                       host_address_to_string (gdbarch->auto_wide_charset));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: gdbarch_auxv_parse_p() = %d\n",
+                      gdbarch_auxv_parse_p (gdbarch));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: auxv_parse = <%s>\n",
+                      host_address_to_string (gdbarch->auxv_parse));
   fprintf_unfiltered (file,
                       "gdbarch_dump: gdbarch_ax_pseudo_register_collect_p() = %d\n",
                       gdbarch_ax_pseudo_register_collect_p (gdbarch));
@@ -762,9 +774,6 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: core_read_description = <%s>\n",
                       host_address_to_string (gdbarch->core_read_description));
-  fprintf_unfiltered (file,
-                      "gdbarch_dump: core_regset_sections = %s\n",
-                      host_address_to_string (gdbarch->core_regset_sections));
   fprintf_unfiltered (file,
                       "gdbarch_dump: gdbarch_core_xfer_shared_libraries_p() = %d\n",
                       gdbarch_core_xfer_shared_libraries_p (gdbarch));
@@ -982,6 +991,12 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: iterate_over_objfiles_in_search_order = <%s>\n",
                       host_address_to_string (gdbarch->iterate_over_objfiles_in_search_order));
   fprintf_unfiltered (file,
+                      "gdbarch_dump: gdbarch_iterate_over_regset_sections_p() = %d\n",
+                      gdbarch_iterate_over_regset_sections_p (gdbarch));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: iterate_over_regset_sections = <%s>\n",
+                      host_address_to_string (gdbarch->iterate_over_regset_sections));
+  fprintf_unfiltered (file,
                       "gdbarch_dump: long_bit = %s\n",
                       plongest (gdbarch->long_bit));
   fprintf_unfiltered (file,
@@ -1135,12 +1150,6 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: register_type = <%s>\n",
                       host_address_to_string (gdbarch->register_type));
   fprintf_unfiltered (file,
-                      "gdbarch_dump: gdbarch_regset_from_core_section_p() = %d\n",
-                      gdbarch_regset_from_core_section_p (gdbarch));
-  fprintf_unfiltered (file,
-                      "gdbarch_dump: regset_from_core_section = <%s>\n",
-                      host_address_to_string (gdbarch->regset_from_core_section));
-  fprintf_unfiltered (file,
                       "gdbarch_dump: gdbarch_relocate_instruction_p() = %d\n",
                       gdbarch_relocate_instruction_p (gdbarch));
   fprintf_unfiltered (file,
@@ -1185,9 +1194,6 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: skip_main_prologue = <%s>\n",
                       host_address_to_string (gdbarch->skip_main_prologue));
-  fprintf_unfiltered (file,
-                      "gdbarch_dump: gdbarch_skip_permanent_breakpoint_p() = %d\n",
-                      gdbarch_skip_permanent_breakpoint_p (gdbarch));
   fprintf_unfiltered (file,
                       "gdbarch_dump: skip_permanent_breakpoint = <%s>\n",
                       host_address_to_string (gdbarch->skip_permanent_breakpoint));
@@ -1264,6 +1270,9 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: static_transform_name = <%s>\n",
                       host_address_to_string (gdbarch->static_transform_name));
   fprintf_unfiltered (file,
+                      "gdbarch_dump: syscalls_info = %s\n",
+                      host_address_to_string (gdbarch->syscalls_info));
+  fprintf_unfiltered (file,
                       "gdbarch_dump: target_desc = %s\n",
                       host_address_to_string (gdbarch->target_desc));
   fprintf_unfiltered (file,
@@ -1291,6 +1300,9 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
                       "gdbarch_dump: virtual_frame_pointer = <%s>\n",
                       host_address_to_string (gdbarch->virtual_frame_pointer));
   fprintf_unfiltered (file,
+                      "gdbarch_dump: vsyscall_range = <%s>\n",
+                      host_address_to_string (gdbarch->vsyscall_range));
+  fprintf_unfiltered (file,
                       "gdbarch_dump: vtable_function_descriptors = %s\n",
                       plongest (gdbarch->vtable_function_descriptors));
   fprintf_unfiltered (file,
@@ -1299,6 +1311,9 @@ gdbarch_dump (struct gdbarch *gdbarch, struct ui_file *file)
   fprintf_unfiltered (file,
                       "gdbarch_dump: write_pc = <%s>\n",
                       host_address_to_string (gdbarch->write_pc));
+  fprintf_unfiltered (file,
+                      "gdbarch_dump: xml_syscall_file = %s\n",
+                      pstring (gdbarch->xml_syscall_file));
   if (gdbarch->dump_tdep != NULL)
     gdbarch->dump_tdep (gdbarch, file);
 }
@@ -2373,13 +2388,13 @@ set_gdbarch_value_to_register (struct gdbarch *gdbarch,
 }
 
 struct value *
-gdbarch_value_from_register (struct gdbarch *gdbarch, struct type *type, int regnum, struct frame_info *frame)
+gdbarch_value_from_register (struct gdbarch *gdbarch, struct type *type, int regnum, struct frame_id frame_id)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->value_from_register != NULL);
   if (gdbarch_debug >= 2)
     fprintf_unfiltered (gdb_stdlog, "gdbarch_value_from_register called\n");
-  return gdbarch->value_from_register (type, regnum, frame);
+  return gdbarch->value_from_register (gdbarch, type, regnum, frame_id);
 }
 
 void
@@ -3232,43 +3247,27 @@ set_gdbarch_fetch_pointer_argument (struct gdbarch *gdbarch,
 }
 
 int
-gdbarch_regset_from_core_section_p (struct gdbarch *gdbarch)
+gdbarch_iterate_over_regset_sections_p (struct gdbarch *gdbarch)
 {
   gdb_assert (gdbarch != NULL);
-  return gdbarch->regset_from_core_section != NULL;
-}
-
-const struct regset *
-gdbarch_regset_from_core_section (struct gdbarch *gdbarch, const char *sect_name, size_t sect_size)
-{
-  gdb_assert (gdbarch != NULL);
-  gdb_assert (gdbarch->regset_from_core_section != NULL);
-  if (gdbarch_debug >= 2)
-    fprintf_unfiltered (gdb_stdlog, "gdbarch_regset_from_core_section called\n");
-  return gdbarch->regset_from_core_section (gdbarch, sect_name, sect_size);
+  return gdbarch->iterate_over_regset_sections != NULL;
 }
 
 void
-set_gdbarch_regset_from_core_section (struct gdbarch *gdbarch,
-                                      gdbarch_regset_from_core_section_ftype regset_from_core_section)
-{
-  gdbarch->regset_from_core_section = regset_from_core_section;
-}
-
-struct core_regset_section *
-gdbarch_core_regset_sections (struct gdbarch *gdbarch)
+gdbarch_iterate_over_regset_sections (struct gdbarch *gdbarch, iterate_over_regset_sections_cb *cb, void *cb_data, const struct regcache *regcache)
 {
   gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->iterate_over_regset_sections != NULL);
   if (gdbarch_debug >= 2)
-    fprintf_unfiltered (gdb_stdlog, "gdbarch_core_regset_sections called\n");
-  return gdbarch->core_regset_sections;
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_iterate_over_regset_sections called\n");
+  gdbarch->iterate_over_regset_sections (gdbarch, cb, cb_data, regcache);
 }
 
 void
-set_gdbarch_core_regset_sections (struct gdbarch *gdbarch,
-                                  struct core_regset_section * core_regset_sections)
+set_gdbarch_iterate_over_regset_sections (struct gdbarch *gdbarch,
+                                          gdbarch_iterate_over_regset_sections_ftype iterate_over_regset_sections)
 {
-  gdbarch->core_regset_sections = core_regset_sections;
+  gdbarch->iterate_over_regset_sections = iterate_over_regset_sections;
 }
 
 int
@@ -3472,13 +3471,6 @@ set_gdbarch_vbit_in_delta (struct gdbarch *gdbarch,
                            int vbit_in_delta)
 {
   gdbarch->vbit_in_delta = vbit_in_delta;
-}
-
-int
-gdbarch_skip_permanent_breakpoint_p (struct gdbarch *gdbarch)
-{
-  gdb_assert (gdbarch != NULL);
-  return gdbarch->skip_permanent_breakpoint != NULL;
 }
 
 void
@@ -3905,6 +3897,40 @@ set_gdbarch_get_syscall_number (struct gdbarch *gdbarch,
   gdbarch->get_syscall_number = get_syscall_number;
 }
 
+const char *
+gdbarch_xml_syscall_file (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  /* Skip verify of xml_syscall_file, invalid_p == 0 */
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_xml_syscall_file called\n");
+  return gdbarch->xml_syscall_file;
+}
+
+void
+set_gdbarch_xml_syscall_file (struct gdbarch *gdbarch,
+                              const char * xml_syscall_file)
+{
+  gdbarch->xml_syscall_file = xml_syscall_file;
+}
+
+struct syscalls_info *
+gdbarch_syscalls_info (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  /* Skip verify of syscalls_info, invalid_p == 0 */
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_syscalls_info called\n");
+  return gdbarch->syscalls_info;
+}
+
+void
+set_gdbarch_syscalls_info (struct gdbarch *gdbarch,
+                           struct syscalls_info * syscalls_info)
+{
+  gdbarch->syscalls_info = syscalls_info;
+}
+
 const char *const *
 gdbarch_stap_integer_prefixes (struct gdbarch *gdbarch)
 {
@@ -4249,7 +4275,7 @@ gdbarch_info_proc_p (struct gdbarch *gdbarch)
 }
 
 void
-gdbarch_info_proc (struct gdbarch *gdbarch, char *args, enum info_proc_what what)
+gdbarch_info_proc (struct gdbarch *gdbarch, const char *args, enum info_proc_what what)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->info_proc != NULL);
@@ -4273,7 +4299,7 @@ gdbarch_core_info_proc_p (struct gdbarch *gdbarch)
 }
 
 void
-gdbarch_core_info_proc (struct gdbarch *gdbarch, char *args, enum info_proc_what what)
+gdbarch_core_info_proc (struct gdbarch *gdbarch, const char *args, enum info_proc_what what)
 {
   gdb_assert (gdbarch != NULL);
   gdb_assert (gdbarch->core_info_proc != NULL);
@@ -4372,6 +4398,47 @@ set_gdbarch_insn_is_jump (struct gdbarch *gdbarch,
                           gdbarch_insn_is_jump_ftype insn_is_jump)
 {
   gdbarch->insn_is_jump = insn_is_jump;
+}
+
+int
+gdbarch_auxv_parse_p (struct gdbarch *gdbarch)
+{
+  gdb_assert (gdbarch != NULL);
+  return gdbarch->auxv_parse != NULL;
+}
+
+int
+gdbarch_auxv_parse (struct gdbarch *gdbarch, gdb_byte **readptr, gdb_byte *endptr, CORE_ADDR *typep, CORE_ADDR *valp)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->auxv_parse != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_auxv_parse called\n");
+  return gdbarch->auxv_parse (gdbarch, readptr, endptr, typep, valp);
+}
+
+void
+set_gdbarch_auxv_parse (struct gdbarch *gdbarch,
+                        gdbarch_auxv_parse_ftype auxv_parse)
+{
+  gdbarch->auxv_parse = auxv_parse;
+}
+
+int
+gdbarch_vsyscall_range (struct gdbarch *gdbarch, struct mem_range *range)
+{
+  gdb_assert (gdbarch != NULL);
+  gdb_assert (gdbarch->vsyscall_range != NULL);
+  if (gdbarch_debug >= 2)
+    fprintf_unfiltered (gdb_stdlog, "gdbarch_vsyscall_range called\n");
+  return gdbarch->vsyscall_range (gdbarch, range);
+}
+
+void
+set_gdbarch_vsyscall_range (struct gdbarch *gdbarch,
+                            gdbarch_vsyscall_range_ftype vsyscall_range)
+{
+  gdbarch->vsyscall_range = vsyscall_range;
 }
 
 

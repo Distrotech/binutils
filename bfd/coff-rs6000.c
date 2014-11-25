@@ -1,7 +1,5 @@
 /* BFD back-end for IBM RS/6000 "XCOFF" files.
-   Copyright 1990-1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007,
-   2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1990-2014 Free Software Foundation, Inc.
    Written by Metin G. Ozisik, Mimi Phuong-Thao Vo, and John Gilmore.
    Archive support from Damon A. Permezel.
    Contributed by IBM Corporation and Cygnus Support.
@@ -116,6 +114,7 @@ extern int rs6000coff_core_file_failing_signal (bfd *abfd);
 #define bfd_pe_print_pdata	NULL
 #endif
 
+#include <stdint.h>
 #include "coffcode.h"
 
 /* The main body of code is in coffcode.h.  */
@@ -431,39 +430,6 @@ static const struct dwarf_debug_section xcoff_debug_sections[] =
   { NULL,	NULL }, /* .debug_weaknames */
   { NULL,	NULL },
 };
-
-static bfd_boolean
-xcoff_find_nearest_line (bfd *abfd,
-                         asection *section,
-                         asymbol **symbols,
-                         bfd_vma offset,
-                         const char **filename_ptr,
-                         const char **functionname_ptr,
-                         unsigned int *line_ptr)
-{
-  return coff_find_nearest_line_with_names (abfd, xcoff_debug_sections,
-                                            section, symbols, offset,
-                                            filename_ptr, functionname_ptr,
-                                            line_ptr);
-}
-
-static bfd_boolean
-xcoff_find_nearest_line_discriminator (bfd *abfd,
-                                      asection *section,
-                                      asymbol **symbols,
-                                      bfd_vma offset,
-                                      const char **filename_ptr,
-                                      const char **functionname_ptr,
-                                      unsigned int *line_ptr,
-                                      unsigned int *discriminator)
-{
-  *discriminator = 0;
-  return coff_find_nearest_line_with_names (abfd, xcoff_debug_sections,
-                                            section, symbols, offset,
-                                            filename_ptr, functionname_ptr,
-                                            line_ptr);
-}
-
 
 void
 _bfd_xcoff_swap_sym_in (bfd *abfd, void * ext1, void * in1)
@@ -2609,7 +2575,7 @@ _bfd_xcoff_sizeof_headers (bfd *abfd,
 	return -1;
 
       /* Sum.  */
-      for (sub = info->input_bfds; sub != NULL; sub = sub->link_next)
+      for (sub = info->input_bfds; sub != NULL; sub = sub->link.next)
 	for (s = sub->sections; s != NULL; s = s->next)
 	  {
 	    struct nbr_reloc_lineno *e = &n_rl[s->output_section->index];
@@ -4046,9 +4012,8 @@ const struct xcoff_dwsect_name xcoff_dwsect_names[] = {
 #define _bfd_xcoff_bfd_is_target_special_symbol \
   coff_bfd_is_target_special_symbol
 #define _bfd_xcoff_get_lineno coff_get_lineno
-#define _bfd_xcoff_find_nearest_line xcoff_find_nearest_line
-#define _bfd_generic_find_nearest_line_discriminator \
-  xcoff_find_nearest_line_discriminator
+#define _bfd_xcoff_find_nearest_line coff_find_nearest_line
+#define _bfd_xcoff_find_line coff_find_line
 #define _bfd_xcoff_find_inliner_info coff_find_inliner_info
 #define _bfd_xcoff_bfd_make_debug_symbol coff_bfd_make_debug_symbol
 #define _bfd_xcoff_read_minisymbols _bfd_generic_read_minisymbols
@@ -4106,6 +4071,7 @@ static const struct xcoff_backend_data_rec bfd_xcoff_backend_data =
       3,			/* _bfd_coff_default_section_alignment_power */
       FALSE,			/* _bfd_coff_force_symnames_in_strings */
       2,			/* _bfd_coff_debug_string_prefix_length */
+      32768,			/* _bfd_coff_max_nscns */
       coff_swap_filehdr_in,
       coff_swap_aouthdr_in,
       coff_swap_scnhdr_in,
@@ -4177,7 +4143,7 @@ static const struct xcoff_backend_data_rec bfd_xcoff_backend_data =
   };
 
 /* The transfer vector that leads the outside world to all of the above.  */
-const bfd_target rs6000coff_vec =
+const bfd_target rs6000_xcoff_vec =
   {
     "aixcoff-rs6000",
     bfd_target_xcoff_flavour,
@@ -4286,6 +4252,7 @@ static const struct xcoff_backend_data_rec bfd_pmac_xcoff_backend_data =
       3,			/* _bfd_coff_default_section_alignment_power */
       FALSE,			/* _bfd_coff_force_symnames_in_strings */
       2,			/* _bfd_coff_debug_string_prefix_length */
+      32768,			/* _bfd_coff_max_nscns */
       coff_swap_filehdr_in,
       coff_swap_aouthdr_in,
       coff_swap_scnhdr_in,
@@ -4357,7 +4324,7 @@ static const struct xcoff_backend_data_rec bfd_pmac_xcoff_backend_data =
   };
 
 /* The transfer vector that leads the outside world to all of the above.  */
-const bfd_target pmac_xcoff_vec =
+const bfd_target powerpc_xcoff_vec =
   {
     "xcoff-powermac",
     bfd_target_xcoff_flavour,

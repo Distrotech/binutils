@@ -19,7 +19,6 @@
 
 #include "defs.h"
 #include "block.h"
-#include "exceptions.h"
 #include "frame.h"
 #include "symtab.h"
 #include "python-internal.h"
@@ -293,12 +292,12 @@ set_symbol (symbol_object *obj, struct symbol *symbol)
   obj->prev = NULL;
   if (SYMBOL_SYMTAB (symbol))
     {
-      obj->next = objfile_data (SYMBOL_SYMTAB (symbol)->objfile,
+      obj->next = objfile_data (SYMBOL_OBJFILE (symbol),
 				sympy_objfile_data_key);
 
       if (obj->next)
 	obj->next->prev = obj;
-      set_objfile_data (SYMBOL_SYMTAB (symbol)->objfile,
+      set_objfile_data (SYMBOL_OBJFILE (symbol),
 			sympy_objfile_data_key, obj);
     }
   else
@@ -337,7 +336,7 @@ sympy_dealloc (PyObject *obj)
     sym_obj->prev->next = sym_obj->next;
   else if (sym_obj->symbol && SYMBOL_SYMTAB (sym_obj->symbol))
     {
-      set_objfile_data (SYMBOL_SYMTAB (sym_obj->symbol)->objfile,
+      set_objfile_data (SYMBOL_OBJFILE (sym_obj->symbol),
 			sympy_objfile_data_key, sym_obj->next);
     }
   if (sym_obj->next)
@@ -434,7 +433,7 @@ gdbpy_lookup_global_symbol (PyObject *self, PyObject *args, PyObject *kw)
 
   TRY_CATCH (except, RETURN_MASK_ALL)
     {
-      symbol = lookup_symbol_global (name, NULL, domain);
+      symbol = lookup_global_symbol (name, NULL, domain);
     }
   GDB_PY_HANDLE_EXCEPTION (except);
 

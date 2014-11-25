@@ -1,7 +1,5 @@
 /* tc-alpha.c - Processor-specific code for the DEC Alpha AXP CPU.
-   Copyright 1989, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010
-   Free Software Foundation, Inc.
+   Copyright (C) 1989-2014 Free Software Foundation, Inc.
    Contributed by Carnegie Mellon University, 1993.
    Written by Alessandro Forin, based on earlier gas-1.38 target CPU files.
    Modified by Ken Raeburn for gas-2.x and ECOFF support.
@@ -4484,7 +4482,7 @@ s_alpha_pdesc (int ignore ATTRIBUTE_UNUSED)
 {
   char *name;
   char name_end;
-  register char *p;
+  char *p;
   expressionS exp;
   symbolS *entry_sym;
   const char *entry_sym_name;

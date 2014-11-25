@@ -18,9 +18,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
-#include <string.h>
 #include "top.h"
-#include "exceptions.h"
 #include "gdbcmd.h"
 #include "objfiles.h"
 #include "python.h"

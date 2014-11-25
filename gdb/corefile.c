@@ -18,8 +18,6 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
-#include <string.h>
-#include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
 #include "inferior.h"
@@ -32,14 +30,12 @@
 #include "dis-asm.h"
 #include <sys/stat.h>
 #include "completer.h"
-#include "exceptions.h"
 #include "observer.h"
 #include "cli/cli-utils.h"
 
 /* Local function declarations.  */
 
 extern void _initialize_core (void);
-static void call_extra_exec_file_hooks (char *filename);
 
 /* You can have any number of hooks for `exec_file_command' command to
    call.  If there's only one hook, it is set in exec_file_display
@@ -50,7 +46,7 @@ static void call_extra_exec_file_hooks (char *filename);
    only one hook could be set, and which called
    deprecated_exec_file_display_hook directly.  */
 
-typedef void (*hook_type) (char *);
+typedef void (*hook_type) (const char *);
 
 hook_type deprecated_exec_file_display_hook;	/* The original hook.  */
 static hook_type *exec_file_extra_hooks;	/* Array of additional
@@ -87,7 +83,7 @@ core_file_command (char *filename, int from_tty)
    functions.  */
 
 static void
-call_extra_exec_file_hooks (char *filename)
+call_extra_exec_file_hooks (const char *filename)
 {
   int i;
 
@@ -99,7 +95,7 @@ call_extra_exec_file_hooks (char *filename)
    This is called from the x-window display code.  */
 
 void
-specify_exec_file_hook (void (*hook) (char *))
+specify_exec_file_hook (void (*hook) (const char *))
 {
   hook_type *new_array;
 
@@ -204,7 +200,7 @@ memory_error_message (enum target_xfer_status err,
 	 bounds.  */
       return xstrprintf (_("Cannot access memory at address %s"),
 			 paddress (gdbarch, memaddr));
-    case TARGET_XFER_E_UNAVAILABLE:
+    case TARGET_XFER_UNAVAILABLE:
       return xstrprintf (_("Memory at address %s unavailable."),
 			 paddress (gdbarch, memaddr));
     default:
@@ -233,7 +229,7 @@ memory_error (enum target_xfer_status err, CORE_ADDR memaddr)
     case TARGET_XFER_E_IO:
       exception = MEMORY_ERROR;
       break;
-    case TARGET_XFER_E_UNAVAILABLE:
+    case TARGET_XFER_UNAVAILABLE:
       exception = NOT_AVAILABLE_ERROR;
       break;
     }
@@ -260,13 +256,10 @@ read_memory (CORE_ADDR memaddr, gdb_byte *myaddr, ssize_t len)
 				    memaddr + xfered, len - xfered,
 				    &xfered_len);
 
-      if (status == TARGET_XFER_EOF)
-	memory_error (TARGET_XFER_E_IO, memaddr + xfered);
+      if (status != TARGET_XFER_OK)
+	memory_error (status == TARGET_XFER_EOF ? TARGET_XFER_E_IO : status,
+		      memaddr + xfered);
 
-      if (TARGET_XFER_STATUS_ERROR_P (status))
-	memory_error (status, memaddr + xfered);
-
-      gdb_assert (status == TARGET_XFER_OK);
       xfered += xfered_len;
       QUIT;
     }
@@ -296,40 +289,6 @@ read_code (CORE_ADDR memaddr, gdb_byte *myaddr, ssize_t len)
     memory_error (status, memaddr);
 }
 
-/* Argument / return result struct for use with
-   do_captured_read_memory_integer().  MEMADDR and LEN are filled in
-   by gdb_read_memory_integer().  RESULT is the contents that were
-   successfully read from MEMADDR of length LEN.  */
-
-struct captured_read_memory_integer_arguments
-{
-  CORE_ADDR memaddr;
-  int len;
-  enum bfd_endian byte_order;
-  LONGEST result;
-};
-
-/* Helper function for gdb_read_memory_integer().  DATA must be a
-   pointer to a captured_read_memory_integer_arguments struct.
-   Return 1 if successful.  Note that the catch_errors() interface
-   will return 0 if an error occurred while reading memory.  This
-   choice of return code is so that we can distinguish between
-   success and failure.  */
-
-static int
-do_captured_read_memory_integer (void *data)
-{
-  struct captured_read_memory_integer_arguments *args
-    = (struct captured_read_memory_integer_arguments*) data;
-  CORE_ADDR memaddr = args->memaddr;
-  int len = args->len;
-  enum bfd_endian byte_order = args->byte_order;
-
-  args->result = read_memory_integer (memaddr, len, byte_order);
-
-  return 1;
-}
-
 /* Read memory at MEMADDR of length LEN and put the contents in
    RETURN_VALUE.  Return 0 if MEMADDR couldn't be read and non-zero
    if successful.  */
@@ -339,19 +298,13 @@ safe_read_memory_integer (CORE_ADDR memaddr, int len,
 			  enum bfd_endian byte_order,
 			  LONGEST *return_value)
 {
-  int status;
-  struct captured_read_memory_integer_arguments args;
+  gdb_byte buf[sizeof (LONGEST)];
 
-  args.memaddr = memaddr;
-  args.len = len;
-  args.byte_order = byte_order;
+  if (target_read_memory (memaddr, buf, len))
+    return 0;
 
-  status = catch_errors (do_captured_read_memory_integer, &args,
-			 "", RETURN_MASK_ALL);
-  if (status)
-    *return_value = args.result;
-
-  return status;
+  *return_value = extract_signed_integer (buf, len, byte_order);
+  return 1;
 }
 
 LONGEST

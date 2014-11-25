@@ -18,7 +18,6 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include "defs.h"
-#include "exceptions.h"
 #include "arch-utils.h"
 #include "dyn-string.h"
 #include "readline/readline.h"
@@ -27,7 +26,6 @@
 #include "target.h"	/* For baud_rate, remote_debug and remote_timeout.  */
 #include "gdb_wait.h"	/* For shell escape implementation.  */
 #include "gdb_regex.h"	/* Used by apropos_command.  */
-#include <string.h>
 #include "gdb_vfork.h"
 #include "linespec.h"
 #include "expression.h"
@@ -204,7 +202,7 @@ static const char *script_ext_mode = script_ext_soft;
    none is supplied.  */
 
 void
-error_no_arg (char *why)
+error_no_arg (const char *why)
 {
   error (_("Argument required (%s)."), why);
 }
@@ -218,7 +216,7 @@ info_command (char *arg, int from_tty)
 {
   printf_unfiltered (_("\"info\" must be followed by "
 		       "the name of an info command.\n"));
-  help_list (infolist, "info ", -1, gdb_stdout);
+  help_list (infolist, "info ", all_commands, gdb_stdout);
 }
 
 /* The "show" command with no arguments shows all the settings.  */
@@ -820,7 +818,7 @@ edit_command (char *arg, int from_tty)
 	    error (_("No source file for address %s."),
 		   paddress (get_current_arch (), sal.pc));
 
-	  gdbarch = get_objfile_arch (sal.symtab->objfile);
+	  gdbarch = get_objfile_arch (SYMTAB_OBJFILE (sal.symtab));
           sym = find_pc_function (sal.pc);
           if (sym)
 	    printf_filtered ("%s is in %s (%s:%d).\n",
@@ -874,6 +872,27 @@ list_command (char *arg, int from_tty)
     {
       set_default_source_symtab_and_line ();
       cursal = get_current_source_symtab_and_line ();
+
+      /* If this is the first "list" since we've set the current
+	 source line, center the listing around that line.  */
+      if (get_first_line_listed () == 0)
+	{
+	  int first;
+
+	  first = max (cursal.line - get_lines_to_list () / 2, 1);
+
+	  /* A small special case --- if listing backwards, and we
+	     should list only one line, list the preceding line,
+	     instead of the exact line we've just shown after e.g.,
+	     stopping for a breakpoint.  */
+	  if (arg != NULL && arg[0] == '-'
+	      && get_lines_to_list () == 1 && first > 1)
+	    first -= 1;
+
+	  print_source_lines (cursal.symtab, first,
+			      first + get_lines_to_list (), 0);
+	  return;
+	}
     }
 
   /* "l" or "l +" lists next ten lines.  */
@@ -984,7 +1003,7 @@ list_command (char *arg, int from_tty)
 	error (_("No source file for address %s."),
 	       paddress (get_current_arch (), sal.pc));
 
-      gdbarch = get_objfile_arch (sal.symtab->objfile);
+      gdbarch = get_objfile_arch (SYMTAB_OBJFILE (sal.symtab));
       sym = find_pc_function (sal.pc);
       if (sym)
 	printf_filtered ("%s is in %s (%s:%d).\n",
@@ -1225,8 +1244,7 @@ show_user (char *args, int from_tty)
       const char *comname = args;
 
       c = lookup_cmd (&comname, cmdlist, "", 0, 1);
-      /* c->user_commands would be NULL if it's a python/scheme command.  */
-      if (c->class != class_user || !c->user_commands)
+      if (!cli_user_command_p (c))
 	error (_("Not a user command."));
       show_user_1 (c, "", args, gdb_stdout);
     }
@@ -1234,7 +1252,7 @@ show_user (char *args, int from_tty)
     {
       for (c = cmdlist; c; c = c->next)
 	{
-	  if (c->class == class_user || c->prefixlist != NULL)
+	  if (cli_user_command_p (c) || c->prefixlist != NULL)
 	    show_user_1 (c, "", c->name, gdb_stdout);
 	}
     }
@@ -1468,21 +1486,23 @@ compare_symtabs (const void *a, const void *b)
 {
   const struct symtab_and_line *sala = a;
   const struct symtab_and_line *salb = b;
+  const char *dira = SYMTAB_DIRNAME (sala->symtab);
+  const char *dirb = SYMTAB_DIRNAME (salb->symtab);
   int r;
 
-  if (!sala->symtab->dirname)
+  if (dira == NULL)
     {
-      if (salb->symtab->dirname)
+      if (dirb != NULL)
 	return -1;
     }
-  else if (!salb->symtab->dirname)
+  else if (dirb == NULL)
     {
-      if (sala->symtab->dirname)
+      if (dira != NULL)
 	return 1;
     }
   else
     {
-      r = filename_cmp (sala->symtab->dirname, salb->symtab->dirname);
+      r = filename_cmp (dira, dirb);
       if (r)
 	return r;
     }
@@ -1546,7 +1566,7 @@ set_debug (char *arg, int from_tty)
 {
   printf_unfiltered (_("\"set debug\" must be followed by "
 		       "the name of a debug subcommand.\n"));
-  help_list (setdebuglist, "set debug ", -1, gdb_stdout);
+  help_list (setdebuglist, "set debug ", all_commands, gdb_stdout);
 }
 
 static void
@@ -1685,7 +1705,11 @@ strict == evaluate script according to filename extension, error if not supporte
 			show_script_ext_mode,
 			&setlist, &showlist);
 
-  add_com ("quit", class_support, quit_command, _("Exit gdb."));
+  add_com ("quit", class_support, quit_command, _("\
+Exit gdb.\n\
+Usage: quit [EXPR]\n\
+The optional expression EXPR, if present, is evaluated and the result\n\
+used as GDB's exit code.  The default is zero."));
   c = add_com ("help", class_support, help_command,
 	       _("Print list of commands."));
   set_cmd_completer (c, command_completer);

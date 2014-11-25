@@ -33,6 +33,7 @@
 
 #include <sys/ptrace.h>
 #include <sys/utsname.h>
+#include <asm/ptrace.h>
 
 #include "gregset.h"
 
@@ -118,10 +119,6 @@ get_thread_id (ptid_t ptid)
 static int aarch64_num_bp_regs;
 static int aarch64_num_wp_regs;
 
-/* Debugging of hardware breakpoint/watchpoint support.  */
-
-static int debug_hw_points;
-
 /* Each bit of a variable of this type is used to indicate whether a
    hardware breakpoint or watchpoint setting has been changed since
    the last update.
@@ -143,7 +140,7 @@ static int debug_hw_points;
    ptrace calls to the kernel, i.e. avoid asking the kernel to write
    to the debug registers with unchanged values.  */
 
-typedef unsigned LONGEST dr_changed_t;
+typedef ULONGEST dr_changed_t;
 
 /* Set each of the lower M bits of X to 1; assert X is wide enough.  */
 
@@ -362,7 +359,7 @@ debug_reg_change_callback (struct lwp_info *lwp, void *ptr)
   if (info == NULL)
     info = lwp->arch_private = XCNEW (struct arch_lwp_info);
 
-  if (debug_hw_points)
+  if (show_debug_regs)
     {
       fprintf_unfiltered (gdb_stdlog,
 			  "debug_reg_change_callback: \n\tOn entry:\n");
@@ -391,7 +388,7 @@ debug_reg_change_callback (struct lwp_info *lwp, void *ptr)
   if (!lwp->stopped)
     linux_stop_lwp (lwp);
 
-  if (debug_hw_points)
+  if (show_debug_regs)
     {
       fprintf_unfiltered (gdb_stdlog,
 			  "\tOn exit:\n\tpid%d, dr_changed_bp=0x%s, "
@@ -615,14 +612,9 @@ void
 fill_gregset (const struct regcache *regcache,
 	      gdb_gregset_t *gregsetp, int regno)
 {
-  gdb_byte *gregs_buf = (gdb_byte *) gregsetp;
-  int i;
-
-  for (i = AARCH64_X0_REGNUM; i <= AARCH64_CPSR_REGNUM; i++)
-    if (regno == -1 || regno == i)
-      regcache_raw_collect (regcache, i,
-			    gregs_buf + X_REGISTER_SIZE
-			    * (i - AARCH64_X0_REGNUM));
+  regcache_collect_regset (&aarch64_linux_gregset, regcache,
+			   regno, (gdb_byte *) gregsetp,
+			   AARCH64_LINUX_SIZEOF_GREGSET);
 }
 
 /* Fill GDB's register array with the general-purpose register values
@@ -631,7 +623,9 @@ fill_gregset (const struct regcache *regcache,
 void
 supply_gregset (struct regcache *regcache, const gdb_gregset_t *gregsetp)
 {
-  aarch64_linux_supply_gregset (regcache, (const gdb_byte *) gregsetp);
+  regcache_supply_regset (&aarch64_linux_gregset, regcache, -1,
+			  (const gdb_byte *) gregsetp,
+			  AARCH64_LINUX_SIZEOF_GREGSET);
 }
 
 /* Fill register REGNO (if it is a floating-point register) in
@@ -642,22 +636,9 @@ void
 fill_fpregset (const struct regcache *regcache,
 	       gdb_fpregset_t *fpregsetp, int regno)
 {
-  gdb_byte *fpregs_buf = (gdb_byte *) fpregsetp;
-  int i;
-
-  for (i = AARCH64_V0_REGNUM; i <= AARCH64_V31_REGNUM; i++)
-    if (regno == -1 || regno == i)
-      regcache_raw_collect (regcache, i,
-			    fpregs_buf + V_REGISTER_SIZE
-			    * (i - AARCH64_V0_REGNUM));
-
-  if (regno == -1 || regno == AARCH64_FPSR_REGNUM)
-    regcache_raw_collect (regcache, AARCH64_FPSR_REGNUM,
-			  fpregs_buf + V_REGISTER_SIZE * 32);
-
-  if (regno == -1 || regno == AARCH64_FPCR_REGNUM)
-    regcache_raw_collect (regcache, AARCH64_FPCR_REGNUM,
-			  fpregs_buf + V_REGISTER_SIZE * 32 + 4);
+  regcache_collect_regset (&aarch64_linux_fpregset, regcache,
+			   regno, (gdb_byte *) fpregsetp,
+			   AARCH64_LINUX_SIZEOF_FPREGSET);
 }
 
 /* Fill GDB's register array with the floating-point register values
@@ -666,7 +647,9 @@ fill_fpregset (const struct regcache *regcache,
 void
 supply_fpregset (struct regcache *regcache, const gdb_fpregset_t *fpregsetp)
 {
-  aarch64_linux_supply_fpregset (regcache, (const gdb_byte *) fpregsetp);
+  regcache_supply_regset (&aarch64_linux_fpregset, regcache, -1,
+			  (const gdb_byte *) fpregsetp,
+			  AARCH64_LINUX_SIZEOF_FPREGSET);
 }
 
 /* Called when resuming a thread.
@@ -690,7 +673,7 @@ aarch64_linux_prepare_to_resume (struct lwp_info *lwp)
       struct aarch64_debug_reg_state *state
 	= aarch64_get_debug_reg_state (ptid_get_pid (lwp->ptid));
 
-      if (debug_hw_points)
+      if (show_debug_regs)
 	fprintf_unfiltered (gdb_stdlog, "prepare_to_resume thread %d\n", tid);
 
       /* Watchpoints.  */
@@ -1200,7 +1183,7 @@ aarch64_handle_breakpoint (int type, CORE_ADDR addr, int len, int is_insert)
     return aarch64_dr_state_remove_one_point (state, type, addr, len);
 }
 
-/* Insert a hardware-assisted breakpoint at BP_TGT->placed_address.
+/* Insert a hardware-assisted breakpoint at BP_TGT->reqstd_address.
    Return 0 on success, -1 on failure.  */
 
 static int
@@ -1209,11 +1192,11 @@ aarch64_linux_insert_hw_breakpoint (struct target_ops *self,
 				    struct bp_target_info *bp_tgt)
 {
   int ret;
-  CORE_ADDR addr = bp_tgt->placed_address;
+  CORE_ADDR addr = bp_tgt->placed_address = bp_tgt->reqstd_address;
   const int len = 4;
   const int type = hw_execute;
 
-  if (debug_hw_points)
+  if (show_debug_regs)
     fprintf_unfiltered
       (gdb_stdlog,
        "insert_hw_breakpoint on entry (addr=0x%08lx, len=%d))\n",
@@ -1221,7 +1204,7 @@ aarch64_linux_insert_hw_breakpoint (struct target_ops *self,
 
   ret = aarch64_handle_breakpoint (type, addr, len, 1 /* is_insert */);
 
-  if (debug_hw_points > 1)
+  if (show_debug_regs)
     {
       struct aarch64_debug_reg_state *state
 	= aarch64_get_debug_reg_state (ptid_get_pid (inferior_ptid));
@@ -1246,14 +1229,14 @@ aarch64_linux_remove_hw_breakpoint (struct target_ops *self,
   const int len = 4;
   const int type = hw_execute;
 
-  if (debug_hw_points)
+  if (show_debug_regs)
     fprintf_unfiltered
       (gdb_stdlog, "remove_hw_breakpoint on entry (addr=0x%08lx, len=%d))\n",
        (unsigned long) addr, len);
 
   ret = aarch64_handle_breakpoint (type, addr, len, 0 /* is_insert */);
 
-  if (debug_hw_points > 1)
+  if (show_debug_regs)
     {
       struct aarch64_debug_reg_state *state
 	= aarch64_get_debug_reg_state (ptid_get_pid (inferior_ptid));
@@ -1310,7 +1293,7 @@ aarch64_handle_unaligned_watchpoint (int type, CORE_ADDR addr, int len,
 	ret = aarch64_dr_state_remove_one_point (state, type, aligned_addr,
 						 aligned_len);
 
-      if (debug_hw_points)
+      if (show_debug_regs)
 	fprintf_unfiltered (gdb_stdlog,
 "handle_unaligned_watchpoint: is_insert: %d\n"
 "                             aligned_addr: 0x%08lx, aligned_len: %d\n"
@@ -1348,7 +1331,7 @@ aarch64_linux_insert_watchpoint (struct target_ops *self,
 {
   int ret;
 
-  if (debug_hw_points)
+  if (show_debug_regs)
     fprintf_unfiltered (gdb_stdlog,
 			"insert_watchpoint on entry (addr=0x%08lx, len=%d)\n",
 			(unsigned long) addr, len);
@@ -1357,7 +1340,7 @@ aarch64_linux_insert_watchpoint (struct target_ops *self,
 
   ret = aarch64_handle_watchpoint (type, addr, len, 1 /* is_insert */);
 
-  if (debug_hw_points > 1)
+  if (show_debug_regs)
     {
       struct aarch64_debug_reg_state *state
 	= aarch64_get_debug_reg_state (ptid_get_pid (inferior_ptid));
@@ -1381,7 +1364,7 @@ aarch64_linux_remove_watchpoint (struct target_ops *self,
 {
   int ret;
 
-  if (debug_hw_points)
+  if (show_debug_regs)
     fprintf_unfiltered (gdb_stdlog,
 			"remove_watchpoint on entry (addr=0x%08lx, len=%d)\n",
 			(unsigned long) addr, len);
@@ -1390,7 +1373,7 @@ aarch64_linux_remove_watchpoint (struct target_ops *self,
 
   ret = aarch64_handle_watchpoint (type, addr, len, 0 /* is_insert */);
 
-  if (debug_hw_points > 1)
+  if (show_debug_regs)
     {
       struct aarch64_debug_reg_state *state
 	= aarch64_get_debug_reg_state (ptid_get_pid (inferior_ptid));
@@ -1509,7 +1492,7 @@ add_show_debug_regs_command (void)
   /* A maintenance command to enable printing the internal DRi mirror
      variables.  */
   add_setshow_boolean_cmd ("show-debug-regs", class_maintenance,
-			   &debug_hw_points, _("\
+			   &show_debug_regs, _("\
 Set whether to show variables that mirror the AArch64 debug registers."), _("\
 Show whether to show variables that mirror the AArch64 debug registers."), _("\
 Use \"on\" to enable, \"off\" to disable.\n\

@@ -24,9 +24,6 @@
 #include "terminal.h"
 #include "gdbcore.h"
 #include "regcache.h"
-
-#include "gdb_assert.h"
-#include <string.h>
 #include "gdb_ptrace.h"
 #include "gdb_wait.h"
 #include <signal.h>
@@ -39,57 +36,21 @@
 
 #ifdef PT_GET_PROCESS_STATE
 
+/* Target hook for follow_fork.  On entry and at return inferior_ptid is
+   the ptid of the followed inferior.  */
+
 static int
 inf_ptrace_follow_fork (struct target_ops *ops, int follow_child,
 			int detach_fork)
 {
-  pid_t pid, fpid;
-  ptrace_state_t pe;
-
-  pid = ptid_get_pid (inferior_ptid);
-
-  if (ptrace (PT_GET_PROCESS_STATE, pid,
-	       (PTRACE_TYPE_ARG3)&pe, sizeof pe) == -1)
-    perror_with_name (("ptrace"));
-
-  gdb_assert (pe.pe_report_event == PTRACE_FORK);
-  fpid = pe.pe_other_pid;
-
-  if (follow_child)
+  if (!follow_child)
     {
-      struct inferior *parent_inf, *child_inf;
-      struct thread_info *tp;
+      pid_t child_pid = inferior_thread->pending_follow.value.related_pid;
 
-      parent_inf = find_inferior_pid (pid);
-
-      /* Add the child.  */
-      child_inf = add_inferior (fpid);
-      child_inf->attach_flag = parent_inf->attach_flag;
-      copy_terminal_info (child_inf, parent_inf);
-      child_inf->pspace = parent_inf->pspace;
-      child_inf->aspace = parent_inf->aspace;
-
-      /* Before detaching from the parent, remove all breakpoints from
-	 it.  */
-      remove_breakpoints ();
-
-      if (ptrace (PT_DETACH, pid, (PTRACE_TYPE_ARG3)1, 0) == -1)
-	perror_with_name (("ptrace"));
-
-      /* Switch inferior_ptid out of the parent's way.  */
-      inferior_ptid = pid_to_ptid (fpid);
-
-      /* Delete the parent.  */
-      detach_inferior (pid);
-
-      add_thread_silent (inferior_ptid);
-    }
-  else
-    {
       /* Breakpoints have already been detached from the child by
 	 infrun.c.  */
 
-      if (ptrace (PT_DETACH, fpid, (PTRACE_TYPE_ARG3)1, 0) == -1)
+      if (ptrace (PT_DETACH, child_pid, (PTRACE_TYPE_ARG3)1, 0) == -1)
 	perror_with_name (("ptrace"));
     }
 
@@ -174,17 +135,14 @@ inf_ptrace_mourn_inferior (struct target_ops *ops)
      only report its exit status to its original parent.  */
   waitpid (ptid_get_pid (inferior_ptid), &status, 0);
 
-  generic_mourn_inferior ();
-
-  if (!have_inferiors ())
-    unpush_target (ops);
+  inf_child_mourn_inferior (ops);
 }
 
 /* Attach to the process specified by ARGS.  If FROM_TTY is non-zero,
    be chatty about it.  */
 
 static void
-inf_ptrace_attach (struct target_ops *ops, char *args, int from_tty)
+inf_ptrace_attach (struct target_ops *ops, const char *args, int from_tty)
 {
   char *exec_file;
   pid_t pid;
@@ -297,8 +255,7 @@ inf_ptrace_detach (struct target_ops *ops, const char *args, int from_tty)
   inferior_ptid = null_ptid;
   detach_inferior (pid);
 
-  if (!have_inferiors ())
-    unpush_target (ops);
+  inf_child_maybe_unpush_target (ops);
 }
 
 /* Kill the inferior.  */

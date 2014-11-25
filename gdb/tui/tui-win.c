@@ -45,8 +45,6 @@
 #include "tui/tui-win.h"
 
 #include "gdb_curses.h"
-
-#include <string.h>
 #include <ctype.h>
 #include "readline/readline.h"
 
@@ -333,7 +331,7 @@ tui_command (char *args, int from_tty)
 {
   printf_unfiltered (_("\"tui\" must be followed by the name of a "
                      "tui command.\n"));
-  help_list (tuilist, "tui ", -1, gdb_stdout);
+  help_list (tuilist, "tui ", all_commands, gdb_stdout);
 }
 
 struct cmd_list_element **
@@ -836,6 +834,9 @@ tui_initialize_win (void)
 
   memset (&old_winch, 0, sizeof (old_winch));
   old_winch.sa_handler = &tui_sigwinch_handler;
+#ifdef SA_RESTART
+  old_winch.sa_flags = SA_RESTART;
+#endif
   sigaction (SIGWINCH, &old_winch, NULL);
 #else
   signal (SIGWINCH, &tui_sigwinch_handler);
@@ -1388,7 +1389,7 @@ make_visible_with_new_height (struct tui_win_info *win_info)
 	  struct frame_info *frame = deprecated_safe_get_selected_frame ();
 	  struct gdbarch *gdbarch = get_frame_arch (frame);
 
-	  s = find_pc_symtab (get_frame_pc (frame));
+	  s = find_pc_line_symtab (get_frame_pc (frame));
 	  if (win_info->generic.type == SRC_WIN)
 	    {
 	      line.loa = LOA_LINE;

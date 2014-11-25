@@ -1,7 +1,5 @@
 /* Target definitions for NN-bit ELF
-   Copyright 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002,
-   2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1993-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -50,6 +48,9 @@
 #endif
 #ifndef bfd_elfNN_find_nearest_line
 #define bfd_elfNN_find_nearest_line	_bfd_elf_find_nearest_line
+#endif
+#ifndef bfd_elfNN_find_line
+#define bfd_elfNN_find_line		_bfd_elf_find_line
 #endif
 #ifndef bfd_elfNN_find_inliner_info
 #define bfd_elfNN_find_inliner_info	_bfd_elf_find_inliner_info
@@ -239,9 +240,6 @@
 #ifndef bfd_elfNN_bfd_link_hash_table_create
 #define bfd_elfNN_bfd_link_hash_table_create _bfd_elf_link_hash_table_create
 #endif
-#ifndef bfd_elfNN_bfd_link_hash_table_free
-#define bfd_elfNN_bfd_link_hash_table_free _bfd_elf_link_hash_table_free
-#endif
 #ifndef bfd_elfNN_bfd_link_add_symbols
 #define bfd_elfNN_bfd_link_add_symbols	bfd_elf_link_add_symbols
 #endif
@@ -257,9 +255,6 @@
 #ifndef bfd_elfNN_bfd_link_hash_table_create
 #define bfd_elfNN_bfd_link_hash_table_create \
   _bfd_generic_link_hash_table_create
-#endif
-#ifndef bfd_elfNN_bfd_link_hash_table_free
-#define bfd_elfNN_bfd_link_hash_table_free _bfd_generic_link_hash_table_free
 #endif
 #ifndef bfd_elfNN_bfd_link_add_symbols
 #define bfd_elfNN_bfd_link_add_symbols	_bfd_generic_link_add_symbols

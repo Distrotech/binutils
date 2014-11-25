@@ -20,7 +20,6 @@
 #include "value.h"
 #include "valprint.h"
 #include "ui-out.h"
-#include <string.h>
 #include "symtab.h"
 #include "gdbcmd.h"
 #include "command.h"
@@ -30,7 +29,6 @@
 #include "arch-utils.h"
 #include "linespec.h"
 #include "objfiles.h"
-#include "exceptions.h"
 #include "breakpoint.h" /* for get_sal_arch () */
 #include "source.h"
 #include "filenames.h"

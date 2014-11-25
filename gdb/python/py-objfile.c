@@ -30,6 +30,10 @@ typedef struct
   /* The corresponding objfile.  */
   struct objfile *objfile;
 
+  /* Dictionary holding user-added attributes.
+     This is the __dict__ attribute of the object.  */
+  PyObject *dict;
+
   /* The pretty-printer list of functions.  */
   PyObject *printers;
 
@@ -37,6 +41,9 @@ typedef struct
   PyObject *frame_filters;
   /* The type-printer list.  */
   PyObject *type_printers;
+
+  /* The debug method matcher list.  */
+  PyObject *xmethods;
 } objfile_object;
 
 static PyTypeObject objfile_object_type
@@ -59,15 +66,63 @@ objfpy_get_filename (PyObject *self, void *closure)
   Py_RETURN_NONE;
 }
 
+/* An Objfile method which returns the objfile's progspace, or None.  */
+
+static PyObject *
+objfpy_get_progspace (PyObject *self, void *closure)
+{
+  objfile_object *obj = (objfile_object *) self;
+
+  if (obj->objfile)
+    {
+      PyObject *pspace =  pspace_to_pspace_object (obj->objfile->pspace);
+
+      Py_XINCREF (pspace);
+      return pspace;
+    }
+
+  Py_RETURN_NONE;
+}
+
 static void
 objfpy_dealloc (PyObject *o)
 {
   objfile_object *self = (objfile_object *) o;
 
+  Py_XDECREF (self->dict);
   Py_XDECREF (self->printers);
   Py_XDECREF (self->frame_filters);
   Py_XDECREF (self->type_printers);
+  Py_XDECREF (self->xmethods);
   Py_TYPE (self)->tp_free (self);
+}
+
+/* Initialize an objfile_object.
+   The result is a boolean indicating success.  */
+
+static int
+objfpy_initialize (objfile_object *self)
+{
+  self->objfile = NULL;
+  self->dict = NULL;
+
+  self->printers = PyList_New (0);
+  if (self->printers == NULL)
+    return 0;
+
+  self->frame_filters = PyDict_New ();
+  if (self->frame_filters == NULL)
+    return 0;
+
+  self->type_printers = PyList_New (0);
+  if (self->type_printers == NULL)
+    return 0;
+
+  self->xmethods = PyList_New (0);
+  if (self->xmethods == NULL)
+    return 0;
+
+  return 1;
 }
 
 static PyObject *
@@ -77,29 +132,13 @@ objfpy_new (PyTypeObject *type, PyObject *args, PyObject *keywords)
 
   if (self)
     {
-      self->objfile = NULL;
-
-      self->printers = PyList_New (0);
-      if (!self->printers)
-	{
-	  Py_DECREF (self);
-	  return NULL;
-	}
-
-      self->frame_filters = PyDict_New ();
-      if (!self->frame_filters)
-	{
-	  Py_DECREF (self);
-	  return NULL;
-	}
-
-      self->type_printers = PyList_New (0);
-      if (!self->type_printers)
+      if (!objfpy_initialize (self))
 	{
 	  Py_DECREF (self);
 	  return NULL;
 	}
     }
+
   return (PyObject *) self;
 }
 
@@ -193,6 +232,17 @@ objfpy_get_type_printers (PyObject *o, void *ignore)
   return self->type_printers;
 }
 
+/* Get the 'xmethods' attribute.  */
+
+PyObject *
+objfpy_get_xmethods (PyObject *o, void *ignore)
+{
+  objfile_object *self = (objfile_object *) o;
+
+  Py_INCREF (self->xmethods);
+  return self->xmethods;
+}
+
 /* Set the 'type_printers' attribute.  */
 
 static int
@@ -258,6 +308,7 @@ py_free_objfile (struct objfile *objfile, void *datum)
    representing OBJFILE.  If the object has already been created,
    return it.  Otherwise, create it.  Return NULL and set the Python
    error on failure.  */
+
 PyObject *
 objfile_to_objfile_object (struct objfile *objfile)
 {
@@ -269,29 +320,13 @@ objfile_to_objfile_object (struct objfile *objfile)
       object = PyObject_New (objfile_object, &objfile_object_type);
       if (object)
 	{
+	  if (!objfpy_initialize (object))
+	    {
+	      Py_DECREF (object);
+	      return NULL;
+	    }
+
 	  object->objfile = objfile;
-
-	  object->printers = PyList_New (0);
-	  if (!object->printers)
-	    {
-	      Py_DECREF (object);
-	      return NULL;
-	    }
-
-	  object->frame_filters = PyDict_New ();
-	  if (!object->frame_filters)
-	    {
-	      Py_DECREF (object);
-	      return NULL;
-	    }
-
-	  object->type_printers = PyList_New (0);
-	  if (!object->type_printers)
-	    {
-	      Py_DECREF (object);
-	      return NULL;
-	    }
-
 	  set_objfile_data (objfile, objfpy_objfile_data_key, object);
 	}
     }
@@ -325,14 +360,20 @@ Return true if this object file is valid, false if not." },
 
 static PyGetSetDef objfile_getset[] =
 {
+  { "__dict__", gdb_py_generic_dict, NULL,
+    "The __dict__ for this objfile.", &objfile_object_type },
   { "filename", objfpy_get_filename, NULL,
     "The objfile's filename, or None.", NULL },
+  { "progspace", objfpy_get_progspace, NULL,
+    "The objfile's progspace, or None.", NULL },
   { "pretty_printers", objfpy_get_printers, objfpy_set_printers,
     "Pretty printers.", NULL },
   { "frame_filters", objfpy_get_frame_filters,
     objfpy_set_frame_filters, "Frame Filters.", NULL },
   { "type_printers", objfpy_get_type_printers, objfpy_set_type_printers,
     "Type printers.", NULL },
+  { "xmethods", objfpy_get_xmethods, NULL,
+    "Debug methods.", NULL },
   { NULL }
 };
 
@@ -372,7 +413,7 @@ static PyTypeObject objfile_object_type =
   0,				  /* tp_dict */
   0,				  /* tp_descr_get */
   0,				  /* tp_descr_set */
-  0,				  /* tp_dictoffset */
+  offsetof (objfile_object, dict), /* tp_dictoffset */
   0,				  /* tp_init */
   0,				  /* tp_alloc */
   objfpy_new,			  /* tp_new */

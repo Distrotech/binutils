@@ -1,5 +1,5 @@
 /* BFD back-end for Intel 386 PE IMAGE COFF files.
-   Copyright 2006, 2007, 2009 Free Software Foundation, Inc.
+   Copyright (C) 2006-2014 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -23,7 +23,7 @@
 #include "sysdep.h"
 #include "bfd.h"
 
-#define TARGET_SYM 		x86_64pei_vec
+#define TARGET_SYM 		x86_64_pei_vec
 #define TARGET_NAME 		"pei-x86-64"
 #define COFF_IMAGE_WITH_PE
 #define COFF_WITH_PE
@@ -276,8 +276,9 @@ pex64_xdata_print_uwd_codes (FILE *file, bfd *abfd,
 	    fprintf (file, ", unknown(%u))", info);
 	  break;
 	default:
-	  /* Already caught by the previous scan.  */
-	  abort ();
+	  /* PR 17512: file: 2245-7442-0.004.  */
+	  fprintf (file, _("Unknown: %x"), PEX64_UNWCODE_CODE (dta[1]));
+	  break;
       }
       if (unexpected)
 	fprintf (file, " [Unexpected!]");
@@ -317,20 +318,34 @@ pex64_dump_xdata (FILE *file, bfd *abfd,
   bfd_vma vaddr;
   bfd_vma end_addr;
   bfd_vma addr = rf->rva_UnwindData;
+  bfd_size_type sec_size = xdata_section->rawsize > 0 ? xdata_section->rawsize : xdata_section->size;
   struct pex64_unwind_info ui;
 
   vaddr = xdata_section->vma - pe_data (abfd)->pe_opthdr.ImageBase;
   addr -= vaddr;
 
-  if (endx)
-    end_addr = endx[0] - vaddr;
-  else
-    end_addr = (xdata_section->rawsize != 0 ?
-		xdata_section->rawsize : xdata_section->size);
+  /* PR 17512: file: 2245-7442-0.004.  */
+  if (addr >= sec_size)
+    {
+      fprintf (file, _("warning: xdata section corrupt\n"));
+      return;
+    }
 
+  if (endx)
+    {
+      end_addr = endx[0] - vaddr;
+      /* PR 17512: file: 2245-7442-0.004.  */
+      if (end_addr > sec_size)
+	{
+	  fprintf (file, _("warning: xdata section corrupt"));
+	  end_addr = sec_size;
+	}
+    }
+  else
+    end_addr = sec_size;
 
   pex64_get_unwind_info (abfd, &ui, &xdata[addr]);
-
+  
   if (ui.Version != 1 && ui.Version != 2)
     {
       unsigned int i;
@@ -380,7 +395,11 @@ pex64_dump_xdata (FILE *file, bfd *abfd,
 	   ui.FrameRegister == 0 ? "none"
 	   : pex_regs[(unsigned int) ui.FrameRegister]);
 
-  pex64_xdata_print_uwd_codes (file, abfd, &ui, rf);
+  /* PR 17512: file: 2245-7442-0.004.  */
+  if (ui.CountOfCodes * 2 + ui.rawUnwindCodes + addr >= xdata + xdata_section->size)
+    fprintf (file, _("Too many unwind codes (%ld)\n"), (long) ui.CountOfCodes);
+  else
+    pex64_xdata_print_uwd_codes (file, abfd, &ui, rf);
 
   switch (ui.Flags)
     {
@@ -464,6 +483,12 @@ pex64_bfd_print_pdata (bfd *abfd, void *vfile)
     return TRUE;
 
   stop = pei_section_data (abfd, pdata_section)->virt_size;
+  /* PR 17512: file: 005-181405-0.004.  */
+  if (stop == 0 || pdata_section->size == 0)
+    {
+      fprintf (file, _("No unwind data in .pdata section\n"));
+      return TRUE;
+    }
   if ((stop % onaline) != 0)
     fprintf (file,
 	     _("warning: .pdata section size (%ld) is not a multiple of %d\n"),
@@ -490,6 +515,7 @@ pex64_bfd_print_pdata (bfd *abfd, void *vfile)
 
       if (i + PDATA_ROW_SIZE > stop)
 	break;
+
       pex64_get_runtime_function (abfd, &rf, &pdata[i]);
 
       if (rf.rva_BeginAddress == 0 && rf.rva_EndAddress == 0
@@ -566,6 +592,7 @@ pex64_bfd_print_pdata (bfd *abfd, void *vfile)
 
       if (i + PDATA_ROW_SIZE > stop)
 	break;
+
       pex64_get_runtime_function (abfd, &rf, &pdata[i]);
 
       if (rf.rva_BeginAddress == 0 && rf.rva_EndAddress == 0
@@ -635,6 +662,7 @@ pex64_bfd_print_pdata (bfd *abfd, void *vfile)
 		 identical pointers in the array; advance past all of them.  */
 	      while (p[0] <= rf.rva_UnwindData)
 		++p;
+
 	      if (p[0] == ~((bfd_vma) 0))
 		p = NULL;
 

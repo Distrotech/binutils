@@ -1922,7 +1922,7 @@ sim_close (sd, quitting)
 SIM_RC
 sim_load (sd, prog, abfd, from_tty)
      SIM_DESC sd;
-     char * prog;
+     const char * prog;
      bfd * abfd;
      int from_tty;
 {
@@ -2130,7 +2130,7 @@ sim_kill (sd)
 void
 sim_do_command (sd, cmd)
      SIM_DESC sd;
-     char * cmd;
+     const char *cmd;
 {
   /* Nothing there yet; it's all an error.  */
   

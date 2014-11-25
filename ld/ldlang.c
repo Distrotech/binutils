@@ -1,5 +1,5 @@
 /* Linker command language support.
-   Copyright 1991-2013 Free Software Foundation, Inc.
+   Copyright (C) 1991-2014 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -40,6 +40,7 @@
 #include "demangle.h"
 #include "hashtab.h"
 #include "libbfd.h"
+#include "elf-bfd.h"
 #ifdef ENABLE_PLUGINS
 #include "plugin.h"
 #endif /* ENABLE_PLUGINS */
@@ -56,7 +57,7 @@ static struct obstack map_obstack;
 #define obstack_chunk_free free
 static const char *entry_symbol_default = "start";
 static bfd_boolean placed_commons = FALSE;
-static bfd_boolean stripped_excluded_sections = FALSE;
+static bfd_boolean map_head_is_link_order = FALSE;
 static lang_output_section_statement_type *default_common_section;
 static bfd_boolean map_option_f;
 static bfd_vma print_dot;
@@ -111,8 +112,6 @@ struct asneeded_minfo **asneeded_list_tail;
  /* Functions that traverse the linker script and might evaluate
     DEFINED() need to increment this at the start of the traversal.  */
 int lang_statement_iteration = 0;
-
-etree_type *base; /* Relocation base - or null */
 
 /* Return TRUE if the PATTERN argument is a wildcard pattern.
    Although backslashes are treated specially if a pattern contains
@@ -1063,13 +1062,6 @@ new_afile (const char *name,
   p->flags.whole_archive = input_flags.whole_archive;
   p->flags.sysrooted = input_flags.sysrooted;
 
-  if (file_type == lang_input_file_is_l_enum
-      && name[0] == ':' && name[1] != '\0')
-    {
-      file_type = lang_input_file_is_search_file_enum;
-      name = name + 1;
-    }
-
   switch (file_type)
     {
     case lang_input_file_is_symbols_only_enum:
@@ -1083,7 +1075,13 @@ new_afile (const char *name,
       p->local_sym_name = name;
       break;
     case lang_input_file_is_l_enum:
-      p->filename = name;
+      if (name[0] == ':' && name[1] != '\0')
+        {
+          p->filename = name + 1;
+          p->flags.full_name_provided = TRUE;
+        }
+      else
+        p->filename = name;
       p->local_sym_name = concat ("-l", name, (const char *) NULL);
       p->flags.maybe_archive = TRUE;
       p->flags.real = TRUE;
@@ -1120,6 +1118,26 @@ lang_add_input_file (const char *name,
 		     lang_input_file_enum_type file_type,
 		     const char *target)
 {
+  if (name != NULL && *name == '=')
+    {
+      lang_input_statement_type *ret;
+      char *sysrooted_name
+	= concat (ld_sysroot, name + 1, (const char *) NULL);
+
+      /* We've now forcibly prepended the sysroot, making the input
+	 file independent of the context.  Therefore, temporarily
+	 force a non-sysrooted context for this statement, so it won't
+	 get the sysroot prepended again when opened.  (N.B. if it's a
+	 script, any child nodes with input files starting with "/"
+	 will be handled as "sysrooted" as they'll be found to be
+	 within the sysroot subdirectory.)  */
+      unsigned int outer_sysrooted = input_flags.sysrooted;
+      input_flags.sysrooted = 0;
+      ret = new_afile (sysrooted_name, file_type, target, TRUE);
+      input_flags.sysrooted = outer_sysrooted;
+      return ret;
+    }
+
   return new_afile (name, file_type, target, TRUE);
 }
 
@@ -1238,7 +1256,6 @@ lang_init (void)
 void
 lang_finish (void)
 {
-  bfd_link_hash_table_free (link_info.output_bfd, link_info.hash);
   bfd_hash_table_free (&lang_definedness_table);
   output_section_statement_table_free ();
 }
@@ -2124,6 +2141,8 @@ lang_map (void)
     }
   lang_statement_iteration++;
   print_statements ();
+
+  ldemul_extra_map_file_text (link_info.output_bfd, &link_info, config.map_file);
 }
 
 static bfd_boolean
@@ -2412,8 +2431,7 @@ lang_add_section (lang_statement_list_type *ptr,
 
   section->output_section = output->bfd_section;
 
-  if (!link_info.relocatable
-      && !stripped_excluded_sections)
+  if (!map_head_is_link_order)
     {
       asection *s = output->bfd_section->map_tail.s;
       output->bfd_section->map_tail.s = section;
@@ -2792,9 +2810,7 @@ load_symbols (lang_input_statement_type *entry,
       break;
 
     case bfd_object:
-#ifdef ENABLE_PLUGINS
       if (!entry->flags.reload)
-#endif
 	ldlang_add_file (entry);
       if (trace_files || verbose)
 	info_msg ("%I\n", entry);
@@ -3270,38 +3286,33 @@ open_input_bfds (lang_statement_union_type *s, enum open_bfd_mode mode)
 	    {
 	      lang_statement_union_type **os_tail;
 	      lang_statement_list_type add;
+	      bfd *abfd;
 
 	      s->input_statement.target = current_target;
 
 	      /* If we are being called from within a group, and this
 		 is an archive which has already been searched, then
 		 force it to be researched unless the whole archive
-		 has been loaded already.  Do the same for a rescan.  */
+		 has been loaded already.  Do the same for a rescan.
+		 Likewise reload --as-needed shared libs.  */
 	      if (mode != OPEN_BFD_NORMAL
 #ifdef ENABLE_PLUGINS
 		  && ((mode & OPEN_BFD_RESCAN) == 0
 		      || plugin_insert == NULL)
 #endif
-		  && !s->input_statement.flags.whole_archive
 		  && s->input_statement.flags.loaded
-		  && s->input_statement.the_bfd != NULL
-		  && bfd_check_format (s->input_statement.the_bfd,
-				       bfd_archive))
-		s->input_statement.flags.loaded = FALSE;
-#ifdef ENABLE_PLUGINS
-	      /* When rescanning, reload --as-needed shared libs.  */
-	      else if ((mode & OPEN_BFD_RESCAN) != 0
-		       && plugin_insert == NULL
-		       && s->input_statement.flags.loaded
-		       && s->input_statement.flags.add_DT_NEEDED_for_regular
-		       && s->input_statement.the_bfd != NULL
-		       && ((s->input_statement.the_bfd->flags) & DYNAMIC) != 0
-		       && plugin_should_reload (s->input_statement.the_bfd))
+		  && (abfd = s->input_statement.the_bfd) != NULL
+		  && ((bfd_get_format (abfd) == bfd_archive
+		       && !s->input_statement.flags.whole_archive)
+		      || (bfd_get_format (abfd) == bfd_object
+			  && ((abfd->flags) & DYNAMIC) != 0
+			  && s->input_statement.flags.add_DT_NEEDED_for_regular
+			  && bfd_get_flavour (abfd) == bfd_target_elf_flavour
+			  && (elf_dyn_lib_class (abfd) & DYN_AS_NEEDED) != 0)))
 		{
 		  s->input_statement.flags.loaded = FALSE;
 		  s->input_statement.flags.reload = TRUE;
 		}
-#endif
 
 	      os_tail = lang_output_section_statement.tail;
 	      lang_list_init (&add);
@@ -3920,10 +3931,6 @@ strip_excluded_output_sections (void)
 	      }
 	}
 
-      /* TODO: Don't just junk map_head.s, turn them into link_orders.  */
-      output_section->map_head.link_order = NULL;
-      output_section->map_tail.link_order = NULL;
-
       if (exclude)
 	{
 	  /* We don't set bfd_section to NULL since bfd_section of the
@@ -3935,10 +3942,42 @@ strip_excluded_output_sections (void)
 	  link_info.output_bfd->section_count--;
 	}
     }
+}
+
+/* Called from ldwrite to clear out asection.map_head and
+   asection.map_tail for use as link_orders in ldwrite.
+   FIXME: Except for sh64elf.em which starts creating link_orders in
+   its after_allocation routine so needs to call it early.  */
+
+void
+lang_clear_os_map (void)
+{
+  lang_output_section_statement_type *os;
+
+  if (map_head_is_link_order)
+    return;
+
+  for (os = &lang_output_section_statement.head->output_section_statement;
+       os != NULL;
+       os = os->next)
+    {
+      asection *output_section;
+
+      if (os->constraint < 0)
+	continue;
+
+      output_section = os->bfd_section;
+      if (output_section == NULL)
+	continue;
+
+      /* TODO: Don't just junk map_head.s, turn them into link_orders.  */
+      output_section->map_head.link_order = NULL;
+      output_section->map_tail.link_order = NULL;
+    }
 
   /* Stop future calls to lang_add_section from messing with map_head
      and map_tail link_order fields.  */
-  stripped_excluded_sections = TRUE;
+  map_head_is_link_order = TRUE;
 }
 
 static void
@@ -4595,12 +4634,15 @@ size_input_section
 {
   lang_input_section_type *is = &((*this_ptr)->input_section);
   asection *i = is->section;
+  asection *o = output_section_statement->bfd_section;
 
-  if (i->sec_info_type != SEC_INFO_TYPE_JUST_SYMS
-      && (i->flags & SEC_EXCLUDE) == 0)
+  if (i->sec_info_type == SEC_INFO_TYPE_JUST_SYMS)
+    i->output_offset = i->vma - o->vma;
+  else if ((i->flags & SEC_EXCLUDE) != 0)
+    i->output_offset = dot - o->vma;
+  else
     {
       bfd_size_type alignment_needed;
-      asection *o;
 
       /* Align this section first to the input sections requirement,
 	 then to the output section's requirement.  If this alignment
@@ -4610,7 +4652,6 @@ size_input_section
       if (output_section_statement->subsection_alignment != -1)
 	i->alignment_power = output_section_statement->subsection_alignment;
 
-      o = output_section_statement->bfd_section;
       if (o->alignment_power < i->alignment_power)
 	o->alignment_power = i->alignment_power;
 
@@ -4623,16 +4664,11 @@ size_input_section
 	}
 
       /* Remember where in the output section this input section goes.  */
-
       i->output_offset = dot - o->vma;
 
       /* Mark how big the output section must be to contain this now.  */
       dot += TO_ADDR (i->size);
       o->size = TO_SIZE (dot - o->vma);
-    }
-  else
-    {
-      i->output_offset = i->vma - output_section_statement->bfd_section->vma;
     }
 
   return dot;
@@ -5214,7 +5250,7 @@ lang_size_sections_1
 		  *relax = TRUE;
 	      }
 	    dot = size_input_section (prev, output_section_statement,
-				      output_section_statement->fill, dot);
+				      fill, dot);
 	  }
 	  break;
 
@@ -5986,7 +6022,7 @@ lang_common (void)
 	  for (power = 0; power <= 4; power++)
 	    bfd_link_hash_traverse (link_info.hash, lang_one_common, &power);
 
-	  power = UINT_MAX;
+	  power = (unsigned int) -1;
 	  bfd_link_hash_traverse (link_info.hash, lang_one_common, &power);
 	}
     }
@@ -6218,11 +6254,11 @@ ldlang_add_file (lang_input_statement_type *entry)
 
   /* The BFD linker needs to have a list of all input BFDs involved in
      a link.  */
-  ASSERT (entry->the_bfd->link_next == NULL);
+  ASSERT (entry->the_bfd->link.next == NULL);
   ASSERT (entry->the_bfd != link_info.output_bfd);
 
   *link_info.input_bfds_tail = entry->the_bfd;
-  link_info.input_bfds_tail = &entry->the_bfd->link_next;
+  link_info.input_bfds_tail = &entry->the_bfd->link.next;
   entry->the_bfd->usrdata = entry;
   bfd_set_gp_size (entry->the_bfd, g_switch_value);
 

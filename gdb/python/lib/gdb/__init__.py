@@ -67,6 +67,8 @@ pretty_printers = []
 
 # Initial type printers.
 type_printers = []
+# Initial xmethod matchers.
+xmethods = []
 # Initial frame filters.
 frame_filters = {}
 
@@ -79,7 +81,8 @@ PYTHONDIR = os.path.dirname(os.path.dirname(__file__))
 
 packages = [
     'function',
-    'command'
+    'command',
+    'printer'
 ]
 
 # pkgutil.iter_modules is not available prior to Python 2.6.  Instead,

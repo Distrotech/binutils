@@ -1,5 +1,5 @@
 /* tc-z80.c -- Assemble code for the Zilog Z80 and ASCII R800
-   Copyright 2005-2014 Free Software Foundation, Inc.
+   Copyright (C) 2005-2014 Free Software Foundation, Inc.
    Contributed by Arnold Metselaar <arnold_m@operamail.com>
 
    This file is part of GAS, the GNU Assembler.
@@ -557,6 +557,8 @@ parse_exp_not_indexed (const char *s, expressionS *op)
     case O_illegal:
       error (_("bad expression syntax"));
       break;
+    default:
+      break;
     }
   return input_line_pointer;
 }
@@ -604,6 +606,8 @@ parse_exp (const char *s, expressionS *op)
 	  op->X_op = O_md1;
 	}
 	break;
+    default:
+      break;
     }
   return res;
 }

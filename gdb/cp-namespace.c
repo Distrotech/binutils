@@ -23,7 +23,6 @@
 #include "gdb_obstack.h"
 #include "symtab.h"
 #include "symfile.h"
-#include "gdb_assert.h"
 #include "block.h"
 #include "objfiles.h"
 #include "gdbtypes.h"
@@ -219,9 +218,7 @@ cp_is_anonymous (const char *namespace)
    names.  This makes sure that names get looked for in all namespaces
    that are in scope.  NAME is the natural name of the symbol that
    we're looking for, BLOCK is the block that we're searching within,
-   DOMAIN says what kind of symbols we're looking for, and if SYMTAB
-   is non-NULL, we should store the symtab where we found the symbol
-   in it.  */
+   DOMAIN says what kind of symbols we're looking for.  */
 
 struct symbol *
 cp_lookup_symbol_nonlocal (const char *name,
@@ -474,7 +471,7 @@ cp_lookup_symbol_imports_or_template (const char *scope,
 	  struct cleanup *cleanups = make_cleanup (xfree, name_copy);
 	  const struct language_defn *lang = language_def (language_cplus);
 	  struct gdbarch *arch
-	    = get_objfile_arch (SYMBOL_SYMTAB (function)->objfile);
+	    = get_objfile_arch (SYMBOL_OBJFILE (function));
 	  const struct block *parent = BLOCK_SUPERBLOCK (block);
 
 	  while (1)
@@ -616,7 +613,7 @@ lookup_symbol_file (const char *name,
 {
   struct symbol *sym = NULL;
 
-  sym = lookup_symbol_static (name, block, domain);
+  sym = lookup_symbol_in_static_block (name, block, domain);
   if (sym != NULL)
     return sym;
 
@@ -629,11 +626,11 @@ lookup_symbol_file (const char *name,
       const struct block *global_block = block_global_block (block);
       
       if (global_block != NULL)
-	sym = lookup_symbol_aux_block (name, global_block, domain);
+	sym = lookup_symbol_in_block (name, global_block, domain);
     }
   else
     {
-      sym = lookup_symbol_global (name, block, domain);
+      sym = lookup_global_symbol (name, block, domain);
     }
 
   if (sym != NULL)
@@ -669,6 +666,11 @@ lookup_symbol_file (const char *name,
 	    }
 
 	  type = check_typedef (TYPE_TARGET_TYPE (SYMBOL_TYPE (this)));
+	  /* If TYPE_NAME is NULL, abandon trying to find this symbol.
+	     This can happen for lambda functions compiled with clang++,
+	     which outputs no name for the container class.  */
+	  if (TYPE_NAME (type) == NULL)
+	    return NULL;
 	  klass = xstrdup (TYPE_NAME (type));
 	  nested = xstrdup (name);
 	}
@@ -688,7 +690,7 @@ lookup_symbol_file (const char *name,
 
       /* Lookup a class named KLASS.  If none is found, there is nothing
 	 more that can be done.  */
-      klass_sym = lookup_symbol_global (klass, block, domain);
+      klass_sym = lookup_global_symbol (klass, block, domain);
       if (klass_sym == NULL)
 	{
 	  do_cleanups (cleanup);
@@ -767,14 +769,15 @@ find_symbol_in_baseclass (struct type *parent_type, const char *name,
       len = strlen (base_name) + 2 + strlen (name) + 1;
       concatenated_name = xrealloc (concatenated_name, len);
       xsnprintf (concatenated_name, len, "%s::%s", base_name, name);
-      sym = lookup_symbol_static (concatenated_name, block, VAR_DOMAIN);
+      sym = lookup_symbol_in_static_block (concatenated_name, block,
+					   VAR_DOMAIN);
       if (sym != NULL)
 	break;
 
       /* Nope.  We now have to search all static blocks in all objfiles,
 	 even if block != NULL, because there's no guarantees as to which
 	 symtab the symbol we want is in.  */
-      sym = lookup_static_symbol_aux (concatenated_name, VAR_DOMAIN);
+      sym = lookup_static_symbol (concatenated_name, VAR_DOMAIN);
       if (sym != NULL)
 	break;
 
@@ -812,6 +815,7 @@ cp_lookup_nested_symbol (struct type *parent_type,
     case TYPE_CODE_STRUCT:
     case TYPE_CODE_NAMESPACE:
     case TYPE_CODE_UNION:
+    case TYPE_CODE_ENUM:
     /* NOTE: Handle modules here as well, because Fortran is re-using the C++
        specific code to lookup nested symbols in modules, by calling the
        function pointer la_lookup_symbol_nonlocal, which ends up here.  */
@@ -844,7 +848,7 @@ cp_lookup_nested_symbol (struct type *parent_type,
 	concatenated_name = alloca (size);
 	xsnprintf (concatenated_name, size, "%s::%s",
 		 parent_name, nested_name);
-	sym = lookup_static_symbol_aux (concatenated_name, VAR_DOMAIN);
+	sym = lookup_static_symbol (concatenated_name, VAR_DOMAIN);
 	if (sym != NULL)
 	  return sym;
 

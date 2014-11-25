@@ -21,10 +21,6 @@
 #include "gdbthread.h"
 #include "tdesc.h"
 #include "rsp-low.h"
-
-#include <stdlib.h>
-#include <string.h>
-
 #ifndef IN_PROCESS_AGENT
 
 struct regcache *
@@ -45,8 +41,7 @@ get_thread_regcache (struct thread_info *thread, int fetch)
     {
       struct process_info *proc = get_thread_process (thread);
 
-      if (proc->tdesc == NULL)
-	fatal ("no target description");
+      gdb_assert (proc->tdesc != NULL);
 
       regcache = new_register_cache (proc->tdesc);
       set_inferior_regcache_data (thread, regcache);
@@ -54,15 +49,23 @@ get_thread_regcache (struct thread_info *thread, int fetch)
 
   if (fetch && regcache->registers_valid == 0)
     {
-      struct thread_info *saved_inferior = current_inferior;
+      struct thread_info *saved_thread = current_thread;
 
-      current_inferior = thread;
+      current_thread = thread;
       fetch_inferior_registers (regcache, -1);
-      current_inferior = saved_inferior;
+      current_thread = saved_thread;
       regcache->registers_valid = 1;
     }
 
   return regcache;
+}
+
+/* See common/common-regcache.h.  */
+
+struct regcache *
+get_thread_regcache_for_ptid (ptid_t ptid)
+{
+  return get_thread_regcache (find_thread_ptid (ptid), 1);
 }
 
 void
@@ -77,11 +80,11 @@ regcache_invalidate_thread (struct thread_info *thread)
 
   if (regcache->registers_valid)
     {
-      struct thread_info *saved_inferior = current_inferior;
+      struct thread_info *saved_thread = current_thread;
 
-      current_inferior = thread;
+      current_thread = thread;
       store_inferior_registers (regcache, -1);
-      current_inferior = saved_inferior;
+      current_thread = saved_thread;
     }
 
   regcache->registers_valid = 0;
@@ -105,7 +108,7 @@ void
 regcache_invalidate (void)
 {
   /* Only update the threads of the current process.  */
-  int pid = ptid_get_pid (current_inferior->entry.id);
+  int pid = ptid_get_pid (current_thread->entry.id);
 
   find_inferior (&all_threads, regcache_invalidate_one, &pid);
 }
@@ -117,9 +120,9 @@ init_register_cache (struct regcache *regcache,
 		     const struct target_desc *tdesc,
 		     unsigned char *regbuf)
 {
-#ifndef IN_PROCESS_AGENT
   if (regbuf == NULL)
     {
+#ifndef IN_PROCESS_AGENT
       /* Make sure to zero-initialize the register cache when it is
 	 created, in case there are registers the target never
 	 fetches.  This way they'll read as zero instead of
@@ -129,13 +132,11 @@ init_register_cache (struct regcache *regcache,
       regcache->registers_owned = 1;
       regcache->register_status = xcalloc (1, tdesc->num_registers);
       gdb_assert (REG_UNAVAILABLE == 0);
+#else
+      gdb_assert_not_reached ("can't allocate memory from the heap");
+#endif
     }
   else
-#else
-  if (regbuf == NULL)
-    fatal ("init_register_cache: can't allocate memory from the heap");
-  else
-#endif
     {
       regcache->tdesc = tdesc;
       regcache->registers = regbuf;
@@ -245,8 +246,8 @@ find_register_by_name (const struct target_desc *tdesc, const char *name)
   for (i = 0; i < tdesc->num_registers; i++)
     if (strcmp (name, tdesc->reg_defs[i].name) == 0)
       return &tdesc->reg_defs[i];
-  fatal ("Unknown register %s requested", name);
-  return 0;
+  internal_error (__FILE__, __LINE__, "Unknown register %s requested",
+		  name);
 }
 
 int
@@ -257,8 +258,8 @@ find_regno (const struct target_desc *tdesc, const char *name)
   for (i = 0; i < tdesc->num_registers; i++)
     if (strcmp (name, tdesc->reg_defs[i].name) == 0)
       return i;
-  fatal ("Unknown register %s requested", name);
-  return -1;
+  internal_error (__FILE__, __LINE__, "Unknown register %s requested",
+		  name);
 }
 
 struct reg *

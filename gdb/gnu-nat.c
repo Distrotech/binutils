@@ -23,12 +23,9 @@
 #include "defs.h"
 
 #include <ctype.h>
-#include <errno.h>
 #include <limits.h>
 #include <setjmp.h>
 #include <signal.h>
-#include <stdio.h>
-#include <string.h>
 #include <sys/ptrace.h>
 
 #include <mach.h>
@@ -61,7 +58,6 @@
 #include "gdbcmd.h"
 #include "gdbcore.h"
 #include "gdbthread.h"
-#include "gdb_assert.h"
 #include "gdb_obstack.h"
 
 #include "gnu-nat.h"
@@ -808,7 +804,8 @@ inf_validate_procinfo (struct inf *inf)
       inf->nomsg = !!(pi->state & PI_NOMSG);
       if (inf->nomsg)
 	inf->traced = !!(pi->state & PI_TRACED);
-      vm_deallocate (mach_task_self (), (vm_address_t) pi, pi_len);
+      vm_deallocate (mach_task_self (), (vm_address_t) pi,
+		     pi_len * sizeof (*(procinfo_t) 0));
       if (noise_len > 0)
 	vm_deallocate (mach_task_self (), (vm_address_t) noise, noise_len);
     }
@@ -848,9 +845,10 @@ inf_validate_task_sc (struct inf *inf)
 
   suspend_count = pi->taskinfo.suspend_count;
 
-  vm_deallocate (mach_task_self (), (vm_address_t) pi, pi_len);
+  vm_deallocate (mach_task_self (), (vm_address_t) pi,
+		 pi_len * sizeof (*(procinfo_t) 0));
   if (noise_len > 0)
-    vm_deallocate (mach_task_self (), (vm_address_t) pi, pi_len);
+    vm_deallocate (mach_task_self (), (vm_address_t) noise, noise_len);
 
   if (inf->task->cur_sc < suspend_count)
     {
@@ -985,6 +983,17 @@ inf_port_to_thread (struct inf *inf, mach_port_t port)
     else
       thread = thread->next;
   return 0;
+}
+
+/* See gnu-nat.h.  */
+
+void
+inf_threads (struct inf *inf, inf_threads_ftype *f, void *arg)
+{
+  struct proc *thread;
+
+  for (thread = inf->threads; thread; thread = thread->next)
+    f (thread, arg);
 }
 
 
@@ -2080,8 +2089,7 @@ gnu_mourn_inferior (struct target_ops *ops)
 {
   inf_debug (gnu_current_inf, "rip");
   inf_detach (gnu_current_inf);
-  unpush_target (ops);
-  generic_mourn_inferior ();
+  inf_child_mourn_inferior (ops);
 }
 
 
@@ -2166,7 +2174,7 @@ gnu_create_inferior (struct target_ops *ops,
 /* Attach to process PID, then initialize for debugging it
    and wait for the trace-trap that results from attaching.  */
 static void
-gnu_attach (struct target_ops *ops, char *args, int from_tty)
+gnu_attach (struct target_ops *ops, const char *args, int from_tty)
 {
   int pid;
   char *exec_file;
@@ -2253,14 +2261,14 @@ gnu_detach (struct target_ops *ops, const char *args, int from_tty)
   inferior_ptid = null_ptid;
   detach_inferior (pid);
 
-  unpush_target (ops);	/* Pop out of handling an inferior.  */
+  inf_child_maybe_unpush_target (ops);
 }
 
 static void
-gnu_terminal_init_inferior (struct target_ops *self)
+gnu_terminal_init (struct target_ops *self)
 {
   gdb_assert (gnu_current_inf);
-  terminal_init_inferior_with_pgrp (gnu_current_inf->pid);
+  child_terminal_init_with_pgrp (gnu_current_inf->pid);
 }
 
 static void
@@ -2665,10 +2673,6 @@ gnu_target (void)
 {
   struct target_ops *t = inf_child_target ();
 
-  t->to_shortname = "GNU";
-  t->to_longname = "GNU Hurd process";
-  t->to_doc = "GNU Hurd process";
-
   t->to_attach = gnu_attach;
   t->to_attach_no_wait = 1;
   t->to_detach = gnu_detach;
@@ -2676,7 +2680,7 @@ gnu_target (void)
   t->to_wait = gnu_wait;
   t->to_xfer_partial = gnu_xfer_partial;
   t->to_find_memory_regions = gnu_find_memory_regions;
-  t->to_terminal_init = gnu_terminal_init_inferior;
+  t->to_terminal_init = gnu_terminal_init;
   t->to_kill = gnu_kill_inferior;
   t->to_create_inferior = gnu_create_inferior;
   t->to_mourn_inferior = gnu_mourn_inferior;

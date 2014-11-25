@@ -29,7 +29,6 @@
 #include "symfile.h"
 #include "target.h"
 
-#include "gdb_assert.h"
 #include "gdb_obstack.h"
 
 #include "bsd-uthread.h"
@@ -125,11 +124,11 @@ static int bsd_uthread_active;
 static CORE_ADDR
 bsd_uthread_lookup_address (const char *name, struct objfile *objfile)
 {
-  struct minimal_symbol *sym;
+  struct bound_minimal_symbol sym;
 
   sym = lookup_minimal_symbol (name, NULL, objfile);
-  if (sym)
-    return SYMBOL_VALUE_ADDRESS (sym);
+  if (sym.minsym)
+    return BMSYMBOL_VALUE_ADDRESS (sym);
 
   return 0;
 }
@@ -331,21 +330,6 @@ bsd_uthread_store_registers (struct target_ops *ops,
     }
 }
 
-/* Implement the to_xfer_partial target_ops method.  FIXME: This
-   function is only there because otherwise GDB tries to invoke
-   deprecate_xfer_memory.  */
-
-static enum target_xfer_status
-bsd_uthread_xfer_partial (struct target_ops *ops, enum target_object object,
-			  const char *annex, gdb_byte *readbuf,
-			  const gdb_byte *writebuf,
-			  ULONGEST offset, ULONGEST len, ULONGEST *xfered_len)
-{
-  gdb_assert (ops->beneath->to_xfer_partial);
-  return ops->beneath->to_xfer_partial (ops->beneath, object, annex, readbuf,
-					writebuf, offset, len, xfered_len);
-}
-
 static ptid_t
 bsd_uthread_wait (struct target_ops *ops,
 		  ptid_t ptid, struct target_waitstatus *status, int options)
@@ -428,11 +412,13 @@ bsd_uthread_thread_alive (struct target_ops *ops, ptid_t ptid)
 }
 
 static void
-bsd_uthread_find_new_threads (struct target_ops *ops)
+bsd_uthread_update_thread_list (struct target_ops *ops)
 {
   pid_t pid = ptid_get_pid (inferior_ptid);
   int offset = bsd_uthread_thread_next_offset;
   CORE_ADDR addr;
+
+  prune_threads ();
 
   addr = bsd_uthread_read_memory_address (bsd_uthread_thread_list_addr);
   while (addr != 0)
@@ -529,11 +515,10 @@ bsd_uthread_target (void)
   t->to_mourn_inferior = bsd_uthread_mourn_inferior;
   t->to_fetch_registers = bsd_uthread_fetch_registers;
   t->to_store_registers = bsd_uthread_store_registers;
-  t->to_xfer_partial = bsd_uthread_xfer_partial;
   t->to_wait = bsd_uthread_wait;
   t->to_resume = bsd_uthread_resume;
   t->to_thread_alive = bsd_uthread_thread_alive;
-  t->to_find_new_threads = bsd_uthread_find_new_threads;
+  t->to_update_thread_list = bsd_uthread_update_thread_list;
   t->to_extra_thread_info = bsd_uthread_extra_thread_info;
   t->to_pid_to_str = bsd_uthread_pid_to_str;
   t->to_stratum = thread_stratum;

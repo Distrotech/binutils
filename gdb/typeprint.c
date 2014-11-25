@@ -31,10 +31,7 @@
 #include "language.h"
 #include "cp-abi.h"
 #include "typeprint.h"
-#include <string.h>
-#include "exceptions.h"
 #include "valprint.h"
-#include <errno.h>
 #include <ctype.h>
 #include "cli/cli-utils.h"
 #include "extension.h"
@@ -288,8 +285,8 @@ find_global_typedef (const struct type_print_options *flags,
       return new_tf->name;
     }
 
-  /* Put an entry into the hash table now, in case apply_script_type_printers
-     recurses.  */
+  /* Put an entry into the hash table now, in case
+     apply_ext_lang_type_printers recurses.  */
   new_tf = XOBNEW (&flags->global_typedefs->storage, struct typedef_field);
   new_tf->name = NULL;
   new_tf->type = t;
@@ -464,9 +461,9 @@ whatis_exp (char *exp, int show)
     {
       if (((TYPE_CODE (type) == TYPE_CODE_PTR)
 	   || (TYPE_CODE (type) == TYPE_CODE_REF))
-	  && (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_CLASS))
+	  && (TYPE_CODE (TYPE_TARGET_TYPE (type)) == TYPE_CODE_STRUCT))
         real_type = value_rtti_indirect_type (val, &full, &top, &using_enc);
-      else if (TYPE_CODE (type) == TYPE_CODE_CLASS)
+      else if (TYPE_CODE (type) == TYPE_CODE_STRUCT)
 	real_type = value_rtti_type (val, &full, &top, &using_enc);
     }
 
@@ -636,7 +633,7 @@ set_print_type (char *arg, int from_tty)
 {
   printf_unfiltered (
      "\"set print type\" must be followed by the name of a subcommand.\n");
-  help_list (setprintlist, "set print type ", -1, gdb_stdout);
+  help_list (setprintlist, "set print type ", all_commands, gdb_stdout);
 }
 
 static void

@@ -4,13 +4,6 @@
 /* To regenerate this file, run:*/
 /*      make-target-delegates target.h > target-delegates.c */
 static void
-delegate_attach (struct target_ops *self, char *arg1, int arg2)
-{
-  self = self->beneath;
-  self->to_attach (self, arg1, arg2);
-}
-
-static void
 delegate_post_attach (struct target_ops *self, int arg1)
 {
   self = self->beneath;
@@ -20,6 +13,18 @@ delegate_post_attach (struct target_ops *self, int arg1)
 static void
 tdefault_post_attach (struct target_ops *self, int arg1)
 {
+}
+
+static void
+debug_post_attach (struct target_ops *self, int arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_post_attach (...)\n", debug_target.to_shortname);
+  debug_target.to_post_attach (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_post_attach (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -35,16 +40,44 @@ tdefault_detach (struct target_ops *self, const char *arg1, int arg2)
 }
 
 static void
-delegate_disconnect (struct target_ops *self, char *arg1, int arg2)
+debug_detach (struct target_ops *self, const char *arg1, int arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_detach (...)\n", debug_target.to_shortname);
+  debug_target.to_detach (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_detach (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
+delegate_disconnect (struct target_ops *self, const char *arg1, int arg2)
 {
   self = self->beneath;
   self->to_disconnect (self, arg1, arg2);
 }
 
 static void
-tdefault_disconnect (struct target_ops *self, char *arg1, int arg2)
+tdefault_disconnect (struct target_ops *self, const char *arg1, int arg2)
 {
   tcomplain ();
+}
+
+static void
+debug_disconnect (struct target_ops *self, const char *arg1, int arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_disconnect (...)\n", debug_target.to_shortname);
+  debug_target.to_disconnect (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_disconnect (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -60,6 +93,22 @@ tdefault_resume (struct target_ops *self, ptid_t arg1, int arg2, enum gdb_signal
   noprocess ();
 }
 
+static void
+debug_resume (struct target_ops *self, ptid_t arg1, int arg2, enum gdb_signal arg3)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_resume (...)\n", debug_target.to_shortname);
+  debug_target.to_resume (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_resume (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_step (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_enum_gdb_signal (arg3);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
 static ptid_t
 delegate_wait (struct target_ops *self, ptid_t arg1, struct target_waitstatus *arg2, int arg3)
 {
@@ -73,6 +122,26 @@ tdefault_wait (struct target_ops *self, ptid_t arg1, struct target_waitstatus *a
   noprocess ();
 }
 
+static ptid_t
+debug_wait (struct target_ops *self, ptid_t arg1, struct target_waitstatus *arg2, int arg3)
+{
+  ptid_t result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_wait (...)\n", debug_target.to_shortname);
+  result = debug_target.to_wait (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_wait (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_target_waitstatus_p (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_options (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_ptid_t (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static void
 delegate_fetch_registers (struct target_ops *self, struct regcache *arg1, int arg2)
 {
@@ -83,6 +152,20 @@ delegate_fetch_registers (struct target_ops *self, struct regcache *arg1, int ar
 static void
 tdefault_fetch_registers (struct target_ops *self, struct regcache *arg1, int arg2)
 {
+}
+
+static void
+debug_fetch_registers (struct target_ops *self, struct regcache *arg1, int arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_fetch_registers (...)\n", debug_target.to_shortname);
+  debug_target.to_fetch_registers (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_fetch_registers (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_regcache_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -99,6 +182,20 @@ tdefault_store_registers (struct target_ops *self, struct regcache *arg1, int ar
 }
 
 static void
+debug_store_registers (struct target_ops *self, struct regcache *arg1, int arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_store_registers (...)\n", debug_target.to_shortname);
+  debug_target.to_store_registers (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_store_registers (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_regcache_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_prepare_to_store (struct target_ops *self, struct regcache *arg1)
 {
   self = self->beneath;
@@ -109,6 +206,18 @@ static void
 tdefault_prepare_to_store (struct target_ops *self, struct regcache *arg1)
 {
   noprocess ();
+}
+
+static void
+debug_prepare_to_store (struct target_ops *self, struct regcache *arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_prepare_to_store (...)\n", debug_target.to_shortname);
+  debug_target.to_prepare_to_store (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_prepare_to_store (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_regcache_p (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -123,6 +232,16 @@ tdefault_files_info (struct target_ops *self)
 {
 }
 
+static void
+debug_files_info (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_files_info (...)\n", debug_target.to_shortname);
+  debug_target.to_files_info (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_files_info (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
 static int
 delegate_insert_breakpoint (struct target_ops *self, struct gdbarch *arg1, struct bp_target_info *arg2)
 {
@@ -131,10 +250,46 @@ delegate_insert_breakpoint (struct target_ops *self, struct gdbarch *arg1, struc
 }
 
 static int
+debug_insert_breakpoint (struct target_ops *self, struct gdbarch *arg1, struct bp_target_info *arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_insert_breakpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_insert_breakpoint (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_insert_breakpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_gdbarch_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_bp_target_info_p (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_remove_breakpoint (struct target_ops *self, struct gdbarch *arg1, struct bp_target_info *arg2)
 {
   self = self->beneath;
   return self->to_remove_breakpoint (self, arg1, arg2);
+}
+
+static int
+debug_remove_breakpoint (struct target_ops *self, struct gdbarch *arg1, struct bp_target_info *arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_remove_breakpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_remove_breakpoint (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_remove_breakpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_gdbarch_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_bp_target_info_p (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -151,6 +306,26 @@ tdefault_can_use_hw_breakpoint (struct target_ops *self, int arg1, int arg2, int
 }
 
 static int
+debug_can_use_hw_breakpoint (struct target_ops *self, int arg1, int arg2, int arg3)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_can_use_hw_breakpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_can_use_hw_breakpoint (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_can_use_hw_breakpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_ranged_break_num_registers (struct target_ops *self)
 {
   self = self->beneath;
@@ -161,6 +336,20 @@ static int
 tdefault_ranged_break_num_registers (struct target_ops *self)
 {
   return -1;
+}
+
+static int
+debug_ranged_break_num_registers (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_ranged_break_num_registers (...)\n", debug_target.to_shortname);
+  result = debug_target.to_ranged_break_num_registers (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_ranged_break_num_registers (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -177,6 +366,24 @@ tdefault_insert_hw_breakpoint (struct target_ops *self, struct gdbarch *arg1, st
 }
 
 static int
+debug_insert_hw_breakpoint (struct target_ops *self, struct gdbarch *arg1, struct bp_target_info *arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_insert_hw_breakpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_insert_hw_breakpoint (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_insert_hw_breakpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_gdbarch_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_bp_target_info_p (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_remove_hw_breakpoint (struct target_ops *self, struct gdbarch *arg1, struct bp_target_info *arg2)
 {
   self = self->beneath;
@@ -187,6 +394,24 @@ static int
 tdefault_remove_hw_breakpoint (struct target_ops *self, struct gdbarch *arg1, struct bp_target_info *arg2)
 {
   return -1;
+}
+
+static int
+debug_remove_hw_breakpoint (struct target_ops *self, struct gdbarch *arg1, struct bp_target_info *arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_remove_hw_breakpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_remove_hw_breakpoint (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_remove_hw_breakpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_gdbarch_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_bp_target_info_p (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -203,6 +428,28 @@ tdefault_remove_watchpoint (struct target_ops *self, CORE_ADDR arg1, int arg2, i
 }
 
 static int
+debug_remove_watchpoint (struct target_ops *self, CORE_ADDR arg1, int arg2, int arg3, struct expression *arg4)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_remove_watchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_remove_watchpoint (&debug_target, arg1, arg2, arg3, arg4);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_remove_watchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_expression_p (arg4);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_insert_watchpoint (struct target_ops *self, CORE_ADDR arg1, int arg2, int arg3, struct expression *arg4)
 {
   self = self->beneath;
@@ -213,6 +460,28 @@ static int
 tdefault_insert_watchpoint (struct target_ops *self, CORE_ADDR arg1, int arg2, int arg3, struct expression *arg4)
 {
   return -1;
+}
+
+static int
+debug_insert_watchpoint (struct target_ops *self, CORE_ADDR arg1, int arg2, int arg3, struct expression *arg4)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_insert_watchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_insert_watchpoint (&debug_target, arg1, arg2, arg3, arg4);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_insert_watchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_expression_p (arg4);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -229,6 +498,26 @@ tdefault_insert_mask_watchpoint (struct target_ops *self, CORE_ADDR arg1, CORE_A
 }
 
 static int
+debug_insert_mask_watchpoint (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2, int arg3)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_insert_mask_watchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_insert_mask_watchpoint (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_insert_mask_watchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_remove_mask_watchpoint (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2, int arg3)
 {
   self = self->beneath;
@@ -239,6 +528,26 @@ static int
 tdefault_remove_mask_watchpoint (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2, int arg3)
 {
   return 1;
+}
+
+static int
+debug_remove_mask_watchpoint (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2, int arg3)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_remove_mask_watchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_remove_mask_watchpoint (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_remove_mask_watchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -255,6 +564,20 @@ tdefault_stopped_by_watchpoint (struct target_ops *self)
 }
 
 static int
+debug_stopped_by_watchpoint (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_stopped_by_watchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_stopped_by_watchpoint (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_stopped_by_watchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_stopped_data_address (struct target_ops *self, CORE_ADDR *arg1)
 {
   self = self->beneath;
@@ -268,6 +591,22 @@ tdefault_stopped_data_address (struct target_ops *self, CORE_ADDR *arg1)
 }
 
 static int
+debug_stopped_data_address (struct target_ops *self, CORE_ADDR *arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_stopped_data_address (...)\n", debug_target.to_shortname);
+  result = debug_target.to_stopped_data_address (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_stopped_data_address (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR_p (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_watchpoint_addr_within_range (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2, int arg3)
 {
   self = self->beneath;
@@ -275,10 +614,48 @@ delegate_watchpoint_addr_within_range (struct target_ops *self, CORE_ADDR arg1, 
 }
 
 static int
+debug_watchpoint_addr_within_range (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2, int arg3)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_watchpoint_addr_within_range (...)\n", debug_target.to_shortname);
+  result = debug_target.to_watchpoint_addr_within_range (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_watchpoint_addr_within_range (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_region_ok_for_hw_watchpoint (struct target_ops *self, CORE_ADDR arg1, int arg2)
 {
   self = self->beneath;
   return self->to_region_ok_for_hw_watchpoint (self, arg1, arg2);
+}
+
+static int
+debug_region_ok_for_hw_watchpoint (struct target_ops *self, CORE_ADDR arg1, int arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_region_ok_for_hw_watchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_region_ok_for_hw_watchpoint (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_region_ok_for_hw_watchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -295,6 +672,28 @@ tdefault_can_accel_watchpoint_condition (struct target_ops *self, CORE_ADDR arg1
 }
 
 static int
+debug_can_accel_watchpoint_condition (struct target_ops *self, CORE_ADDR arg1, int arg2, int arg3, struct expression *arg4)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_can_accel_watchpoint_condition (...)\n", debug_target.to_shortname);
+  result = debug_target.to_can_accel_watchpoint_condition (&debug_target, arg1, arg2, arg3, arg4);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_can_accel_watchpoint_condition (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_expression_p (arg4);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_masked_watch_num_registers (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2)
 {
   self = self->beneath;
@@ -305,6 +704,24 @@ static int
 tdefault_masked_watch_num_registers (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2)
 {
   return -1;
+}
+
+static int
+debug_masked_watch_num_registers (struct target_ops *self, CORE_ADDR arg1, CORE_ADDR arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_masked_watch_num_registers (...)\n", debug_target.to_shortname);
+  result = debug_target.to_masked_watch_num_registers (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_masked_watch_num_registers (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -320,6 +737,16 @@ tdefault_terminal_init (struct target_ops *self)
 }
 
 static void
+debug_terminal_init (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_terminal_init (...)\n", debug_target.to_shortname);
+  debug_target.to_terminal_init (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_terminal_init (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_terminal_inferior (struct target_ops *self)
 {
   self = self->beneath;
@@ -329,6 +756,16 @@ delegate_terminal_inferior (struct target_ops *self)
 static void
 tdefault_terminal_inferior (struct target_ops *self)
 {
+}
+
+static void
+debug_terminal_inferior (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_terminal_inferior (...)\n", debug_target.to_shortname);
+  debug_target.to_terminal_inferior (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_terminal_inferior (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -344,6 +781,16 @@ tdefault_terminal_ours_for_output (struct target_ops *self)
 }
 
 static void
+debug_terminal_ours_for_output (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_terminal_ours_for_output (...)\n", debug_target.to_shortname);
+  debug_target.to_terminal_ours_for_output (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_terminal_ours_for_output (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_terminal_ours (struct target_ops *self)
 {
   self = self->beneath;
@@ -356,15 +803,13 @@ tdefault_terminal_ours (struct target_ops *self)
 }
 
 static void
-delegate_terminal_save_ours (struct target_ops *self)
+debug_terminal_ours (struct target_ops *self)
 {
-  self = self->beneath;
-  self->to_terminal_save_ours (self);
-}
-
-static void
-tdefault_terminal_save_ours (struct target_ops *self)
-{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_terminal_ours (...)\n", debug_target.to_shortname);
+  debug_target.to_terminal_ours (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_terminal_ours (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -372,6 +817,20 @@ delegate_terminal_info (struct target_ops *self, const char *arg1, int arg2)
 {
   self = self->beneath;
   self->to_terminal_info (self, arg1, arg2);
+}
+
+static void
+debug_terminal_info (struct target_ops *self, const char *arg1, int arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_terminal_info (...)\n", debug_target.to_shortname);
+  debug_target.to_terminal_info (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_terminal_info (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -388,16 +847,40 @@ tdefault_kill (struct target_ops *self)
 }
 
 static void
-delegate_load (struct target_ops *self, char *arg1, int arg2)
+debug_kill (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_kill (...)\n", debug_target.to_shortname);
+  debug_target.to_kill (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_kill (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
+delegate_load (struct target_ops *self, const char *arg1, int arg2)
 {
   self = self->beneath;
   self->to_load (self, arg1, arg2);
 }
 
 static void
-tdefault_load (struct target_ops *self, char *arg1, int arg2)
+tdefault_load (struct target_ops *self, const char *arg1, int arg2)
 {
   tcomplain ();
+}
+
+static void
+debug_load (struct target_ops *self, const char *arg1, int arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_load (...)\n", debug_target.to_shortname);
+  debug_target.to_load (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_load (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -410,6 +893,18 @@ delegate_post_startup_inferior (struct target_ops *self, ptid_t arg1)
 static void
 tdefault_post_startup_inferior (struct target_ops *self, ptid_t arg1)
 {
+}
+
+static void
+debug_post_startup_inferior (struct target_ops *self, ptid_t arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_post_startup_inferior (...)\n", debug_target.to_shortname);
+  debug_target.to_post_startup_inferior (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_post_startup_inferior (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static int
@@ -426,6 +921,22 @@ tdefault_insert_fork_catchpoint (struct target_ops *self, int arg1)
 }
 
 static int
+debug_insert_fork_catchpoint (struct target_ops *self, int arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_insert_fork_catchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_insert_fork_catchpoint (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_insert_fork_catchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_remove_fork_catchpoint (struct target_ops *self, int arg1)
 {
   self = self->beneath;
@@ -436,6 +947,22 @@ static int
 tdefault_remove_fork_catchpoint (struct target_ops *self, int arg1)
 {
   return 1;
+}
+
+static int
+debug_remove_fork_catchpoint (struct target_ops *self, int arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_remove_fork_catchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_remove_fork_catchpoint (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_remove_fork_catchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -452,6 +979,22 @@ tdefault_insert_vfork_catchpoint (struct target_ops *self, int arg1)
 }
 
 static int
+debug_insert_vfork_catchpoint (struct target_ops *self, int arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_insert_vfork_catchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_insert_vfork_catchpoint (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_insert_vfork_catchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_remove_vfork_catchpoint (struct target_ops *self, int arg1)
 {
   self = self->beneath;
@@ -465,10 +1008,44 @@ tdefault_remove_vfork_catchpoint (struct target_ops *self, int arg1)
 }
 
 static int
+debug_remove_vfork_catchpoint (struct target_ops *self, int arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_remove_vfork_catchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_remove_vfork_catchpoint (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_remove_vfork_catchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_follow_fork (struct target_ops *self, int arg1, int arg2)
 {
   self = self->beneath;
   return self->to_follow_fork (self, arg1, arg2);
+}
+
+static int
+debug_follow_fork (struct target_ops *self, int arg1, int arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_follow_fork (...)\n", debug_target.to_shortname);
+  result = debug_target.to_follow_fork (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_follow_fork (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -485,6 +1062,22 @@ tdefault_insert_exec_catchpoint (struct target_ops *self, int arg1)
 }
 
 static int
+debug_insert_exec_catchpoint (struct target_ops *self, int arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_insert_exec_catchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_insert_exec_catchpoint (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_insert_exec_catchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_remove_exec_catchpoint (struct target_ops *self, int arg1)
 {
   self = self->beneath;
@@ -495,6 +1088,22 @@ static int
 tdefault_remove_exec_catchpoint (struct target_ops *self, int arg1)
 {
   return 1;
+}
+
+static int
+debug_remove_exec_catchpoint (struct target_ops *self, int arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_remove_exec_catchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_remove_exec_catchpoint (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_remove_exec_catchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -511,6 +1120,30 @@ tdefault_set_syscall_catchpoint (struct target_ops *self, int arg1, int arg2, in
 }
 
 static int
+debug_set_syscall_catchpoint (struct target_ops *self, int arg1, int arg2, int arg3, int arg4, int *arg5)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_set_syscall_catchpoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_set_syscall_catchpoint (&debug_target, arg1, arg2, arg3, arg4, arg5);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_set_syscall_catchpoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg4);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int_p (arg5);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_has_exited (struct target_ops *self, int arg1, int arg2, int *arg3)
 {
   self = self->beneath;
@@ -523,11 +1156,41 @@ tdefault_has_exited (struct target_ops *self, int arg1, int arg2, int *arg3)
   return 0;
 }
 
+static int
+debug_has_exited (struct target_ops *self, int arg1, int arg2, int *arg3)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_has_exited (...)\n", debug_target.to_shortname);
+  result = debug_target.to_has_exited (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_has_exited (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int_p (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static void
 delegate_mourn_inferior (struct target_ops *self)
 {
   self = self->beneath;
   self->to_mourn_inferior (self);
+}
+
+static void
+debug_mourn_inferior (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_mourn_inferior (...)\n", debug_target.to_shortname);
+  debug_target.to_mourn_inferior (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_mourn_inferior (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static int
@@ -543,28 +1206,70 @@ tdefault_can_run (struct target_ops *self)
   return 0;
 }
 
+static int
+debug_can_run (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_can_run (...)\n", debug_target.to_shortname);
+  result = debug_target.to_can_run (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_can_run (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static void
-delegate_pass_signals (struct target_ops *self, int arg1, unsigned char *arg2)
+delegate_pass_signals (struct target_ops *self, int arg1, unsigned char * arg2)
 {
   self = self->beneath;
   self->to_pass_signals (self, arg1, arg2);
 }
 
 static void
-tdefault_pass_signals (struct target_ops *self, int arg1, unsigned char *arg2)
+tdefault_pass_signals (struct target_ops *self, int arg1, unsigned char * arg2)
 {
 }
 
 static void
-delegate_program_signals (struct target_ops *self, int arg1, unsigned char *arg2)
+debug_pass_signals (struct target_ops *self, int arg1, unsigned char * arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_pass_signals (...)\n", debug_target.to_shortname);
+  debug_target.to_pass_signals (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_pass_signals (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_signals (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
+delegate_program_signals (struct target_ops *self, int arg1, unsigned char * arg2)
 {
   self = self->beneath;
   self->to_program_signals (self, arg1, arg2);
 }
 
 static void
-tdefault_program_signals (struct target_ops *self, int arg1, unsigned char *arg2)
+tdefault_program_signals (struct target_ops *self, int arg1, unsigned char * arg2)
 {
+}
+
+static void
+debug_program_signals (struct target_ops *self, int arg1, unsigned char * arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_program_signals (...)\n", debug_target.to_shortname);
+  debug_target.to_program_signals (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_program_signals (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_signals (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static int
@@ -580,16 +1285,42 @@ tdefault_thread_alive (struct target_ops *self, ptid_t arg1)
   return 0;
 }
 
-static void
-delegate_find_new_threads (struct target_ops *self)
+static int
+debug_thread_alive (struct target_ops *self, ptid_t arg1)
 {
-  self = self->beneath;
-  self->to_find_new_threads (self);
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_thread_alive (...)\n", debug_target.to_shortname);
+  result = debug_target.to_thread_alive (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_thread_alive (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
-tdefault_find_new_threads (struct target_ops *self)
+delegate_update_thread_list (struct target_ops *self)
 {
+  self = self->beneath;
+  self->to_update_thread_list (self);
+}
+
+static void
+tdefault_update_thread_list (struct target_ops *self)
+{
+}
+
+static void
+debug_update_thread_list (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_update_thread_list (...)\n", debug_target.to_shortname);
+  debug_target.to_update_thread_list (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_update_thread_list (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static char *
@@ -597,6 +1328,22 @@ delegate_pid_to_str (struct target_ops *self, ptid_t arg1)
 {
   self = self->beneath;
   return self->to_pid_to_str (self, arg1);
+}
+
+static char *
+debug_pid_to_str (struct target_ops *self, ptid_t arg1)
+{
+  char * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_pid_to_str (...)\n", debug_target.to_shortname);
+  result = debug_target.to_pid_to_str (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_pid_to_str (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_char_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static char *
@@ -613,6 +1360,22 @@ tdefault_extra_thread_info (struct target_ops *self, struct thread_info *arg1)
 }
 
 static char *
+debug_extra_thread_info (struct target_ops *self, struct thread_info *arg1)
+{
+  char * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_extra_thread_info (...)\n", debug_target.to_shortname);
+  result = debug_target.to_extra_thread_info (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_extra_thread_info (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_thread_info_p (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_char_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static char *
 delegate_thread_name (struct target_ops *self, struct thread_info *arg1)
 {
   self = self->beneath;
@@ -623,6 +1386,22 @@ static char *
 tdefault_thread_name (struct target_ops *self, struct thread_info *arg1)
 {
   return NULL;
+}
+
+static char *
+debug_thread_name (struct target_ops *self, struct thread_info *arg1)
+{
+  char * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_thread_name (...)\n", debug_target.to_shortname);
+  result = debug_target.to_thread_name (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_thread_name (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_thread_info_p (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_char_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -638,10 +1417,36 @@ tdefault_stop (struct target_ops *self, ptid_t arg1)
 }
 
 static void
-delegate_rcmd (struct target_ops *self, char *arg1, struct ui_file *arg2)
+debug_stop (struct target_ops *self, ptid_t arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_stop (...)\n", debug_target.to_shortname);
+  debug_target.to_stop (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_stop (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
+delegate_rcmd (struct target_ops *self, const char *arg1, struct ui_file *arg2)
 {
   self = self->beneath;
   self->to_rcmd (self, arg1, arg2);
+}
+
+static void
+debug_rcmd (struct target_ops *self, const char *arg1, struct ui_file *arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_rcmd (...)\n", debug_target.to_shortname);
+  debug_target.to_rcmd (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_rcmd (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_ui_file_p (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static char *
@@ -657,6 +1462,22 @@ tdefault_pid_to_exec_file (struct target_ops *self, int arg1)
   return NULL;
 }
 
+static char *
+debug_pid_to_exec_file (struct target_ops *self, int arg1)
+{
+  char * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_pid_to_exec_file (...)\n", debug_target.to_shortname);
+  result = debug_target.to_pid_to_exec_file (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_pid_to_exec_file (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_char_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static void
 delegate_log_command (struct target_ops *self, const char *arg1)
 {
@@ -667,6 +1488,18 @@ delegate_log_command (struct target_ops *self, const char *arg1)
 static void
 tdefault_log_command (struct target_ops *self, const char *arg1)
 {
+}
+
+static void
+debug_log_command (struct target_ops *self, const char *arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_log_command (...)\n", debug_target.to_shortname);
+  debug_target.to_log_command (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_log_command (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static struct target_section_table *
@@ -682,6 +1515,20 @@ tdefault_get_section_table (struct target_ops *self)
   return NULL;
 }
 
+static struct target_section_table *
+debug_get_section_table (struct target_ops *self)
+{
+  struct target_section_table * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_section_table (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_section_table (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_section_table (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_struct_target_section_table_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static int
 delegate_can_async_p (struct target_ops *self)
 {
@@ -690,10 +1537,50 @@ delegate_can_async_p (struct target_ops *self)
 }
 
 static int
+tdefault_can_async_p (struct target_ops *self)
+{
+  return 0;
+}
+
+static int
+debug_can_async_p (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_can_async_p (...)\n", debug_target.to_shortname);
+  result = debug_target.to_can_async_p (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_can_async_p (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_is_async_p (struct target_ops *self)
 {
   self = self->beneath;
   return self->to_is_async_p (self);
+}
+
+static int
+tdefault_is_async_p (struct target_ops *self)
+{
+  return 0;
+}
+
+static int
+debug_is_async_p (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_is_async_p (...)\n", debug_target.to_shortname);
+  result = debug_target.to_is_async_p (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_is_async_p (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -709,6 +1596,47 @@ tdefault_async (struct target_ops *self, async_callback_ftype *arg1, void *arg2)
   tcomplain ();
 }
 
+static void
+debug_async (struct target_ops *self, async_callback_ftype *arg1, void *arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_async (...)\n", debug_target.to_shortname);
+  debug_target.to_async (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_async (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_async_callback_ftype_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_void_p (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static int
+delegate_supports_non_stop (struct target_ops *self)
+{
+  self = self->beneath;
+  return self->to_supports_non_stop (self);
+}
+
+static int
+tdefault_supports_non_stop (struct target_ops *self)
+{
+  return 0;
+}
+
+static int
+debug_supports_non_stop (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_supports_non_stop (...)\n", debug_target.to_shortname);
+  result = debug_target.to_supports_non_stop (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_supports_non_stop (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static int
 delegate_find_memory_regions (struct target_ops *self, find_memory_region_ftype arg1, void *arg2)
 {
@@ -716,50 +1644,179 @@ delegate_find_memory_regions (struct target_ops *self, find_memory_region_ftype 
   return self->to_find_memory_regions (self, arg1, arg2);
 }
 
-static char * 
+static int
+debug_find_memory_regions (struct target_ops *self, find_memory_region_ftype arg1, void *arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_find_memory_regions (...)\n", debug_target.to_shortname);
+  result = debug_target.to_find_memory_regions (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_find_memory_regions (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_find_memory_region_ftype (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_void_p (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static char *
 delegate_make_corefile_notes (struct target_ops *self, bfd *arg1, int *arg2)
 {
   self = self->beneath;
   return self->to_make_corefile_notes (self, arg1, arg2);
 }
 
-static gdb_byte * 
-delegate_get_bookmark (struct target_ops *self, char *arg1, int arg2)
+static char *
+debug_make_corefile_notes (struct target_ops *self, bfd *arg1, int *arg2)
+{
+  char * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_make_corefile_notes (...)\n", debug_target.to_shortname);
+  result = debug_target.to_make_corefile_notes (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_make_corefile_notes (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_bfd_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int_p (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_char_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static gdb_byte *
+delegate_get_bookmark (struct target_ops *self, const char *arg1, int arg2)
 {
   self = self->beneath;
   return self->to_get_bookmark (self, arg1, arg2);
 }
 
-static gdb_byte * 
-tdefault_get_bookmark (struct target_ops *self, char *arg1, int arg2)
+static gdb_byte *
+tdefault_get_bookmark (struct target_ops *self, const char *arg1, int arg2)
 {
   tcomplain ();
 }
 
+static gdb_byte *
+debug_get_bookmark (struct target_ops *self, const char *arg1, int arg2)
+{
+  gdb_byte * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_bookmark (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_bookmark (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_bookmark (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_gdb_byte_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static void
-delegate_goto_bookmark (struct target_ops *self, gdb_byte *arg1, int arg2)
+delegate_goto_bookmark (struct target_ops *self, const gdb_byte *arg1, int arg2)
 {
   self = self->beneath;
   self->to_goto_bookmark (self, arg1, arg2);
 }
 
 static void
-tdefault_goto_bookmark (struct target_ops *self, gdb_byte *arg1, int arg2)
+tdefault_goto_bookmark (struct target_ops *self, const gdb_byte *arg1, int arg2)
 {
   tcomplain ();
 }
 
-static enum target_xfer_status 
-delegate_xfer_partial (struct target_ops *self, enum target_object  arg1, const char *arg2, gdb_byte *arg3, const gdb_byte *arg4, ULONGEST arg5, ULONGEST arg6, ULONGEST *arg7)
+static void
+debug_goto_bookmark (struct target_ops *self, const gdb_byte *arg1, int arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_goto_bookmark (...)\n", debug_target.to_shortname);
+  debug_target.to_goto_bookmark (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_goto_bookmark (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_gdb_byte_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static CORE_ADDR
+delegate_get_thread_local_address (struct target_ops *self, ptid_t arg1, CORE_ADDR arg2, CORE_ADDR arg3)
+{
+  self = self->beneath;
+  return self->to_get_thread_local_address (self, arg1, arg2, arg3);
+}
+
+static CORE_ADDR
+tdefault_get_thread_local_address (struct target_ops *self, ptid_t arg1, CORE_ADDR arg2, CORE_ADDR arg3)
+{
+  generic_tls_error ();
+}
+
+static CORE_ADDR
+debug_get_thread_local_address (struct target_ops *self, ptid_t arg1, CORE_ADDR arg2, CORE_ADDR arg3)
+{
+  CORE_ADDR result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_thread_local_address (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_thread_local_address (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_thread_local_address (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static enum target_xfer_status
+delegate_xfer_partial (struct target_ops *self, enum target_object arg1, const char *arg2, gdb_byte *arg3, const gdb_byte *arg4, ULONGEST arg5, ULONGEST arg6, ULONGEST *arg7)
 {
   self = self->beneath;
   return self->to_xfer_partial (self, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
 }
 
-static enum target_xfer_status 
-tdefault_xfer_partial (struct target_ops *self, enum target_object  arg1, const char *arg2, gdb_byte *arg3, const gdb_byte *arg4, ULONGEST arg5, ULONGEST arg6, ULONGEST *arg7)
+static enum target_xfer_status
+tdefault_xfer_partial (struct target_ops *self, enum target_object arg1, const char *arg2, gdb_byte *arg3, const gdb_byte *arg4, ULONGEST arg5, ULONGEST arg6, ULONGEST *arg7)
 {
   return TARGET_XFER_E_IO;
+}
+
+static enum target_xfer_status
+debug_xfer_partial (struct target_ops *self, enum target_object arg1, const char *arg2, gdb_byte *arg3, const gdb_byte *arg4, ULONGEST arg5, ULONGEST arg6, ULONGEST *arg7)
+{
+  enum target_xfer_status result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_xfer_partial (...)\n", debug_target.to_shortname);
+  result = debug_target.to_xfer_partial (&debug_target, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_xfer_partial (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_enum_target_object (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_gdb_byte_p (arg3);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_gdb_byte_p (arg4);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg5);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg6);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST_p (arg7);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_enum_target_xfer_status (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static VEC(mem_region_s) *
@@ -773,6 +1830,20 @@ static VEC(mem_region_s) *
 tdefault_memory_map (struct target_ops *self)
 {
   return NULL;
+}
+
+static VEC(mem_region_s) *
+debug_memory_map (struct target_ops *self)
+{
+  VEC(mem_region_s) * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_memory_map (...)\n", debug_target.to_shortname);
+  result = debug_target.to_memory_map (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_memory_map (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_VEC_mem_region_s__p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -789,6 +1860,20 @@ tdefault_flash_erase (struct target_ops *self, ULONGEST arg1, LONGEST arg2)
 }
 
 static void
+debug_flash_erase (struct target_ops *self, ULONGEST arg1, LONGEST arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_flash_erase (...)\n", debug_target.to_shortname);
+  debug_target.to_flash_erase (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_flash_erase (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_LONGEST (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_flash_done (struct target_ops *self)
 {
   self = self->beneath;
@@ -799,6 +1884,16 @@ static void
 tdefault_flash_done (struct target_ops *self)
 {
   tcomplain ();
+}
+
+static void
+debug_flash_done (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_flash_done (...)\n", debug_target.to_shortname);
+  debug_target.to_flash_done (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_flash_done (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static const struct target_desc *
@@ -814,11 +1909,43 @@ tdefault_read_description (struct target_ops *self)
   return NULL;
 }
 
+static const struct target_desc *
+debug_read_description (struct target_ops *self)
+{
+  const struct target_desc * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_read_description (...)\n", debug_target.to_shortname);
+  result = debug_target.to_read_description (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_read_description (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_const_struct_target_desc_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static ptid_t
 delegate_get_ada_task_ptid (struct target_ops *self, long arg1, long arg2)
 {
   self = self->beneath;
   return self->to_get_ada_task_ptid (self, arg1, arg2);
+}
+
+static ptid_t
+debug_get_ada_task_ptid (struct target_ops *self, long arg1, long arg2)
+{
+  ptid_t result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_ada_task_ptid (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_ada_task_ptid (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_ada_task_ptid (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_long (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_long (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_ptid_t (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -829,10 +1956,56 @@ delegate_auxv_parse (struct target_ops *self, gdb_byte **arg1, gdb_byte *arg2, C
 }
 
 static int
+debug_auxv_parse (struct target_ops *self, gdb_byte **arg1, gdb_byte *arg2, CORE_ADDR *arg3, CORE_ADDR *arg4)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_auxv_parse (...)\n", debug_target.to_shortname);
+  result = debug_target.to_auxv_parse (&debug_target, arg1, arg2, arg3, arg4);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_auxv_parse (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_gdb_byte_pp (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_gdb_byte_p (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR_p (arg3);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR_p (arg4);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_search_memory (struct target_ops *self, CORE_ADDR arg1, ULONGEST arg2, const gdb_byte *arg3, ULONGEST arg4, CORE_ADDR *arg5)
 {
   self = self->beneath;
   return self->to_search_memory (self, arg1, arg2, arg3, arg4, arg5);
+}
+
+static int
+debug_search_memory (struct target_ops *self, CORE_ADDR arg1, ULONGEST arg2, const gdb_byte *arg3, ULONGEST arg4, CORE_ADDR *arg5)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_search_memory (...)\n", debug_target.to_shortname);
+  result = debug_target.to_search_memory (&debug_target, arg1, arg2, arg3, arg4, arg5);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_search_memory (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_gdb_byte_p (arg3);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg4);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR_p (arg5);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -848,11 +2021,39 @@ tdefault_can_execute_reverse (struct target_ops *self)
   return 0;
 }
 
-static enum exec_direction_kind 
+static int
+debug_can_execute_reverse (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_can_execute_reverse (...)\n", debug_target.to_shortname);
+  result = debug_target.to_can_execute_reverse (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_can_execute_reverse (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static enum exec_direction_kind
 delegate_execution_direction (struct target_ops *self)
 {
   self = self->beneath;
   return self->to_execution_direction (self);
+}
+
+static enum exec_direction_kind
+debug_execution_direction (struct target_ops *self)
+{
+  enum exec_direction_kind result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_execution_direction (...)\n", debug_target.to_shortname);
+  result = debug_target.to_execution_direction (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_execution_direction (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_enum_exec_direction_kind (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -869,6 +2070,20 @@ tdefault_supports_multi_process (struct target_ops *self)
 }
 
 static int
+debug_supports_multi_process (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_supports_multi_process (...)\n", debug_target.to_shortname);
+  result = debug_target.to_supports_multi_process (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_supports_multi_process (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_supports_enable_disable_tracepoint (struct target_ops *self)
 {
   self = self->beneath;
@@ -879,6 +2094,20 @@ static int
 tdefault_supports_enable_disable_tracepoint (struct target_ops *self)
 {
   return 0;
+}
+
+static int
+debug_supports_enable_disable_tracepoint (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_supports_enable_disable_tracepoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_supports_enable_disable_tracepoint (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_supports_enable_disable_tracepoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -895,6 +2124,20 @@ tdefault_supports_string_tracing (struct target_ops *self)
 }
 
 static int
+debug_supports_string_tracing (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_supports_string_tracing (...)\n", debug_target.to_shortname);
+  result = debug_target.to_supports_string_tracing (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_supports_string_tracing (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_supports_evaluation_of_breakpoint_conditions (struct target_ops *self)
 {
   self = self->beneath;
@@ -905,6 +2148,20 @@ static int
 tdefault_supports_evaluation_of_breakpoint_conditions (struct target_ops *self)
 {
   return 0;
+}
+
+static int
+debug_supports_evaluation_of_breakpoint_conditions (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_supports_evaluation_of_breakpoint_conditions (...)\n", debug_target.to_shortname);
+  result = debug_target.to_supports_evaluation_of_breakpoint_conditions (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_supports_evaluation_of_breakpoint_conditions (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -920,11 +2177,64 @@ tdefault_can_run_breakpoint_commands (struct target_ops *self)
   return 0;
 }
 
+static int
+debug_can_run_breakpoint_commands (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_can_run_breakpoint_commands (...)\n", debug_target.to_shortname);
+  result = debug_target.to_can_run_breakpoint_commands (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_can_run_breakpoint_commands (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static struct gdbarch *
 delegate_thread_architecture (struct target_ops *self, ptid_t arg1)
 {
   self = self->beneath;
   return self->to_thread_architecture (self, arg1);
+}
+
+static struct gdbarch *
+debug_thread_architecture (struct target_ops *self, ptid_t arg1)
+{
+  struct gdbarch * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_thread_architecture (...)\n", debug_target.to_shortname);
+  result = debug_target.to_thread_architecture (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_thread_architecture (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_struct_gdbarch_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static struct address_space *
+delegate_thread_address_space (struct target_ops *self, ptid_t arg1)
+{
+  self = self->beneath;
+  return self->to_thread_address_space (self, arg1);
+}
+
+static struct address_space *
+debug_thread_address_space (struct target_ops *self, ptid_t arg1)
+{
+  struct address_space * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_thread_address_space (...)\n", debug_target.to_shortname);
+  result = debug_target.to_thread_address_space (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_thread_address_space (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_struct_address_space_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -941,6 +2251,16 @@ tdefault_trace_init (struct target_ops *self)
 }
 
 static void
+debug_trace_init (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_trace_init (...)\n", debug_target.to_shortname);
+  debug_target.to_trace_init (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_trace_init (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_download_tracepoint (struct target_ops *self, struct bp_location *arg1)
 {
   self = self->beneath;
@@ -951,6 +2271,18 @@ static void
 tdefault_download_tracepoint (struct target_ops *self, struct bp_location *arg1)
 {
   tcomplain ();
+}
+
+static void
+debug_download_tracepoint (struct target_ops *self, struct bp_location *arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_download_tracepoint (...)\n", debug_target.to_shortname);
+  debug_target.to_download_tracepoint (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_download_tracepoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_bp_location_p (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static int
@@ -964,6 +2296,20 @@ static int
 tdefault_can_download_tracepoint (struct target_ops *self)
 {
   return 0;
+}
+
+static int
+debug_can_download_tracepoint (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_can_download_tracepoint (...)\n", debug_target.to_shortname);
+  result = debug_target.to_can_download_tracepoint (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_can_download_tracepoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -980,6 +2326,18 @@ tdefault_download_trace_state_variable (struct target_ops *self, struct trace_st
 }
 
 static void
+debug_download_trace_state_variable (struct target_ops *self, struct trace_state_variable *arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_download_trace_state_variable (...)\n", debug_target.to_shortname);
+  debug_target.to_download_trace_state_variable (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_download_trace_state_variable (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_trace_state_variable_p (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_enable_tracepoint (struct target_ops *self, struct bp_location *arg1)
 {
   self = self->beneath;
@@ -990,6 +2348,18 @@ static void
 tdefault_enable_tracepoint (struct target_ops *self, struct bp_location *arg1)
 {
   tcomplain ();
+}
+
+static void
+debug_enable_tracepoint (struct target_ops *self, struct bp_location *arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_enable_tracepoint (...)\n", debug_target.to_shortname);
+  debug_target.to_enable_tracepoint (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_enable_tracepoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_bp_location_p (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -1006,6 +2376,18 @@ tdefault_disable_tracepoint (struct target_ops *self, struct bp_location *arg1)
 }
 
 static void
+debug_disable_tracepoint (struct target_ops *self, struct bp_location *arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_disable_tracepoint (...)\n", debug_target.to_shortname);
+  debug_target.to_disable_tracepoint (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_disable_tracepoint (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_bp_location_p (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_trace_set_readonly_regions (struct target_ops *self)
 {
   self = self->beneath;
@@ -1016,6 +2398,16 @@ static void
 tdefault_trace_set_readonly_regions (struct target_ops *self)
 {
   tcomplain ();
+}
+
+static void
+debug_trace_set_readonly_regions (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_trace_set_readonly_regions (...)\n", debug_target.to_shortname);
+  debug_target.to_trace_set_readonly_regions (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_trace_set_readonly_regions (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -1031,6 +2423,16 @@ tdefault_trace_start (struct target_ops *self)
   tcomplain ();
 }
 
+static void
+debug_trace_start (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_trace_start (...)\n", debug_target.to_shortname);
+  debug_target.to_trace_start (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_trace_start (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
 static int
 delegate_get_trace_status (struct target_ops *self, struct trace_status *arg1)
 {
@@ -1042,6 +2444,22 @@ static int
 tdefault_get_trace_status (struct target_ops *self, struct trace_status *arg1)
 {
   return -1;
+}
+
+static int
+debug_get_trace_status (struct target_ops *self, struct trace_status *arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_trace_status (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_trace_status (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_trace_status (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_trace_status_p (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -1058,6 +2476,20 @@ tdefault_get_tracepoint_status (struct target_ops *self, struct breakpoint *arg1
 }
 
 static void
+debug_get_tracepoint_status (struct target_ops *self, struct breakpoint *arg1, struct uploaded_tp *arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_tracepoint_status (...)\n", debug_target.to_shortname);
+  debug_target.to_get_tracepoint_status (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_tracepoint_status (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_breakpoint_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_uploaded_tp_p (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_trace_stop (struct target_ops *self)
 {
   self = self->beneath;
@@ -1070,17 +2502,51 @@ tdefault_trace_stop (struct target_ops *self)
   tcomplain ();
 }
 
+static void
+debug_trace_stop (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_trace_stop (...)\n", debug_target.to_shortname);
+  debug_target.to_trace_stop (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_trace_stop (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
 static int
-delegate_trace_find (struct target_ops *self, enum trace_find_type  arg1, int arg2, CORE_ADDR arg3, CORE_ADDR arg4, int *arg5)
+delegate_trace_find (struct target_ops *self, enum trace_find_type arg1, int arg2, CORE_ADDR arg3, CORE_ADDR arg4, int *arg5)
 {
   self = self->beneath;
   return self->to_trace_find (self, arg1, arg2, arg3, arg4, arg5);
 }
 
 static int
-tdefault_trace_find (struct target_ops *self, enum trace_find_type  arg1, int arg2, CORE_ADDR arg3, CORE_ADDR arg4, int *arg5)
+tdefault_trace_find (struct target_ops *self, enum trace_find_type arg1, int arg2, CORE_ADDR arg3, CORE_ADDR arg4, int *arg5)
 {
   return -1;
+}
+
+static int
+debug_trace_find (struct target_ops *self, enum trace_find_type arg1, int arg2, CORE_ADDR arg3, CORE_ADDR arg4, int *arg5)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_trace_find (...)\n", debug_target.to_shortname);
+  result = debug_target.to_trace_find (&debug_target, arg1, arg2, arg3, arg4, arg5);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_trace_find (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_enum_trace_find_type (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg3);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg4);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int_p (arg5);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -1097,6 +2563,24 @@ tdefault_get_trace_state_variable_value (struct target_ops *self, int arg1, LONG
 }
 
 static int
+debug_get_trace_state_variable_value (struct target_ops *self, int arg1, LONGEST *arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_trace_state_variable_value (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_trace_state_variable_value (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_trace_state_variable_value (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_LONGEST_p (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_save_trace_data (struct target_ops *self, const char *arg1)
 {
   self = self->beneath;
@@ -1107,6 +2591,22 @@ static int
 tdefault_save_trace_data (struct target_ops *self, const char *arg1)
 {
   tcomplain ();
+}
+
+static int
+debug_save_trace_data (struct target_ops *self, const char *arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_save_trace_data (...)\n", debug_target.to_shortname);
+  result = debug_target.to_save_trace_data (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_save_trace_data (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -1123,6 +2623,22 @@ tdefault_upload_tracepoints (struct target_ops *self, struct uploaded_tp **arg1)
 }
 
 static int
+debug_upload_tracepoints (struct target_ops *self, struct uploaded_tp **arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_upload_tracepoints (...)\n", debug_target.to_shortname);
+  result = debug_target.to_upload_tracepoints (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_upload_tracepoints (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_uploaded_tp_pp (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_upload_trace_state_variables (struct target_ops *self, struct uploaded_tsv **arg1)
 {
   self = self->beneath;
@@ -1133,6 +2649,22 @@ static int
 tdefault_upload_trace_state_variables (struct target_ops *self, struct uploaded_tsv **arg1)
 {
   return 0;
+}
+
+static int
+debug_upload_trace_state_variables (struct target_ops *self, struct uploaded_tsv **arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_upload_trace_state_variables (...)\n", debug_target.to_shortname);
+  result = debug_target.to_upload_trace_state_variables (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_upload_trace_state_variables (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_uploaded_tsv_pp (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static LONGEST
@@ -1148,6 +2680,26 @@ tdefault_get_raw_trace_data (struct target_ops *self, gdb_byte *arg1, ULONGEST a
   tcomplain ();
 }
 
+static LONGEST
+debug_get_raw_trace_data (struct target_ops *self, gdb_byte *arg1, ULONGEST arg2, LONGEST arg3)
+{
+  LONGEST result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_raw_trace_data (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_raw_trace_data (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_raw_trace_data (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_gdb_byte_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_LONGEST (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_LONGEST (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static int
 delegate_get_min_fast_tracepoint_insn_len (struct target_ops *self)
 {
@@ -1159,6 +2711,20 @@ static int
 tdefault_get_min_fast_tracepoint_insn_len (struct target_ops *self)
 {
   return -1;
+}
+
+static int
+debug_get_min_fast_tracepoint_insn_len (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_min_fast_tracepoint_insn_len (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_min_fast_tracepoint_insn_len (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_min_fast_tracepoint_insn_len (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -1174,6 +2740,18 @@ tdefault_set_disconnected_tracing (struct target_ops *self, int arg1)
 }
 
 static void
+debug_set_disconnected_tracing (struct target_ops *self, int arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_set_disconnected_tracing (...)\n", debug_target.to_shortname);
+  debug_target.to_set_disconnected_tracing (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_set_disconnected_tracing (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_set_circular_trace_buffer (struct target_ops *self, int arg1)
 {
   self = self->beneath;
@@ -1186,6 +2764,18 @@ tdefault_set_circular_trace_buffer (struct target_ops *self, int arg1)
 }
 
 static void
+debug_set_circular_trace_buffer (struct target_ops *self, int arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_set_circular_trace_buffer (...)\n", debug_target.to_shortname);
+  debug_target.to_set_circular_trace_buffer (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_set_circular_trace_buffer (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_set_trace_buffer_size (struct target_ops *self, LONGEST arg1)
 {
   self = self->beneath;
@@ -1195,6 +2785,18 @@ delegate_set_trace_buffer_size (struct target_ops *self, LONGEST arg1)
 static void
 tdefault_set_trace_buffer_size (struct target_ops *self, LONGEST arg1)
 {
+}
+
+static void
+debug_set_trace_buffer_size (struct target_ops *self, LONGEST arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_set_trace_buffer_size (...)\n", debug_target.to_shortname);
+  debug_target.to_set_trace_buffer_size (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_set_trace_buffer_size (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_LONGEST (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static int
@@ -1211,6 +2813,26 @@ tdefault_set_trace_notes (struct target_ops *self, const char *arg1, const char 
 }
 
 static int
+debug_set_trace_notes (struct target_ops *self, const char *arg1, const char *arg2, const char *arg3)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_set_trace_notes (...)\n", debug_target.to_shortname);
+  result = debug_target.to_set_trace_notes (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_set_trace_notes (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_core_of_thread (struct target_ops *self, ptid_t arg1)
 {
   self = self->beneath;
@@ -1224,6 +2846,22 @@ tdefault_core_of_thread (struct target_ops *self, ptid_t arg1)
 }
 
 static int
+debug_core_of_thread (struct target_ops *self, ptid_t arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_core_of_thread (...)\n", debug_target.to_shortname);
+  result = debug_target.to_core_of_thread (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_core_of_thread (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_verify_memory (struct target_ops *self, const gdb_byte *arg1, CORE_ADDR arg2, ULONGEST arg3)
 {
   self = self->beneath;
@@ -1231,9 +2869,23 @@ delegate_verify_memory (struct target_ops *self, const gdb_byte *arg1, CORE_ADDR
 }
 
 static int
-tdefault_verify_memory (struct target_ops *self, const gdb_byte *arg1, CORE_ADDR arg2, ULONGEST arg3)
+debug_verify_memory (struct target_ops *self, const gdb_byte *arg1, CORE_ADDR arg2, ULONGEST arg3)
 {
-  tcomplain ();
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_verify_memory (...)\n", debug_target.to_shortname);
+  result = debug_target.to_verify_memory (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_verify_memory (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_gdb_byte_p (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -1249,6 +2901,24 @@ tdefault_get_tib_address (struct target_ops *self, ptid_t arg1, CORE_ADDR *arg2)
   tcomplain ();
 }
 
+static int
+debug_get_tib_address (struct target_ops *self, ptid_t arg1, CORE_ADDR *arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_tib_address (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_tib_address (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_tib_address (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR_p (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static void
 delegate_set_permissions (struct target_ops *self)
 {
@@ -1259,6 +2929,16 @@ delegate_set_permissions (struct target_ops *self)
 static void
 tdefault_set_permissions (struct target_ops *self)
 {
+}
+
+static void
+debug_set_permissions (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_set_permissions (...)\n", debug_target.to_shortname);
+  debug_target.to_set_permissions (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_set_permissions (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static int
@@ -1274,6 +2954,24 @@ tdefault_static_tracepoint_marker_at (struct target_ops *self, CORE_ADDR arg1, s
   return 0;
 }
 
+static int
+debug_static_tracepoint_marker_at (struct target_ops *self, CORE_ADDR arg1, struct static_tracepoint_marker *arg2)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_static_tracepoint_marker_at (...)\n", debug_target.to_shortname);
+  result = debug_target.to_static_tracepoint_marker_at (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_static_tracepoint_marker_at (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_static_tracepoint_marker_p (arg2);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static VEC(static_tracepoint_marker_p) *
 delegate_static_tracepoint_markers_by_strid (struct target_ops *self, const char *arg1)
 {
@@ -1287,6 +2985,22 @@ tdefault_static_tracepoint_markers_by_strid (struct target_ops *self, const char
   tcomplain ();
 }
 
+static VEC(static_tracepoint_marker_p) *
+debug_static_tracepoint_markers_by_strid (struct target_ops *self, const char *arg1)
+{
+  VEC(static_tracepoint_marker_p) * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_static_tracepoint_markers_by_strid (...)\n", debug_target.to_shortname);
+  result = debug_target.to_static_tracepoint_markers_by_strid (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_static_tracepoint_markers_by_strid (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_VEC_static_tracepoint_marker_p__p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static struct traceframe_info *
 delegate_traceframe_info (struct target_ops *self)
 {
@@ -1297,7 +3011,21 @@ delegate_traceframe_info (struct target_ops *self)
 static struct traceframe_info *
 tdefault_traceframe_info (struct target_ops *self)
 {
-  return NULL;
+  tcomplain ();
+}
+
+static struct traceframe_info *
+debug_traceframe_info (struct target_ops *self)
+{
+  struct traceframe_info * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_traceframe_info (...)\n", debug_target.to_shortname);
+  result = debug_target.to_traceframe_info (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_traceframe_info (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_struct_traceframe_info_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -1314,6 +3042,22 @@ tdefault_use_agent (struct target_ops *self, int arg1)
 }
 
 static int
+debug_use_agent (struct target_ops *self, int arg1)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_use_agent (...)\n", debug_target.to_shortname);
+  result = debug_target.to_use_agent (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_use_agent (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static int
 delegate_can_use_agent (struct target_ops *self)
 {
   self = self->beneath;
@@ -1324,6 +3068,20 @@ static int
 tdefault_can_use_agent (struct target_ops *self)
 {
   return 0;
+}
+
+static int
+debug_can_use_agent (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_can_use_agent (...)\n", debug_target.to_shortname);
+  result = debug_target.to_can_use_agent (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_can_use_agent (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static int
@@ -1339,6 +3097,20 @@ tdefault_supports_btrace (struct target_ops *self)
   return 0;
 }
 
+static int
+debug_supports_btrace (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_supports_btrace (...)\n", debug_target.to_shortname);
+  result = debug_target.to_supports_btrace (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_supports_btrace (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static struct btrace_target_info *
 delegate_enable_btrace (struct target_ops *self, ptid_t arg1)
 {
@@ -1350,6 +3122,22 @@ static struct btrace_target_info *
 tdefault_enable_btrace (struct target_ops *self, ptid_t arg1)
 {
   tcomplain ();
+}
+
+static struct btrace_target_info *
+debug_enable_btrace (struct target_ops *self, ptid_t arg1)
+{
+  struct btrace_target_info * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_enable_btrace (...)\n", debug_target.to_shortname);
+  result = debug_target.to_enable_btrace (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_enable_btrace (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ptid_t (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_struct_btrace_target_info_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -1366,6 +3154,18 @@ tdefault_disable_btrace (struct target_ops *self, struct btrace_target_info *arg
 }
 
 static void
+debug_disable_btrace (struct target_ops *self, struct btrace_target_info *arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_disable_btrace (...)\n", debug_target.to_shortname);
+  debug_target.to_disable_btrace (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_disable_btrace (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_btrace_target_info_p (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_teardown_btrace (struct target_ops *self, struct btrace_target_info *arg1)
 {
   self = self->beneath;
@@ -1378,17 +3178,49 @@ tdefault_teardown_btrace (struct target_ops *self, struct btrace_target_info *ar
   tcomplain ();
 }
 
-static enum btrace_error 
-delegate_read_btrace (struct target_ops *self, VEC (btrace_block_s) **arg1, struct btrace_target_info *arg2, enum btrace_read_type  arg3)
+static void
+debug_teardown_btrace (struct target_ops *self, struct btrace_target_info *arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_teardown_btrace (...)\n", debug_target.to_shortname);
+  debug_target.to_teardown_btrace (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_teardown_btrace (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_btrace_target_info_p (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static enum btrace_error
+delegate_read_btrace (struct target_ops *self, VEC (btrace_block_s) **arg1, struct btrace_target_info *arg2, enum btrace_read_type arg3)
 {
   self = self->beneath;
   return self->to_read_btrace (self, arg1, arg2, arg3);
 }
 
-static enum btrace_error 
-tdefault_read_btrace (struct target_ops *self, VEC (btrace_block_s) **arg1, struct btrace_target_info *arg2, enum btrace_read_type  arg3)
+static enum btrace_error
+tdefault_read_btrace (struct target_ops *self, VEC (btrace_block_s) **arg1, struct btrace_target_info *arg2, enum btrace_read_type arg3)
 {
   tcomplain ();
+}
+
+static enum btrace_error
+debug_read_btrace (struct target_ops *self, VEC (btrace_block_s) **arg1, struct btrace_target_info *arg2, enum btrace_read_type arg3)
+{
+  enum btrace_error result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_read_btrace (...)\n", debug_target.to_shortname);
+  result = debug_target.to_read_btrace (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_read_btrace (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_VEC__btrace_block_s__pp (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_btrace_target_info_p (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_enum_btrace_read_type (arg3);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_enum_btrace_error (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -1401,6 +3233,38 @@ delegate_stop_recording (struct target_ops *self)
 static void
 tdefault_stop_recording (struct target_ops *self)
 {
+}
+
+static void
+debug_stop_recording (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_stop_recording (...)\n", debug_target.to_shortname);
+  debug_target.to_stop_recording (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_stop_recording (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
+delegate_info_record (struct target_ops *self)
+{
+  self = self->beneath;
+  self->to_info_record (self);
+}
+
+static void
+tdefault_info_record (struct target_ops *self)
+{
+}
+
+static void
+debug_info_record (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_info_record (...)\n", debug_target.to_shortname);
+  debug_target.to_info_record (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_info_record (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -1417,6 +3281,18 @@ tdefault_save_record (struct target_ops *self, const char *arg1)
 }
 
 static void
+debug_save_record (struct target_ops *self, const char *arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_save_record (...)\n", debug_target.to_shortname);
+  debug_target.to_save_record (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_save_record (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_const_char_p (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_delete_record (struct target_ops *self)
 {
   self = self->beneath;
@@ -1427,6 +3303,16 @@ static void
 tdefault_delete_record (struct target_ops *self)
 {
   tcomplain ();
+}
+
+static void
+debug_delete_record (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_delete_record (...)\n", debug_target.to_shortname);
+  debug_target.to_delete_record (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_delete_record (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static int
@@ -1440,6 +3326,20 @@ static int
 tdefault_record_is_replaying (struct target_ops *self)
 {
   return 0;
+}
+
+static int
+debug_record_is_replaying (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_record_is_replaying (...)\n", debug_target.to_shortname);
+  result = debug_target.to_record_is_replaying (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_record_is_replaying (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static void
@@ -1456,6 +3356,16 @@ tdefault_goto_record_begin (struct target_ops *self)
 }
 
 static void
+debug_goto_record_begin (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_goto_record_begin (...)\n", debug_target.to_shortname);
+  debug_target.to_goto_record_begin (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_goto_record_begin (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_goto_record_end (struct target_ops *self)
 {
   self = self->beneath;
@@ -1466,6 +3376,16 @@ static void
 tdefault_goto_record_end (struct target_ops *self)
 {
   tcomplain ();
+}
+
+static void
+debug_goto_record_end (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_goto_record_end (...)\n", debug_target.to_shortname);
+  debug_target.to_goto_record_end (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_goto_record_end (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -1482,6 +3402,18 @@ tdefault_goto_record (struct target_ops *self, ULONGEST arg1)
 }
 
 static void
+debug_goto_record (struct target_ops *self, ULONGEST arg1)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_goto_record (...)\n", debug_target.to_shortname);
+  debug_target.to_goto_record (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_goto_record (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg1);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_insn_history (struct target_ops *self, int arg1, int arg2)
 {
   self = self->beneath;
@@ -1492,6 +3424,20 @@ static void
 tdefault_insn_history (struct target_ops *self, int arg1, int arg2)
 {
   tcomplain ();
+}
+
+static void
+debug_insn_history (struct target_ops *self, int arg1, int arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_insn_history (...)\n", debug_target.to_shortname);
+  debug_target.to_insn_history (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_insn_history (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -1508,6 +3454,22 @@ tdefault_insn_history_from (struct target_ops *self, ULONGEST arg1, int arg2, in
 }
 
 static void
+debug_insn_history_from (struct target_ops *self, ULONGEST arg1, int arg2, int arg3)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_insn_history_from (...)\n", debug_target.to_shortname);
+  debug_target.to_insn_history_from (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_insn_history_from (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_insn_history_range (struct target_ops *self, ULONGEST arg1, ULONGEST arg2, int arg3)
 {
   self = self->beneath;
@@ -1518,6 +3480,22 @@ static void
 tdefault_insn_history_range (struct target_ops *self, ULONGEST arg1, ULONGEST arg2, int arg3)
 {
   tcomplain ();
+}
+
+static void
+debug_insn_history_range (struct target_ops *self, ULONGEST arg1, ULONGEST arg2, int arg3)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_insn_history_range (...)\n", debug_target.to_shortname);
+  debug_target.to_insn_history_range (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_insn_history_range (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -1534,6 +3512,20 @@ tdefault_call_history (struct target_ops *self, int arg1, int arg2)
 }
 
 static void
+debug_call_history (struct target_ops *self, int arg1, int arg2)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_call_history (...)\n", debug_target.to_shortname);
+  debug_target.to_call_history (&debug_target, arg1, arg2);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_call_history (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
 delegate_call_history_from (struct target_ops *self, ULONGEST arg1, int arg2, int arg3)
 {
   self = self->beneath;
@@ -1544,6 +3536,22 @@ static void
 tdefault_call_history_from (struct target_ops *self, ULONGEST arg1, int arg2, int arg3)
 {
   tcomplain ();
+}
+
+static void
+debug_call_history_from (struct target_ops *self, ULONGEST arg1, int arg2, int arg3)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_call_history_from (...)\n", debug_target.to_shortname);
+  debug_target.to_call_history_from (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_call_history_from (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (")\n", gdb_stdlog);
 }
 
 static void
@@ -1559,6 +3567,22 @@ tdefault_call_history_range (struct target_ops *self, ULONGEST arg1, ULONGEST ar
   tcomplain ();
 }
 
+static void
+debug_call_history_range (struct target_ops *self, ULONGEST arg1, ULONGEST arg2, int arg3)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_call_history_range (...)\n", debug_target.to_shortname);
+  debug_target.to_call_history_range (&debug_target, arg1, arg2, arg3);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_call_history_range (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg1);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_ULONGEST (arg2);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_int (arg3);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
 static int
 delegate_augmented_libraries_svr4_read (struct target_ops *self)
 {
@@ -1570,6 +3594,20 @@ static int
 tdefault_augmented_libraries_svr4_read (struct target_ops *self)
 {
   return 0;
+}
+
+static int
+debug_augmented_libraries_svr4_read (struct target_ops *self)
+{
+  int result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_augmented_libraries_svr4_read (...)\n", debug_target.to_shortname);
+  result = debug_target.to_augmented_libraries_svr4_read (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_augmented_libraries_svr4_read (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_int (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
 }
 
 static const struct frame_unwind *
@@ -1586,6 +3624,20 @@ tdefault_get_unwinder (struct target_ops *self)
 }
 
 static const struct frame_unwind *
+debug_get_unwinder (struct target_ops *self)
+{
+  const struct frame_unwind * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_unwinder (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_unwinder (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_unwinder (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_const_struct_frame_unwind_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static const struct frame_unwind *
 delegate_get_tailcall_unwinder (struct target_ops *self)
 {
   self = self->beneath;
@@ -1598,6 +3650,20 @@ tdefault_get_tailcall_unwinder (struct target_ops *self)
   return NULL;
 }
 
+static const struct frame_unwind *
+debug_get_tailcall_unwinder (struct target_ops *self)
+{
+  const struct frame_unwind * result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_get_tailcall_unwinder (...)\n", debug_target.to_shortname);
+  result = debug_target.to_get_tailcall_unwinder (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_get_tailcall_unwinder (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_const_struct_frame_unwind_p (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
 static CORE_ADDR
 delegate_decr_pc_after_break (struct target_ops *self, struct gdbarch *arg1)
 {
@@ -1605,11 +3671,69 @@ delegate_decr_pc_after_break (struct target_ops *self, struct gdbarch *arg1)
   return self->to_decr_pc_after_break (self, arg1);
 }
 
+static CORE_ADDR
+debug_decr_pc_after_break (struct target_ops *self, struct gdbarch *arg1)
+{
+  CORE_ADDR result;
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_decr_pc_after_break (...)\n", debug_target.to_shortname);
+  result = debug_target.to_decr_pc_after_break (&debug_target, arg1);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_decr_pc_after_break (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (", ", gdb_stdlog);
+  target_debug_print_struct_gdbarch_p (arg1);
+  fputs_unfiltered (") = ", gdb_stdlog);
+  target_debug_print_CORE_ADDR (result);
+  fputs_unfiltered ("\n", gdb_stdlog);
+  return result;
+}
+
+static void
+delegate_prepare_to_generate_core (struct target_ops *self)
+{
+  self = self->beneath;
+  self->to_prepare_to_generate_core (self);
+}
+
+static void
+tdefault_prepare_to_generate_core (struct target_ops *self)
+{
+}
+
+static void
+debug_prepare_to_generate_core (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_prepare_to_generate_core (...)\n", debug_target.to_shortname);
+  debug_target.to_prepare_to_generate_core (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_prepare_to_generate_core (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
+static void
+delegate_done_generating_core (struct target_ops *self)
+{
+  self = self->beneath;
+  self->to_done_generating_core (self);
+}
+
+static void
+tdefault_done_generating_core (struct target_ops *self)
+{
+}
+
+static void
+debug_done_generating_core (struct target_ops *self)
+{
+  fprintf_unfiltered (gdb_stdlog, "-> %s->to_done_generating_core (...)\n", debug_target.to_shortname);
+  debug_target.to_done_generating_core (&debug_target);
+  fprintf_unfiltered (gdb_stdlog, "<- %s->to_done_generating_core (", debug_target.to_shortname);
+  target_debug_print_struct_target_ops_p (&debug_target);
+  fputs_unfiltered (")\n", gdb_stdlog);
+}
+
 static void
 install_delegators (struct target_ops *ops)
 {
-  if (ops->to_attach == NULL)
-    ops->to_attach = delegate_attach;
   if (ops->to_post_attach == NULL)
     ops->to_post_attach = delegate_post_attach;
   if (ops->to_detach == NULL)
@@ -1668,8 +3792,6 @@ install_delegators (struct target_ops *ops)
     ops->to_terminal_ours_for_output = delegate_terminal_ours_for_output;
   if (ops->to_terminal_ours == NULL)
     ops->to_terminal_ours = delegate_terminal_ours;
-  if (ops->to_terminal_save_ours == NULL)
-    ops->to_terminal_save_ours = delegate_terminal_save_ours;
   if (ops->to_terminal_info == NULL)
     ops->to_terminal_info = delegate_terminal_info;
   if (ops->to_kill == NULL)
@@ -1706,8 +3828,8 @@ install_delegators (struct target_ops *ops)
     ops->to_program_signals = delegate_program_signals;
   if (ops->to_thread_alive == NULL)
     ops->to_thread_alive = delegate_thread_alive;
-  if (ops->to_find_new_threads == NULL)
-    ops->to_find_new_threads = delegate_find_new_threads;
+  if (ops->to_update_thread_list == NULL)
+    ops->to_update_thread_list = delegate_update_thread_list;
   if (ops->to_pid_to_str == NULL)
     ops->to_pid_to_str = delegate_pid_to_str;
   if (ops->to_extra_thread_info == NULL)
@@ -1730,6 +3852,8 @@ install_delegators (struct target_ops *ops)
     ops->to_is_async_p = delegate_is_async_p;
   if (ops->to_async == NULL)
     ops->to_async = delegate_async;
+  if (ops->to_supports_non_stop == NULL)
+    ops->to_supports_non_stop = delegate_supports_non_stop;
   if (ops->to_find_memory_regions == NULL)
     ops->to_find_memory_regions = delegate_find_memory_regions;
   if (ops->to_make_corefile_notes == NULL)
@@ -1738,6 +3862,8 @@ install_delegators (struct target_ops *ops)
     ops->to_get_bookmark = delegate_get_bookmark;
   if (ops->to_goto_bookmark == NULL)
     ops->to_goto_bookmark = delegate_goto_bookmark;
+  if (ops->to_get_thread_local_address == NULL)
+    ops->to_get_thread_local_address = delegate_get_thread_local_address;
   if (ops->to_xfer_partial == NULL)
     ops->to_xfer_partial = delegate_xfer_partial;
   if (ops->to_memory_map == NULL)
@@ -1770,6 +3896,8 @@ install_delegators (struct target_ops *ops)
     ops->to_can_run_breakpoint_commands = delegate_can_run_breakpoint_commands;
   if (ops->to_thread_architecture == NULL)
     ops->to_thread_architecture = delegate_thread_architecture;
+  if (ops->to_thread_address_space == NULL)
+    ops->to_thread_address_space = delegate_thread_address_space;
   if (ops->to_trace_init == NULL)
     ops->to_trace_init = delegate_trace_init;
   if (ops->to_download_tracepoint == NULL)
@@ -1844,6 +3972,8 @@ install_delegators (struct target_ops *ops)
     ops->to_read_btrace = delegate_read_btrace;
   if (ops->to_stop_recording == NULL)
     ops->to_stop_recording = delegate_stop_recording;
+  if (ops->to_info_record == NULL)
+    ops->to_info_record = delegate_info_record;
   if (ops->to_save_record == NULL)
     ops->to_save_record = delegate_save_record;
   if (ops->to_delete_record == NULL)
@@ -1876,12 +4006,15 @@ install_delegators (struct target_ops *ops)
     ops->to_get_tailcall_unwinder = delegate_get_tailcall_unwinder;
   if (ops->to_decr_pc_after_break == NULL)
     ops->to_decr_pc_after_break = delegate_decr_pc_after_break;
+  if (ops->to_prepare_to_generate_core == NULL)
+    ops->to_prepare_to_generate_core = delegate_prepare_to_generate_core;
+  if (ops->to_done_generating_core == NULL)
+    ops->to_done_generating_core = delegate_done_generating_core;
 }
 
 static void
 install_dummy_methods (struct target_ops *ops)
 {
-  ops->to_attach = find_default_attach;
   ops->to_post_attach = tdefault_post_attach;
   ops->to_detach = tdefault_detach;
   ops->to_disconnect = tdefault_disconnect;
@@ -1911,7 +4044,6 @@ install_dummy_methods (struct target_ops *ops)
   ops->to_terminal_inferior = tdefault_terminal_inferior;
   ops->to_terminal_ours_for_output = tdefault_terminal_ours_for_output;
   ops->to_terminal_ours = tdefault_terminal_ours;
-  ops->to_terminal_save_ours = tdefault_terminal_save_ours;
   ops->to_terminal_info = default_terminal_info;
   ops->to_kill = tdefault_kill;
   ops->to_load = tdefault_load;
@@ -1930,7 +4062,7 @@ install_dummy_methods (struct target_ops *ops)
   ops->to_pass_signals = tdefault_pass_signals;
   ops->to_program_signals = tdefault_program_signals;
   ops->to_thread_alive = tdefault_thread_alive;
-  ops->to_find_new_threads = tdefault_find_new_threads;
+  ops->to_update_thread_list = tdefault_update_thread_list;
   ops->to_pid_to_str = default_pid_to_str;
   ops->to_extra_thread_info = tdefault_extra_thread_info;
   ops->to_thread_name = tdefault_thread_name;
@@ -1939,13 +4071,15 @@ install_dummy_methods (struct target_ops *ops)
   ops->to_pid_to_exec_file = tdefault_pid_to_exec_file;
   ops->to_log_command = tdefault_log_command;
   ops->to_get_section_table = tdefault_get_section_table;
-  ops->to_can_async_p = find_default_can_async_p;
-  ops->to_is_async_p = find_default_is_async_p;
+  ops->to_can_async_p = tdefault_can_async_p;
+  ops->to_is_async_p = tdefault_is_async_p;
   ops->to_async = tdefault_async;
+  ops->to_supports_non_stop = tdefault_supports_non_stop;
   ops->to_find_memory_regions = dummy_find_memory_regions;
   ops->to_make_corefile_notes = dummy_make_corefile_notes;
   ops->to_get_bookmark = tdefault_get_bookmark;
   ops->to_goto_bookmark = tdefault_goto_bookmark;
+  ops->to_get_thread_local_address = tdefault_get_thread_local_address;
   ops->to_xfer_partial = tdefault_xfer_partial;
   ops->to_memory_map = tdefault_memory_map;
   ops->to_flash_erase = tdefault_flash_erase;
@@ -1962,6 +4096,7 @@ install_dummy_methods (struct target_ops *ops)
   ops->to_supports_evaluation_of_breakpoint_conditions = tdefault_supports_evaluation_of_breakpoint_conditions;
   ops->to_can_run_breakpoint_commands = tdefault_can_run_breakpoint_commands;
   ops->to_thread_architecture = default_thread_architecture;
+  ops->to_thread_address_space = default_thread_address_space;
   ops->to_trace_init = tdefault_trace_init;
   ops->to_download_tracepoint = tdefault_download_tracepoint;
   ops->to_can_download_tracepoint = tdefault_can_download_tracepoint;
@@ -1985,7 +4120,7 @@ install_dummy_methods (struct target_ops *ops)
   ops->to_set_trace_buffer_size = tdefault_set_trace_buffer_size;
   ops->to_set_trace_notes = tdefault_set_trace_notes;
   ops->to_core_of_thread = tdefault_core_of_thread;
-  ops->to_verify_memory = tdefault_verify_memory;
+  ops->to_verify_memory = default_verify_memory;
   ops->to_get_tib_address = tdefault_get_tib_address;
   ops->to_set_permissions = tdefault_set_permissions;
   ops->to_static_tracepoint_marker_at = tdefault_static_tracepoint_marker_at;
@@ -1999,6 +4134,7 @@ install_dummy_methods (struct target_ops *ops)
   ops->to_teardown_btrace = tdefault_teardown_btrace;
   ops->to_read_btrace = tdefault_read_btrace;
   ops->to_stop_recording = tdefault_stop_recording;
+  ops->to_info_record = tdefault_info_record;
   ops->to_save_record = tdefault_save_record;
   ops->to_delete_record = tdefault_delete_record;
   ops->to_record_is_replaying = tdefault_record_is_replaying;
@@ -2015,4 +4151,149 @@ install_dummy_methods (struct target_ops *ops)
   ops->to_get_unwinder = tdefault_get_unwinder;
   ops->to_get_tailcall_unwinder = tdefault_get_tailcall_unwinder;
   ops->to_decr_pc_after_break = default_target_decr_pc_after_break;
+  ops->to_prepare_to_generate_core = tdefault_prepare_to_generate_core;
+  ops->to_done_generating_core = tdefault_done_generating_core;
+}
+
+static void
+init_debug_target (struct target_ops *ops)
+{
+  ops->to_post_attach = debug_post_attach;
+  ops->to_detach = debug_detach;
+  ops->to_disconnect = debug_disconnect;
+  ops->to_resume = debug_resume;
+  ops->to_wait = debug_wait;
+  ops->to_fetch_registers = debug_fetch_registers;
+  ops->to_store_registers = debug_store_registers;
+  ops->to_prepare_to_store = debug_prepare_to_store;
+  ops->to_files_info = debug_files_info;
+  ops->to_insert_breakpoint = debug_insert_breakpoint;
+  ops->to_remove_breakpoint = debug_remove_breakpoint;
+  ops->to_can_use_hw_breakpoint = debug_can_use_hw_breakpoint;
+  ops->to_ranged_break_num_registers = debug_ranged_break_num_registers;
+  ops->to_insert_hw_breakpoint = debug_insert_hw_breakpoint;
+  ops->to_remove_hw_breakpoint = debug_remove_hw_breakpoint;
+  ops->to_remove_watchpoint = debug_remove_watchpoint;
+  ops->to_insert_watchpoint = debug_insert_watchpoint;
+  ops->to_insert_mask_watchpoint = debug_insert_mask_watchpoint;
+  ops->to_remove_mask_watchpoint = debug_remove_mask_watchpoint;
+  ops->to_stopped_by_watchpoint = debug_stopped_by_watchpoint;
+  ops->to_stopped_data_address = debug_stopped_data_address;
+  ops->to_watchpoint_addr_within_range = debug_watchpoint_addr_within_range;
+  ops->to_region_ok_for_hw_watchpoint = debug_region_ok_for_hw_watchpoint;
+  ops->to_can_accel_watchpoint_condition = debug_can_accel_watchpoint_condition;
+  ops->to_masked_watch_num_registers = debug_masked_watch_num_registers;
+  ops->to_terminal_init = debug_terminal_init;
+  ops->to_terminal_inferior = debug_terminal_inferior;
+  ops->to_terminal_ours_for_output = debug_terminal_ours_for_output;
+  ops->to_terminal_ours = debug_terminal_ours;
+  ops->to_terminal_info = debug_terminal_info;
+  ops->to_kill = debug_kill;
+  ops->to_load = debug_load;
+  ops->to_post_startup_inferior = debug_post_startup_inferior;
+  ops->to_insert_fork_catchpoint = debug_insert_fork_catchpoint;
+  ops->to_remove_fork_catchpoint = debug_remove_fork_catchpoint;
+  ops->to_insert_vfork_catchpoint = debug_insert_vfork_catchpoint;
+  ops->to_remove_vfork_catchpoint = debug_remove_vfork_catchpoint;
+  ops->to_follow_fork = debug_follow_fork;
+  ops->to_insert_exec_catchpoint = debug_insert_exec_catchpoint;
+  ops->to_remove_exec_catchpoint = debug_remove_exec_catchpoint;
+  ops->to_set_syscall_catchpoint = debug_set_syscall_catchpoint;
+  ops->to_has_exited = debug_has_exited;
+  ops->to_mourn_inferior = debug_mourn_inferior;
+  ops->to_can_run = debug_can_run;
+  ops->to_pass_signals = debug_pass_signals;
+  ops->to_program_signals = debug_program_signals;
+  ops->to_thread_alive = debug_thread_alive;
+  ops->to_update_thread_list = debug_update_thread_list;
+  ops->to_pid_to_str = debug_pid_to_str;
+  ops->to_extra_thread_info = debug_extra_thread_info;
+  ops->to_thread_name = debug_thread_name;
+  ops->to_stop = debug_stop;
+  ops->to_rcmd = debug_rcmd;
+  ops->to_pid_to_exec_file = debug_pid_to_exec_file;
+  ops->to_log_command = debug_log_command;
+  ops->to_get_section_table = debug_get_section_table;
+  ops->to_can_async_p = debug_can_async_p;
+  ops->to_is_async_p = debug_is_async_p;
+  ops->to_async = debug_async;
+  ops->to_supports_non_stop = debug_supports_non_stop;
+  ops->to_find_memory_regions = debug_find_memory_regions;
+  ops->to_make_corefile_notes = debug_make_corefile_notes;
+  ops->to_get_bookmark = debug_get_bookmark;
+  ops->to_goto_bookmark = debug_goto_bookmark;
+  ops->to_get_thread_local_address = debug_get_thread_local_address;
+  ops->to_xfer_partial = debug_xfer_partial;
+  ops->to_memory_map = debug_memory_map;
+  ops->to_flash_erase = debug_flash_erase;
+  ops->to_flash_done = debug_flash_done;
+  ops->to_read_description = debug_read_description;
+  ops->to_get_ada_task_ptid = debug_get_ada_task_ptid;
+  ops->to_auxv_parse = debug_auxv_parse;
+  ops->to_search_memory = debug_search_memory;
+  ops->to_can_execute_reverse = debug_can_execute_reverse;
+  ops->to_execution_direction = debug_execution_direction;
+  ops->to_supports_multi_process = debug_supports_multi_process;
+  ops->to_supports_enable_disable_tracepoint = debug_supports_enable_disable_tracepoint;
+  ops->to_supports_string_tracing = debug_supports_string_tracing;
+  ops->to_supports_evaluation_of_breakpoint_conditions = debug_supports_evaluation_of_breakpoint_conditions;
+  ops->to_can_run_breakpoint_commands = debug_can_run_breakpoint_commands;
+  ops->to_thread_architecture = debug_thread_architecture;
+  ops->to_thread_address_space = debug_thread_address_space;
+  ops->to_trace_init = debug_trace_init;
+  ops->to_download_tracepoint = debug_download_tracepoint;
+  ops->to_can_download_tracepoint = debug_can_download_tracepoint;
+  ops->to_download_trace_state_variable = debug_download_trace_state_variable;
+  ops->to_enable_tracepoint = debug_enable_tracepoint;
+  ops->to_disable_tracepoint = debug_disable_tracepoint;
+  ops->to_trace_set_readonly_regions = debug_trace_set_readonly_regions;
+  ops->to_trace_start = debug_trace_start;
+  ops->to_get_trace_status = debug_get_trace_status;
+  ops->to_get_tracepoint_status = debug_get_tracepoint_status;
+  ops->to_trace_stop = debug_trace_stop;
+  ops->to_trace_find = debug_trace_find;
+  ops->to_get_trace_state_variable_value = debug_get_trace_state_variable_value;
+  ops->to_save_trace_data = debug_save_trace_data;
+  ops->to_upload_tracepoints = debug_upload_tracepoints;
+  ops->to_upload_trace_state_variables = debug_upload_trace_state_variables;
+  ops->to_get_raw_trace_data = debug_get_raw_trace_data;
+  ops->to_get_min_fast_tracepoint_insn_len = debug_get_min_fast_tracepoint_insn_len;
+  ops->to_set_disconnected_tracing = debug_set_disconnected_tracing;
+  ops->to_set_circular_trace_buffer = debug_set_circular_trace_buffer;
+  ops->to_set_trace_buffer_size = debug_set_trace_buffer_size;
+  ops->to_set_trace_notes = debug_set_trace_notes;
+  ops->to_core_of_thread = debug_core_of_thread;
+  ops->to_verify_memory = debug_verify_memory;
+  ops->to_get_tib_address = debug_get_tib_address;
+  ops->to_set_permissions = debug_set_permissions;
+  ops->to_static_tracepoint_marker_at = debug_static_tracepoint_marker_at;
+  ops->to_static_tracepoint_markers_by_strid = debug_static_tracepoint_markers_by_strid;
+  ops->to_traceframe_info = debug_traceframe_info;
+  ops->to_use_agent = debug_use_agent;
+  ops->to_can_use_agent = debug_can_use_agent;
+  ops->to_supports_btrace = debug_supports_btrace;
+  ops->to_enable_btrace = debug_enable_btrace;
+  ops->to_disable_btrace = debug_disable_btrace;
+  ops->to_teardown_btrace = debug_teardown_btrace;
+  ops->to_read_btrace = debug_read_btrace;
+  ops->to_stop_recording = debug_stop_recording;
+  ops->to_info_record = debug_info_record;
+  ops->to_save_record = debug_save_record;
+  ops->to_delete_record = debug_delete_record;
+  ops->to_record_is_replaying = debug_record_is_replaying;
+  ops->to_goto_record_begin = debug_goto_record_begin;
+  ops->to_goto_record_end = debug_goto_record_end;
+  ops->to_goto_record = debug_goto_record;
+  ops->to_insn_history = debug_insn_history;
+  ops->to_insn_history_from = debug_insn_history_from;
+  ops->to_insn_history_range = debug_insn_history_range;
+  ops->to_call_history = debug_call_history;
+  ops->to_call_history_from = debug_call_history_from;
+  ops->to_call_history_range = debug_call_history_range;
+  ops->to_augmented_libraries_svr4_read = debug_augmented_libraries_svr4_read;
+  ops->to_get_unwinder = debug_get_unwinder;
+  ops->to_get_tailcall_unwinder = debug_get_tailcall_unwinder;
+  ops->to_decr_pc_after_break = debug_decr_pc_after_break;
+  ops->to_prepare_to_generate_core = debug_prepare_to_generate_core;
+  ops->to_done_generating_core = debug_done_generating_core;
 }

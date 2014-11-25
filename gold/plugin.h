@@ -1,6 +1,6 @@
 // plugin.h -- plugin manager for gold      -*- C++ -*-
 
-// Copyright 2008, 2009, 2010, 2011, 2013 Free Software Foundation, Inc.
+// Copyright (C) 2008-2014 Free Software Foundation, Inc.
 // Written by Cary Coutant <ccoutant@google.com>.
 
 // This file is part of gold.
@@ -134,7 +134,8 @@ class Plugin_manager
       in_claim_file_handler_(false),
       options_(options), workqueue_(NULL), task_(NULL), input_objects_(NULL),
       symtab_(NULL), layout_(NULL), dirpath_(NULL), mapfile_(NULL),
-      this_blocker_(NULL), extra_search_path_()
+      this_blocker_(NULL), extra_search_path_(), lock_(NULL),
+      initialize_lock_(&lock_)
   { this->current_ = plugins_.end(); }
 
   ~Plugin_manager();
@@ -376,6 +377,8 @@ class Plugin_manager
   // An extra directory to seach for the libraries passed by
   // add_input_library.
   std::string extra_search_path_;
+  Lock* lock_;
+  Initialize_lock initialize_lock_;
 };
 
 
@@ -490,7 +493,7 @@ class Sized_pluginobj : public Pluginobj
 
   // Get the name of a section.
   std::string
-  do_section_name(unsigned int shndx);
+  do_section_name(unsigned int shndx) const;
 
   // Return a view of the contents of a section.
   const unsigned char*

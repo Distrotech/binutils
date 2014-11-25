@@ -58,6 +58,7 @@ struct dcache_struct;
    it goes into the file stratum, which is always below the process
    stratum.  */
 
+#include "target/target.h"
 #include "target/resume.h"
 #include "target/wait.h"
 #include "target/waitstatus.h"
@@ -213,23 +214,21 @@ enum target_xfer_status
   /* No further transfer is possible.  */
   TARGET_XFER_EOF = 0,
 
+  /* The piece of the object requested is unavailable.  */
+  TARGET_XFER_UNAVAILABLE = 2,
+
   /* Generic I/O error.  Note that it's important that this is '-1',
      as we still have target_xfer-related code returning hardcoded
      '-1' on error.  */
   TARGET_XFER_E_IO = -1,
 
-  /* Transfer failed because the piece of the object requested is
-     unavailable.  */
-  TARGET_XFER_E_UNAVAILABLE = -2,
-
-  /* Keep list in sync with target_xfer_error_to_string.  */
+  /* Keep list in sync with target_xfer_status_to_string.  */
 };
 
-#define TARGET_XFER_STATUS_ERROR_P(STATUS) ((STATUS) < TARGET_XFER_EOF)
+/* Return the string form of STATUS.  */
 
-/* Return the string form of ERR.  */
-
-extern const char *target_xfer_status_to_string (enum target_xfer_status err);
+extern const char *
+  target_xfer_status_to_string (enum target_xfer_status status);
 
 /* Enumeration of the kinds of traceframe searches that a target may
    be able to perform.  */
@@ -359,6 +358,16 @@ struct thread_info;		/* fwd decl for parameter list below: */
 typedef void async_callback_ftype (enum inferior_event_type event_type,
 				   void *context);
 
+/* Normally target debug printing is purely type-based.  However,
+   sometimes it is necessary to override the debug printing on a
+   per-argument basis.  This macro can be used, attribute-style, to
+   name the target debug printing function for a particular method
+   argument.  FUNC is the name of the function.  The macro's
+   definition is empty because it is only used by the
+   make-target-delegates script.  */
+
+#define TARGET_DEBUG_PRINTER(FUNC)
+
 /* These defines are used to mark target_ops methods.  The script
    make-target-delegates scans these and auto-generates the base
    method implementations.  There are four macros that can be used:
@@ -386,9 +395,9 @@ typedef void async_callback_ftype (enum inferior_event_type event_type,
 struct target_ops
   {
     struct target_ops *beneath;	/* To the target under this one.  */
-    char *to_shortname;		/* Name this target type */
-    char *to_longname;		/* Name for printing */
-    char *to_doc;		/* Documentation.  Does not include trailing
+    const char *to_shortname;	/* Name this target type */
+    const char *to_longname;	/* Name for printing */
+    const char *to_doc;		/* Documentation.  Does not include trailing
 				   newline, and starts with a one-line descrip-
 				   tion (probably similar to to_longname).  */
     /* Per-target scratch pad.  */
@@ -397,24 +406,34 @@ struct target_ops
        command, and (if successful) pushes a new target onto the
        stack.  Targets should supply this routine, if only to provide
        an error message.  */
-    void (*to_open) (char *, int);
+    void (*to_open) (const char *, int);
     /* Old targets with a static target vector provide "to_close".
        New re-entrant targets provide "to_xclose" and that is expected
        to xfree everything (including the "struct target_ops").  */
     void (*to_xclose) (struct target_ops *targ);
     void (*to_close) (struct target_ops *);
-    void (*to_attach) (struct target_ops *ops, char *, int)
-      TARGET_DEFAULT_FUNC (find_default_attach);
+    /* Attaches to a process on the target side.  Arguments are as
+       passed to the `attach' command by the user.  This routine can
+       be called when the target is not on the target-stack, if the
+       target_can_run routine returns 1; in that case, it must push
+       itself onto the stack.  Upon exit, the target should be ready
+       for normal operations, and should be ready to deliver the
+       status of the process immediately (without waiting) to an
+       upcoming target_wait call.  */
+    void (*to_attach) (struct target_ops *ops, const char *, int);
     void (*to_post_attach) (struct target_ops *, int)
       TARGET_DEFAULT_IGNORE ();
     void (*to_detach) (struct target_ops *ops, const char *, int)
       TARGET_DEFAULT_IGNORE ();
-    void (*to_disconnect) (struct target_ops *, char *, int)
+    void (*to_disconnect) (struct target_ops *, const char *, int)
       TARGET_DEFAULT_NORETURN (tcomplain ());
-    void (*to_resume) (struct target_ops *, ptid_t, int, enum gdb_signal)
+    void (*to_resume) (struct target_ops *, ptid_t,
+		       int TARGET_DEBUG_PRINTER (target_debug_print_step),
+		       enum gdb_signal)
       TARGET_DEFAULT_NORETURN (noprocess ());
     ptid_t (*to_wait) (struct target_ops *,
-		       ptid_t, struct target_waitstatus *, int)
+		       ptid_t, struct target_waitstatus *,
+		       int TARGET_DEBUG_PRINTER (target_debug_print_options))
       TARGET_DEFAULT_NORETURN (noprocess ());
     void (*to_fetch_registers) (struct target_ops *, struct regcache *, int)
       TARGET_DEFAULT_IGNORE ();
@@ -422,32 +441,6 @@ struct target_ops
       TARGET_DEFAULT_NORETURN (noprocess ());
     void (*to_prepare_to_store) (struct target_ops *, struct regcache *)
       TARGET_DEFAULT_NORETURN (noprocess ());
-
-    /* Transfer LEN bytes of memory between GDB address MYADDR and
-       target address MEMADDR.  If WRITE, transfer them to the target, else
-       transfer them from the target.  TARGET is the target from which we
-       get this function.
-
-       Return value, N, is one of the following:
-
-       0 means that we can't handle this.  If errno has been set, it is the
-       error which prevented us from doing it (FIXME: What about bfd_error?).
-
-       positive (call it N) means that we have transferred N bytes
-       starting at MEMADDR.  We might be able to handle more bytes
-       beyond this length, but no promises.
-
-       negative (call its absolute value N) means that we cannot
-       transfer right at MEMADDR, but we could transfer at least
-       something at MEMADDR + N.
-
-       NOTE: cagney/2004-10-01: This has been entirely superseeded by
-       to_xfer_partial and inferior inheritance.  */
-
-    int (*deprecated_xfer_memory) (CORE_ADDR memaddr, gdb_byte *myaddr,
-				   int len, int write,
-				   struct mem_attrib *attrib,
-				   struct target_ops *target);
 
     void (*to_files_info) (struct target_ops *)
       TARGET_DEFAULT_IGNORE ();
@@ -514,14 +507,17 @@ struct target_ops
       TARGET_DEFAULT_IGNORE ();
     void (*to_terminal_ours) (struct target_ops *)
       TARGET_DEFAULT_IGNORE ();
-    void (*to_terminal_save_ours) (struct target_ops *)
-      TARGET_DEFAULT_IGNORE ();
     void (*to_terminal_info) (struct target_ops *, const char *, int)
       TARGET_DEFAULT_FUNC (default_terminal_info);
     void (*to_kill) (struct target_ops *)
       TARGET_DEFAULT_NORETURN (noprocess ());
-    void (*to_load) (struct target_ops *, char *, int)
+    void (*to_load) (struct target_ops *, const char *, int)
       TARGET_DEFAULT_NORETURN (tcomplain ());
+    /* Start an inferior process and set inferior_ptid to its pid.
+       EXEC_FILE is the file to run.
+       ALLARGS is a string containing the arguments to the program.
+       ENV is the environment vector to pass.  Errors reported with error().
+       On VxWorks and various standalone systems, we ignore exec_file.  */
     void (*to_create_inferior) (struct target_ops *, 
 				char *, char *, char **, int);
     void (*to_post_startup_inferior) (struct target_ops *, ptid_t)
@@ -547,22 +543,27 @@ struct target_ops
       TARGET_DEFAULT_RETURN (0);
     void (*to_mourn_inferior) (struct target_ops *)
       TARGET_DEFAULT_FUNC (default_mourn_inferior);
+    /* Note that to_can_run is special and can be invoked on an
+       unpushed target.  Targets defining this method must also define
+       to_can_async_p and to_supports_non_stop.  */
     int (*to_can_run) (struct target_ops *)
       TARGET_DEFAULT_RETURN (0);
 
     /* Documentation of this routine is provided with the corresponding
        target_* macro.  */
-    void (*to_pass_signals) (struct target_ops *, int, unsigned char *)
+    void (*to_pass_signals) (struct target_ops *, int,
+			     unsigned char * TARGET_DEBUG_PRINTER (target_debug_print_signals))
       TARGET_DEFAULT_IGNORE ();
 
     /* Documentation of this routine is provided with the
        corresponding target_* function.  */
-    void (*to_program_signals) (struct target_ops *, int, unsigned char *)
+    void (*to_program_signals) (struct target_ops *, int,
+				unsigned char * TARGET_DEBUG_PRINTER (target_debug_print_signals))
       TARGET_DEFAULT_IGNORE ();
 
     int (*to_thread_alive) (struct target_ops *, ptid_t ptid)
       TARGET_DEFAULT_RETURN (0);
-    void (*to_find_new_threads) (struct target_ops *)
+    void (*to_update_thread_list) (struct target_ops *)
       TARGET_DEFAULT_IGNORE ();
     char *(*to_pid_to_str) (struct target_ops *, ptid_t)
       TARGET_DEFAULT_FUNC (default_pid_to_str);
@@ -573,7 +574,7 @@ struct target_ops
     void (*to_stop) (struct target_ops *, ptid_t)
       TARGET_DEFAULT_IGNORE ();
     void (*to_rcmd) (struct target_ops *,
-		     char *command, struct ui_file *output)
+		     const char *command, struct ui_file *output)
       TARGET_DEFAULT_FUNC (default_rcmd);
     char *(*to_pid_to_exec_file) (struct target_ops *, int pid)
       TARGET_DEFAULT_RETURN (NULL);
@@ -589,14 +590,18 @@ struct target_ops
     int (*to_has_execution) (struct target_ops *, ptid_t);
     int to_has_thread_control;	/* control thread execution */
     int to_attach_no_wait;
-    /* ASYNC target controls */
+    /* This method must be implemented in some situations.  See the
+       comment on 'to_can_run'.  */
     int (*to_can_async_p) (struct target_ops *)
-      TARGET_DEFAULT_FUNC (find_default_can_async_p);
+      TARGET_DEFAULT_RETURN (0);
     int (*to_is_async_p) (struct target_ops *)
-      TARGET_DEFAULT_FUNC (find_default_is_async_p);
+      TARGET_DEFAULT_RETURN (0);
     void (*to_async) (struct target_ops *, async_callback_ftype *, void *)
       TARGET_DEFAULT_NORETURN (tcomplain ());
-    int (*to_supports_non_stop) (struct target_ops *);
+    /* This method must be implemented in some situations.  See the
+       comment on 'to_can_run'.  */
+    int (*to_supports_non_stop) (struct target_ops *)
+      TARGET_DEFAULT_RETURN (0);
     /* find_memory_regions support method for gcore */
     int (*to_find_memory_regions) (struct target_ops *,
 				   find_memory_region_ftype func, void *data)
@@ -605,20 +610,22 @@ struct target_ops
     char * (*to_make_corefile_notes) (struct target_ops *, bfd *, int *)
       TARGET_DEFAULT_FUNC (dummy_make_corefile_notes);
     /* get_bookmark support method for bookmarks */
-    gdb_byte * (*to_get_bookmark) (struct target_ops *, char *, int)
+    gdb_byte * (*to_get_bookmark) (struct target_ops *, const char *, int)
       TARGET_DEFAULT_NORETURN (tcomplain ());
     /* goto_bookmark support method for bookmarks */
-    void (*to_goto_bookmark) (struct target_ops *, gdb_byte *, int)
+    void (*to_goto_bookmark) (struct target_ops *, const gdb_byte *, int)
       TARGET_DEFAULT_NORETURN (tcomplain ());
     /* Return the thread-local address at OFFSET in the
        thread-local storage for the thread PTID and the shared library
        or executable file given by OBJFILE.  If that block of
        thread-local storage hasn't been allocated yet, this function
-       may return an error.  */
+       may return an error.  LOAD_MODULE_ADDR may be zero for statically
+       linked multithreaded inferiors.  */
     CORE_ADDR (*to_get_thread_local_address) (struct target_ops *ops,
 					      ptid_t ptid,
 					      CORE_ADDR load_module_addr,
-					      CORE_ADDR offset);
+					      CORE_ADDR offset)
+      TARGET_DEFAULT_NORETURN (generic_tls_error ());
 
     /* Request that OPS transfer up to LEN 8-bit bytes of the target's
        OBJECT.  The OFFSET, for a seekable object, specifies the
@@ -629,7 +636,7 @@ struct target_ops
        'enum target_xfer_status' value).  Save the number of bytes
        actually transferred in *XFERED_LEN if transfer is successful
        (TARGET_XFER_OK) or the number unavailable bytes if the requested
-       data is unavailable (TARGET_XFER_E_UNAVAILABLE).  *XFERED_LEN
+       data is unavailable (TARGET_XFER_UNAVAILABLE).  *XFERED_LEN
        smaller than LEN does not indicate the end of the object, only
        the end of the transfer; higher level code should continue
        transferring if desired.  This is handled in target.c.
@@ -780,7 +787,8 @@ struct target_ops
        The default implementation always returns the inferior's
        address space.  */
     struct address_space *(*to_thread_address_space) (struct target_ops *,
-						      ptid_t);
+						      ptid_t)
+      TARGET_DEFAULT_FUNC (default_thread_address_space);
 
     /* Target file operations.  */
 
@@ -822,7 +830,8 @@ struct target_ops
 
 
     /* Implement the "info proc" command.  */
-    void (*to_info_proc) (struct target_ops *, char *, enum info_proc_what);
+    void (*to_info_proc) (struct target_ops *, const char *,
+			  enum info_proc_what);
 
     /* Tracepoint-related operations.  */
 
@@ -950,7 +959,7 @@ struct target_ops
        encountered while reading memory.  */
     int (*to_verify_memory) (struct target_ops *, const gdb_byte *data,
 			     CORE_ADDR memaddr, ULONGEST size)
-      TARGET_DEFAULT_NORETURN (tcomplain ());
+      TARGET_DEFAULT_FUNC (default_verify_memory);
 
     /* Return the address of the start of the Thread Information Block
        a Windows OS specific feature.  */
@@ -974,20 +983,11 @@ struct target_ops
       TARGET_DEFAULT_NORETURN (tcomplain ());
 
     /* Return a traceframe info object describing the current
-       traceframe's contents.  If the target doesn't support
-       traceframe info, return NULL.  If the current traceframe is not
-       selected (the current traceframe number is -1), the target can
-       choose to return either NULL or an empty traceframe info.  If
-       NULL is returned, for example in remote target, GDB will read
-       from the live inferior.  If an empty traceframe info is
-       returned, for example in tfile target, which means the
-       traceframe info is available, but the requested memory is not
-       available in it.  GDB will try to see if the requested memory
-       is available in the read-only sections.  This method should not
-       cache data; higher layers take care of caching, invalidating,
-       and re-fetching when necessary.  */
+       traceframe's contents.  This method should not cache data;
+       higher layers take care of caching, invalidating, and
+       re-fetching when necessary.  */
     struct traceframe_info *(*to_traceframe_info) (struct target_ops *)
-      TARGET_DEFAULT_RETURN (NULL);
+	TARGET_DEFAULT_NORETURN (tcomplain ());
 
     /* Ask the target to use or not to use agent according to USE.  Return 1
        successful, 0 otherwise.  */
@@ -1036,13 +1036,15 @@ struct target_ops
       TARGET_DEFAULT_IGNORE ();
 
     /* Print information about the recording.  */
-    void (*to_info_record) (struct target_ops *);
+    void (*to_info_record) (struct target_ops *)
+      TARGET_DEFAULT_IGNORE ();
 
     /* Save the recorded execution trace into a file.  */
     void (*to_save_record) (struct target_ops *, const char *filename)
       TARGET_DEFAULT_NORETURN (tcomplain ());
 
-    /* Delete the recorded execution trace from the current position onwards.  */
+    /* Delete the recorded execution trace from the current position
+       onwards.  */
     void (*to_delete_record) (struct target_ops *)
       TARGET_DEFAULT_NORETURN (tcomplain ());
 
@@ -1124,6 +1126,14 @@ struct target_ops
 					 struct gdbarch *gdbarch)
       TARGET_DEFAULT_FUNC (default_target_decr_pc_after_break);
 
+    /* Prepare to generate a core file.  */
+    void (*to_prepare_to_generate_core) (struct target_ops *)
+      TARGET_DEFAULT_IGNORE ();
+
+    /* Cleanup after generating a core file.  */
+    void (*to_done_generating_core) (struct target_ops *)
+      TARGET_DEFAULT_IGNORE ();
+
     int to_magic;
     /* Need sub-structure for target machine related rather than comm related?
      */
@@ -1154,15 +1164,17 @@ extern struct target_ops current_target;
 
 void target_close (struct target_ops *targ);
 
-/* Attaches to a process on the target side.  Arguments are as passed
-   to the `attach' command by the user.  This routine can be called
-   when the target is not on the target-stack, if the target_can_run
-   routine returns 1; in that case, it must push itself onto the stack.
-   Upon exit, the target should be ready for normal operations, and
-   should be ready to deliver the status of the process immediately
-   (without waiting) to an upcoming target_wait call.  */
+/* Find the correct target to use for "attach".  If a target on the
+   current stack supports attaching, then it is returned.  Otherwise,
+   the default run target is returned.  */
 
-void target_attach (char *, int);
+extern struct target_ops *find_attach_target (void);
+
+/* Find the correct target to use for "run".  If a target on the
+   current stack supports creating a new inferior, then it is
+   returned.  Otherwise, the default run target is returned.  */
+
+extern struct target_ops *find_run_target (void);
 
 /* Some targets don't generate traps when attaching to the inferior,
    or their target_attach implementation takes care of the waiting.
@@ -1191,7 +1203,7 @@ extern void target_detach (const char *, int);
 /* Disconnect from the current target without resuming it (leaving it
    waiting for a debugger).  */
 
-extern void target_disconnect (char *, int);
+extern void target_disconnect (const char *, int);
 
 /* Resume execution of the target process PTID (or a group of
    threads).  STEP says whether to single-step or to run free; SIGGNAL
@@ -1246,7 +1258,7 @@ struct address_space *target_thread_address_space (ptid_t);
    an error was encountered while attempting to handle the
    request.  */
 
-int target_info_proc (char *, enum info_proc_what);
+int target_info_proc (const char *, enum info_proc_what);
 
 /* Returns true if this target can debug multiple processes
    simultaneously.  */
@@ -1281,8 +1293,7 @@ int target_supports_disable_randomization (void);
 
 extern int target_read_string (CORE_ADDR, char **, int, int *);
 
-extern int target_read_memory (CORE_ADDR memaddr, gdb_byte *myaddr,
-			       ssize_t len);
+/* For target_read_memory see target/target.h.  */
 
 extern int target_read_raw_memory (CORE_ADDR memaddr, gdb_byte *myaddr,
 				   ssize_t len);
@@ -1291,8 +1302,7 @@ extern int target_read_stack (CORE_ADDR memaddr, gdb_byte *myaddr, ssize_t len);
 
 extern int target_read_code (CORE_ADDR memaddr, gdb_byte *myaddr, ssize_t len);
 
-extern int target_write_memory (CORE_ADDR memaddr, const gdb_byte *myaddr,
-				ssize_t len);
+/* For target_write_memory see target/target.h.  */
 
 extern int target_write_raw_memory (CORE_ADDR memaddr, const gdb_byte *myaddr,
 				    ssize_t len);
@@ -1356,7 +1366,7 @@ int target_write_memory_blocks (VEC(memory_write_request_s) *requests,
 #define	target_files_info()	\
      (*current_target.to_files_info) (&current_target)
 
-/* Insert a hardware breakpoint at address BP_TGT->placed_address in
+/* Insert a breakpoint at address BP_TGT->placed_address in
    the target machine.  Returns 0 for success, and returns non-zero or
    throws an error (with a detailed failure reason error code and
    message) otherwise.  */
@@ -1370,42 +1380,38 @@ extern int target_insert_breakpoint (struct gdbarch *gdbarch,
 extern int target_remove_breakpoint (struct gdbarch *gdbarch,
 				     struct bp_target_info *bp_tgt);
 
+/* Returns true if the terminal settings of the inferior are in
+   effect.  */
+
+extern int target_terminal_is_inferior (void);
+
 /* Initialize the terminal settings we record for the inferior,
    before we actually run the inferior.  */
 
-#define target_terminal_init() \
-     (*current_target.to_terminal_init) (&current_target)
+extern void target_terminal_init (void);
 
 /* Put the inferior's terminal settings into effect.
    This is preparation for starting or resuming the inferior.  */
 
 extern void target_terminal_inferior (void);
 
-/* Put some of our terminal settings into effect,
-   enough to get proper results from our output,
-   but do not change into or out of RAW mode
-   so that no input is discarded.
+/* Put some of our terminal settings into effect, enough to get proper
+   results from our output, but do not change into or out of RAW mode
+   so that no input is discarded.  This is a no-op if terminal_ours
+   was most recently called.  */
 
-   After doing this, either terminal_ours or terminal_inferior
-   should be called to get back to a normal state of affairs.  */
-
-#define target_terminal_ours_for_output() \
-     (*current_target.to_terminal_ours_for_output) (&current_target)
+extern void target_terminal_ours_for_output (void);
 
 /* Put our terminal settings into effect.
    First record the inferior's terminal settings
    so they can be restored properly later.  */
 
-#define target_terminal_ours() \
-     (*current_target.to_terminal_ours) (&current_target)
+extern void target_terminal_ours (void);
 
-/* Save our terminal settings.
-   This is called from TUI after entering or leaving the curses
-   mode.  Since curses modifies our terminal this call is here
-   to take this change into account.  */
+/* Return true if the target stack has a non-default
+  "to_terminal_ours" method.  */
 
-#define target_terminal_save_ours() \
-     (*current_target.to_terminal_save_ours) (&current_target)
+extern int target_supports_terminal_ours (void);
 
 /* Print useful information about our terminal status, if such a thing
    exists.  */
@@ -1428,16 +1434,7 @@ extern void target_kill (void);
    sections.  The target may define switches, or other non-switch
    arguments, as it pleases.  */
 
-extern void target_load (char *arg, int from_tty);
-
-/* Start an inferior process and set inferior_ptid to its pid.
-   EXEC_FILE is the file to run.
-   ALLARGS is a string containing the arguments to the program.
-   ENV is the environment vector to pass.  Errors reported with error().
-   On VxWorks and various standalone systems, we ignore exec_file.  */
-
-void target_create_inferior (char *exec_file, char *args,
-			     char **env, int from_tty);
+extern void target_load (const char *arg, int from_tty);
 
 /* Some targets (such as ttrace-based HPUX) don't allow us to request
    notification of inferior events such as fork and vork immediately
@@ -1570,13 +1567,15 @@ extern void target_program_signals (int nsig, unsigned char *program_signals);
 
 extern int target_thread_alive (ptid_t ptid);
 
-/* Query for new threads and add them to the thread list.  */
+/* Sync the target's threads with GDB's thread list.  */
 
-extern void target_find_new_threads (void);
+extern void target_update_thread_list (void);
 
 /* Make target stop in a continuable fashion.  (For instance, under
-   Unix, this should act like SIGSTOP).  This function is normally
-   used by GUIs to implement a stop button.  */
+   Unix, this should act like SIGSTOP).  Note that this function is
+   asynchronous: it does not wait for the target to become stopped
+   before returning.  If this is the behavior you want please use
+   target_stop_and_wait.  */
 
 extern void target_stop (ptid_t ptid);
 
@@ -1616,8 +1615,8 @@ extern int target_has_registers_1 (void);
    target is currently executing; for some targets, that's the same as
    whether or not the target is capable of execution, but there are
    also targets which can be current while not executing.  In that
-   case this will become true after target_create_inferior or
-   target_attach.  */
+   case this will become true after to_create_inferior or
+   to_attach.  */
 
 extern int target_has_execution_1 (ptid_t);
 
@@ -1643,8 +1642,7 @@ extern int default_child_has_execution (struct target_ops *ops,
 #define target_can_lock_scheduler \
      (current_target.to_has_thread_control & tc_schedlock)
 
-/* Should the target enable async mode if it is supported?  Temporary
-   cludge until async mode is a strict superset of sync mode.  */
+/* Controls whether async mode is permitted.  */
 extern int target_async_permitted;
 
 /* Can the target support asynchronous execution?  */
@@ -1652,8 +1650,6 @@ extern int target_async_permitted;
 
 /* Is the target in asynchronous execution mode?  */
 #define target_is_async_p() (current_target.to_is_async_p (&current_target))
-
-int target_supports_non_stop (void);
 
 /* Put the target in async mode with the specified callback function.  */
 #define target_async(CALLBACK,CONTEXT) \
@@ -1816,12 +1812,12 @@ extern int target_ranged_break_num_registers (void);
    target_stopped_by_watchpoint, in such case place it to *ADDR_P.  Only the
    INFERIOR_PTID task is being queried.  */
 #define target_stopped_data_address(target, addr_p) \
-    (*target.to_stopped_data_address) (target, addr_p)
+    (*(target)->to_stopped_data_address) (target, addr_p)
 
 /* Return non-zero if ADDR is within the range of a watchpoint spanning
    LENGTH bytes beginning at START.  */
 #define target_watchpoint_addr_within_range(target, addr, start, length) \
-  (*target.to_watchpoint_addr_within_range) (target, addr, start, length)
+  (*(target)->to_watchpoint_addr_within_range) (target, addr, start, length)
 
 /* Return non-zero if the target is capable of using hardware to evaluate
    the condition expression.  In this case, if the condition is false when
@@ -2032,6 +2028,14 @@ extern const struct frame_unwind *target_get_unwinder (void);
 /* See to_get_tailcall_unwinder in struct target_ops.  */
 extern const struct frame_unwind *target_get_tailcall_unwinder (void);
 
+/* This implements basic memory verification, reading target memory
+   and performing the comparison here (as opposed to accelerated
+   verification making use of the qCRC packet, for example).  */
+
+extern int simple_verify_memory (struct target_ops* ops,
+				 const gdb_byte *data,
+				 CORE_ADDR memaddr, ULONGEST size);
+
 /* Verify that the memory in the [MEMADDR, MEMADDR+SIZE) range matches
    the contents of [DATA,DATA+SIZE).  Returns 1 if there's a match, 0
    if there's a mismatch, and -1 if an error is encountered while
@@ -2043,9 +2047,13 @@ int target_verify_memory (const gdb_byte *data,
 /* Routines for maintenance of the target structures...
 
    complete_target_initialization: Finalize a target_ops by filling in
-   any fields needed by the target implementation.
+   any fields needed by the target implementation.  Unnecessary for
+   targets which are registered via add_target, as this part gets
+   taken care of then.
 
    add_target:   Add a target to the list of all possible targets.
+   This only makes sense for targets that should be activated using
+   the "target TARGET_NAME ..." command.
 
    push_target:  Make this target the top of the stack of currently used
    targets, within its particular stratum of the stack.  Result
@@ -2133,6 +2141,12 @@ extern int memory_remove_breakpoint (struct target_ops *, struct gdbarch *,
 extern int memory_insert_breakpoint (struct target_ops *, struct gdbarch *,
 				     struct bp_target_info *);
 
+/* Check whether the memory at the breakpoint's placed address still
+   contains the expected breakpoint instruction.  */
+
+extern int memory_validate_breakpoint (struct gdbarch *gdbarch,
+				       struct bp_target_info *bp_tgt);
+
 extern int default_memory_remove_breakpoint (struct gdbarch *,
 					     struct bp_target_info *);
 
@@ -2148,7 +2162,7 @@ extern void noprocess (void) ATTRIBUTE_NORETURN;
 
 extern void target_require_runnable (void);
 
-extern void find_default_attach (struct target_ops *, char *, int);
+extern void find_default_attach (struct target_ops *, const char *, int);
 
 extern void find_default_create_inferior (struct target_ops *,
 					  char *, char *, char **, int);
@@ -2198,9 +2212,6 @@ extern void update_target_permissions (void);
 
 /* Imported from machine dependent code.  */
 
-/* Blank target vector entries are initialized to target_ignore.  */
-void target_ignore (void);
-
 /* See to_supports_btrace in struct target_ops.  */
 #define target_supports_btrace() \
   (current_target.to_supports_btrace (&current_target))
@@ -2221,9 +2232,6 @@ extern enum btrace_error target_read_btrace (VEC (btrace_block_s) **,
 
 /* See to_stop_recording in struct target_ops.  */
 extern void target_stop_recording (void);
-
-/* See to_info_record in struct target_ops.  */
-extern void target_info_record (void);
 
 /* See to_save_record in struct target_ops.  */
 extern void target_save_record (const char *filename);
@@ -2270,5 +2278,11 @@ extern CORE_ADDR forward_target_decr_pc_after_break (struct target_ops *ops,
 
 /* See to_decr_pc_after_break.  */
 extern CORE_ADDR target_decr_pc_after_break (struct gdbarch *gdbarch);
+
+/* See to_prepare_to_generate_core.  */
+extern void target_prepare_to_generate_core (void);
+
+/* See to_done_generating_core.  */
+extern void target_done_generating_core (void);
 
 #endif /* !defined (TARGET_H) */

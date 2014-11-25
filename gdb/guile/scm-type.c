@@ -23,7 +23,6 @@
 #include "defs.h"
 #include "arch-utils.h"
 #include "value.h"
-#include "exceptions.h"
 #include "gdbtypes.h"
 #include "objfiles.h"
 #include "language.h"
@@ -36,9 +35,10 @@
 /* The <gdb:type> smob.
    The type is chained with all types associated with its objfile, if any.
    This lets us copy the underlying struct type when the objfile is
-   deleted.  */
+   deleted.
+   The typedef for this struct is in guile-internal.h.  */
 
-typedef struct _type_smob
+struct _type_smob
 {
   /* This always appears first.
      eqable_gdb_smob is used so that types are eq?-able.
@@ -49,7 +49,7 @@ typedef struct _type_smob
 
   /* The GDB type structure this smob is wrapping.  */
   struct type *type;
-} type_smob;
+};
 
 /* A field smob.  */
 
@@ -181,17 +181,6 @@ tyscm_type_map (struct type *type)
   return htab;
 }
 
-/* The smob "mark" function for <gdb:type>.  */
-
-static SCM
-tyscm_mark_type_smob (SCM self)
-{
-  type_smob *t_smob = (type_smob *) SCM_SMOB_DATA (self);
-
-  /* Do this last.  */
-  return gdbscm_mark_eqable_gsmob (&t_smob->base);
-}
-
 /* The smob "free" function for <gdb:type>.  */
 
 static size_t
@@ -283,7 +272,7 @@ tyscm_make_type_smob (void)
   t_smob->type = NULL;
 
   t_scm = scm_new_smob (type_smob_tag, (scm_t_bits) t_smob);
-  gdbscm_init_eqable_gsmob (&t_smob->base);
+  gdbscm_init_eqable_gsmob (&t_smob->base, t_scm);
 
   return t_scm;
 }
@@ -326,7 +315,7 @@ tyscm_scm_from_type (struct type *type)
   t_scm = tyscm_make_type_smob ();
   t_smob = (type_smob *) SCM_SMOB_DATA (t_scm);
   t_smob->type = type;
-  gdbscm_fill_eqable_gsmob_ptr_slot (slot, &t_smob->base, t_scm);
+  gdbscm_fill_eqable_gsmob_ptr_slot (slot, &t_smob->base);
 
   return t_scm;
 }
@@ -363,11 +352,30 @@ tyscm_copy_type_recursive (void **slot, void *info)
   type_smob *t_smob = (type_smob *) *slot;
   htab_t copied_types = info;
   struct objfile *objfile = TYPE_OBJFILE (t_smob->type);
+  htab_t htab;
+  eqable_gdb_smob **new_slot;
+  type_smob t_smob_for_lookup;
 
   gdb_assert (objfile != NULL);
 
   htab_empty (copied_types);
   t_smob->type = copy_type_recursive (objfile, t_smob->type, copied_types);
+
+  /* The eq?-hashtab that the type lived in is going away.
+     Add the type to its new eq?-hashtab: Otherwise if/when the type is later
+     garbage collected we'll assert-fail if the type isn't in the hashtab.
+     PR 16612.
+
+     Types now live in "arch space", and things like "char" that came from
+     the objfile *could* be considered eq? with the arch "char" type.
+     However, they weren't before the objfile got deleted, so making them
+     eq? now is debatable.  */
+  htab = tyscm_type_map (t_smob->type);
+  t_smob_for_lookup.type = t_smob->type;
+  new_slot = gdbscm_find_eqable_gsmob_ptr_slot (htab, &t_smob_for_lookup.base);
+  gdb_assert (*new_slot == NULL);
+  gdbscm_fill_eqable_gsmob_ptr_slot (new_slot, &t_smob->base);
+
   return 1;
 }
 
@@ -395,18 +403,6 @@ save_objfile_types (struct objfile *objfile, void *datum)
 }
 
 /* Administrivia for field smobs.  */
-
-/* The smob "mark" function for <gdb:field>.  */
-
-static SCM
-tyscm_mark_field_smob (SCM self)
-{
-  field_smob *f_smob = (field_smob *) SCM_SMOB_DATA (self);
-
-  scm_gc_mark (f_smob->type_scm);
-  /* Do this last.  */
-  return gdbscm_mark_gsmob (&f_smob->base);
-}
 
 /* The smob "print" function for <gdb:field>.  */
 
@@ -1203,7 +1199,7 @@ gdbscm_field_baseclass_p (SCM self)
   struct field *field = tyscm_field_smob_to_field (f_smob);
   struct type *type = tyscm_field_smob_containing_type (f_smob);
 
-  if (TYPE_CODE (type) == TYPE_CODE_CLASS)
+  if (TYPE_CODE (type) == TYPE_CODE_STRUCT)
     return scm_from_bool (f_smob->field_num < TYPE_N_BASECLASSES (type));
   return SCM_BOOL_F;
 }
@@ -1461,14 +1457,12 @@ void
 gdbscm_initialize_types (void)
 {
   type_smob_tag = gdbscm_make_smob_type (type_smob_name, sizeof (type_smob));
-  scm_set_smob_mark (type_smob_tag, tyscm_mark_type_smob);
   scm_set_smob_free (type_smob_tag, tyscm_free_type_smob);
   scm_set_smob_print (type_smob_tag, tyscm_print_type_smob);
   scm_set_smob_equalp (type_smob_tag, tyscm_equal_p_type_smob);
 
   field_smob_tag = gdbscm_make_smob_type (field_smob_name,
 					  sizeof (field_smob));
-  scm_set_smob_mark (field_smob_tag, tyscm_mark_field_smob);
   scm_set_smob_print (field_smob_tag, tyscm_print_field_smob);
 
   gdbscm_define_integer_constants (type_integer_constants, 1);

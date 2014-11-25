@@ -1,7 +1,5 @@
 /* tc-m68hc11.c -- Assembler code for the Motorola 68HC11 & 68HC12.
-   Copyright 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2009, 2010,
-   2011, 2012
-   Free Software Foundation, Inc.
+   Copyright (C) 1999-2014 Free Software Foundation, Inc.
    Written by Stephane Carrez (stcarrez@nerim.fr)
    XGATE and S12X added by James Murray (jsm@jsm-net.demon.co.uk)
 
@@ -3960,7 +3958,7 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED, asection *sec ATTRIBUTE_UNUSED,
   char *buffer_address = fragP->fr_literal;
 
   /* Address in object code of the displacement.  */
-  register int object_address = fragP->fr_fix + fragP->fr_address;
+  int object_address = fragP->fr_fix + fragP->fr_address;
 
   buffer_address += fragP->fr_fix;
 

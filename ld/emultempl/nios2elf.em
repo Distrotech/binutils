@@ -1,5 +1,5 @@
 # This shell script emits a C file. -*- C -*-
-#   Copyright (C) 2013, 2014 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2014 Free Software Foundation, Inc.
 #
 # This file is part of GNU Binutils.
 #
@@ -41,10 +41,10 @@ static int need_laying_out = 0;
 static void
 nios2elf_create_output_section_statements (void)
 {
-  extern const bfd_target bfd_elf32_littlenios2_vec, bfd_elf32_bignios2_vec;
+  extern const bfd_target nios2_elf32_le_vec, nios2_elf32_be_vec;
 
-  if (link_info.output_bfd->xvec != &bfd_elf32_littlenios2_vec
-      && link_info.output_bfd->xvec != &bfd_elf32_bignios2_vec)
+  if (link_info.output_bfd->xvec != &nios2_elf32_le_vec
+      && link_info.output_bfd->xvec != &nios2_elf32_be_vec)
     return;
 
   /* If --no-relax was not explicitly specified by the user, enable
@@ -236,20 +236,26 @@ build_section_lists (lang_statement_union_type *statement)
 static void
 gld${EMULATION_NAME}_after_allocation (void)
 {
+  int ret;
+
   /* bfd_elf_discard_info just plays with data and debugging sections,
      ie. doesn't affect code size, so we can delay resizing the
      sections.  It's likely we'll resize everything in the process of
      adding stubs.  */
-  if (bfd_elf_discard_info (link_info.output_bfd, &link_info))
+  ret = bfd_elf_discard_info (link_info.output_bfd, &link_info);
+  if (ret < 0)
+    {
+      einfo ("%X%P: .eh_frame/.stab edit: %E\n");
+      return;
+    }
+  else if (ret > 0)
     need_laying_out = 1;
 
   /* If generating a relocatable output file, then we don't
      have to examine the relocs.  */
   if (stub_file != NULL && !link_info.relocatable && RELAXATION_ENABLED)
     {
-      int ret = nios2_elf32_setup_section_lists (link_info.output_bfd,
-						 &link_info);
-
+      ret = nios2_elf32_setup_section_lists (link_info.output_bfd, &link_info);
       if (ret != 0)
 	{
 	  if (ret < 0)

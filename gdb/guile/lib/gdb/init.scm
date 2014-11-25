@@ -17,19 +17,12 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-(define-module (gdb init)
-  #:use-module (gdb))
-
-(define-public SCM_ARG1 1)
-(define-public SCM_ARG2 2)
+;; This file is included by (gdb).
 
 ;; The original i/o ports.  In case the user wants them back.
 (define %orig-input-port #f)
 (define %orig-output-port #f)
 (define %orig-error-port #f)
-
-;; %exception-print-style is exported as "private" by gdb.
-(define %exception-print-style (@@ (gdb) %exception-print-style))
 
 ;; Keys for GDB-generated exceptions.
 ;; gdb:with-stack is handled separately.
@@ -37,7 +30,8 @@
 (define %exception-keys '(gdb:error
 			  gdb:invalid-object-error
 			  gdb:memory-error
-			  gdb:pp-type-error))
+			  gdb:pp-type-error
+			  gdb:user-error))
 
 ;; Printer for gdb exceptions, used when Scheme tries to print them directly.
 
@@ -141,22 +135,10 @@
 
 	  (%print-exception-message port frame key args)))))
 
-;; Internal utility to check the type of an argument, akin to SCM_ASSERT_TYPE.
-;; It's public so other gdb modules can use it.
-
-(define-public (%assert-type test-result arg pos func-name)
-  (if (not test-result)
-      (scm-error 'wrong-type-arg func-name
-		 "Wrong type argument in position ~a: ~s"
-		 (list pos arg) (list arg))))
-
 ;; Internal utility called during startup to initialize the Scheme side of
 ;; GDB+Guile.
 
 (define (%initialize!)
-  (add-to-load-path (string-append (data-directory)
-				   file-name-separator-string "guile"))
-
   (for-each (lambda (key)
 	      (set-exception-printer! key %exception-printer))
 	    %exception-keys)
@@ -165,9 +147,22 @@
   (set! %orig-input-port (set-current-input-port (input-port)))
   (set! %orig-output-port (set-current-output-port (output-port)))
   (set! %orig-error-port (set-current-error-port (error-port))))
+
+;; Dummy routine to silence "possibly unused local top-level variable"
+;; warnings from the compiler.
+
+(define-public (%silence-compiler-warnings%)
+  (list %print-exception-with-stack %initialize!))
 
 ;; Public routines.
 
 (define-public (orig-input-port) %orig-input-port)
 (define-public (orig-output-port) %orig-output-port)
 (define-public (orig-error-port) %orig-error-port)
+
+;; Utility to throw gdb:user-error for use in writing gdb commands.
+;; The requirements for the arguments to "throw" are a bit obscure,
+;; so give the user something simpler.
+
+(define-public (throw-user-error message . args)
+  (throw 'gdb:user-error #f message args))

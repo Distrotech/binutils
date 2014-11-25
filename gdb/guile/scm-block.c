@@ -120,17 +120,6 @@ bkscm_objfile_block_map (struct objfile *objfile)
   return htab;
 }
 
-/* The smob "mark" function for <gdb:block>.  */
-
-static SCM
-bkscm_mark_block_smob (SCM self)
-{
-  block_smob *b_smob = (block_smob *) SCM_SMOB_DATA (self);
-
-  /* Do this last.  */
-  return gdbscm_mark_eqable_gsmob (&b_smob->base);
-}
-
 /* The smob "free" function for <gdb:block>.  */
 
 static size_t
@@ -193,7 +182,7 @@ bkscm_make_block_smob (void)
   b_smob->block = NULL;
   b_smob->objfile = NULL;
   b_scm = scm_new_smob (block_smob_tag, (scm_t_bits) b_smob);
-  gdbscm_init_eqable_gsmob (&b_smob->base);
+  gdbscm_init_eqable_gsmob (&b_smob->base, b_scm);
 
   return b_scm;
 }
@@ -237,7 +226,7 @@ bkscm_scm_from_block (const struct block *block, struct objfile *objfile)
   b_smob = (block_smob *) SCM_SMOB_DATA (b_scm);
   b_smob->block = block;
   b_smob->objfile = objfile;
-  gdbscm_fill_eqable_gsmob_ptr_slot (slot, &b_smob->base, b_scm);
+  gdbscm_fill_eqable_gsmob_ptr_slot (slot, &b_smob->base);
 
   return b_scm;
 }
@@ -535,18 +524,6 @@ gdbscm_block_symbols (SCM self)
 /* The <gdb:block-symbols-iterator> object,
    for iterating over all symbols in a block.  */
 
-/* The smob "mark" function for <gdb:block-symbols-iterator>.  */
-
-static SCM
-bkscm_mark_block_syms_progress_smob (SCM self)
-{
-  block_syms_progress_smob *i_smob
-    = (block_syms_progress_smob *) SCM_SMOB_DATA (self);
-
-  /* Do this last.  */
-  return gdbscm_mark_gsmob (&i_smob->base);
-}
-
 /* The smob "print" function for <gdb:block-symbols-iterator>.  */
 
 static int
@@ -565,17 +542,19 @@ bkscm_print_block_syms_progress_smob (SCM self, SCM port,
 	case GLOBAL_BLOCK:
 	case STATIC_BLOCK:
 	  {
-	    struct symtab *s;
+	    struct compunit_symtab *cust;
 
 	    gdbscm_printf (port, " %s", 
 			   i_smob->iter.which == GLOBAL_BLOCK
 			   ? "global" : "static");
 	    if (i_smob->iter.idx != -1)
 	      gdbscm_printf (port, " @%d", i_smob->iter.idx);
-	    s = (i_smob->iter.idx == -1
-		 ? i_smob->iter.d.symtab
-		 : i_smob->iter.d.symtab->includes[i_smob->iter.idx]);
-	    gdbscm_printf (port, " %s", symtab_to_filename_for_display (s));
+	    cust = (i_smob->iter.idx == -1
+		    ? i_smob->iter.d.compunit_symtab
+		    : i_smob->iter.d.compunit_symtab->includes[i_smob->iter.idx]);
+	    gdbscm_printf (port, " %s",
+			   symtab_to_filename_for_display
+			     (compunit_primary_filetab (cust)));
 	    break;
 	  }
 	case FIRST_LOCAL_BLOCK:
@@ -697,31 +676,29 @@ static SCM
 gdbscm_lookup_block (SCM pc_scm)
 {
   CORE_ADDR pc;
-  struct block *block = NULL;
-  struct obj_section *section = NULL;
-  struct symtab *symtab = NULL;
+  const struct block *block = NULL;
+  struct compunit_symtab *cust = NULL;
   volatile struct gdb_exception except;
 
   gdbscm_parse_function_args (FUNC_NAME, SCM_ARG1, NULL, "U", pc_scm, &pc);
 
   TRY_CATCH (except, RETURN_MASK_ALL)
     {
-      section = find_pc_mapped_section (pc);
-      symtab = find_pc_sect_symtab (pc, section);
+      cust = find_pc_compunit_symtab (pc);
 
-      if (symtab != NULL && symtab->objfile != NULL)
+      if (cust != NULL && COMPUNIT_OBJFILE (cust) != NULL)
 	block = block_for_pc (pc);
     }
   GDBSCM_HANDLE_GDB_EXCEPTION (except);
 
-  if (symtab == NULL || symtab->objfile == NULL)
+  if (cust == NULL || COMPUNIT_OBJFILE (cust) == NULL)
     {
       gdbscm_out_of_range_error (FUNC_NAME, SCM_ARG1, pc_scm,
 				 _("cannot locate object file for block"));
     }
 
   if (block != NULL)
-    return bkscm_scm_from_block (block, symtab->objfile);
+    return bkscm_scm_from_block (block, COMPUNIT_OBJFILE (cust));
   return SCM_BOOL_F;
 }
 
@@ -798,15 +775,12 @@ gdbscm_initialize_blocks (void)
 {
   block_smob_tag
     = gdbscm_make_smob_type (block_smob_name, sizeof (block_smob));
-  scm_set_smob_mark (block_smob_tag, bkscm_mark_block_smob);
   scm_set_smob_free (block_smob_tag, bkscm_free_block_smob);
   scm_set_smob_print (block_smob_tag, bkscm_print_block_smob);
 
   block_syms_progress_smob_tag
     = gdbscm_make_smob_type (block_syms_progress_smob_name,
 			     sizeof (block_syms_progress_smob));
-  scm_set_smob_mark (block_syms_progress_smob_tag,
-		     bkscm_mark_block_syms_progress_smob);
   scm_set_smob_print (block_syms_progress_smob_tag,
 		      bkscm_print_block_syms_progress_smob);
 

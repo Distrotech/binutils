@@ -23,7 +23,6 @@
 #include "defs.h"
 #include "block.h"
 #include "frame.h"
-#include "exceptions.h"
 #include "inferior.h"
 #include "objfiles.h"
 #include "symfile.h"
@@ -130,17 +129,6 @@ frscm_inferior_frame_map (struct inferior *inferior)
   return htab;
 }
 
-/* The smob "mark" function for <gdb:frame>.  */
-
-static SCM
-frscm_mark_frame_smob (SCM self)
-{
-  frame_smob *f_smob = (frame_smob *) SCM_SMOB_DATA (self);
-
-  /* Do this last.  */
-  return gdbscm_mark_eqable_gsmob (&f_smob->base);
-}
-
 /* The smob "free" function for <gdb:frame>.  */
 
 static size_t
@@ -201,7 +189,7 @@ frscm_make_frame_smob (void)
   f_smob->inferior = NULL;
   f_smob->frame_id_is_next = 0;
   f_scm = scm_new_smob (frame_smob_tag, (scm_t_bits) f_smob);
-  gdbscm_init_eqable_gsmob (&f_smob->base);
+  gdbscm_init_eqable_gsmob (&f_smob->base, f_scm);
 
   return f_scm;
 }
@@ -275,7 +263,7 @@ frscm_scm_from_frame (struct frame_info *frame, struct inferior *inferior)
   f_smob->inferior = inferior;
   f_smob->frame_id_is_next = frame_id_is_next;
 
-  gdbscm_fill_eqable_gsmob_ptr_slot (slot, &f_smob->base, f_scm);
+  gdbscm_fill_eqable_gsmob_ptr_slot (slot, &f_smob->base);
 
   return f_scm;
 }
@@ -587,7 +575,7 @@ static SCM
 gdbscm_frame_block (SCM self)
 {
   frame_smob *f_smob;
-  struct block *block = NULL, *fn_block;
+  const struct block *block = NULL, *fn_block;
   struct frame_info *frame = NULL;
   volatile struct gdb_exception except;
 
@@ -624,7 +612,7 @@ gdbscm_frame_block (SCM self)
       SCM block_scm;
 
       st = SYMBOL_SYMTAB (BLOCK_FUNCTION (fn_block));
-      return bkscm_scm_from_block (block, st->objfile);
+      return bkscm_scm_from_block (block, SYMTAB_OBJFILE (st));
     }
 
   return SCM_BOOL_F;
@@ -944,7 +932,7 @@ gdbscm_unwind_stop_reason_string (SCM reason_scm)
   if (reason < UNWIND_FIRST || reason > UNWIND_LAST)
     scm_out_of_range (FUNC_NAME, reason_scm);
 
-  str = frame_stop_reason_string (reason);
+  str = unwind_stop_reason_to_string (reason);
   return gdbscm_scm_from_c_string (str);
 }
 
@@ -1061,7 +1049,6 @@ gdbscm_initialize_frames (void)
 {
   frame_smob_tag
     = gdbscm_make_smob_type (frame_smob_name, sizeof (frame_smob));
-  scm_set_smob_mark (frame_smob_tag, frscm_mark_frame_smob);
   scm_set_smob_free (frame_smob_tag, frscm_free_frame_smob);
   scm_set_smob_print (frame_smob_tag, frscm_print_frame_smob);
 

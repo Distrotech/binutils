@@ -23,9 +23,9 @@
 
 #include "frame.h"
 #include "inferior.h"
+#include "infrun.h"
 #include "gdbcmd.h"
 #include "gdbcore.h"
-#include <string.h>
 #include "dis-asm.h"		/* For register styles.  */
 #include "regcache.h"
 #include "reggroups.h"
@@ -52,7 +52,6 @@
 #include "coff/internal.h"
 #include "elf/arm.h"
 
-#include "gdb_assert.h"
 #include "vec.h"
 
 #include "record.h"
@@ -472,10 +471,10 @@ skip_prologue_function (struct gdbarch *gdbarch, CORE_ADDR pc, int is_thumb)
 
   msym = lookup_minimal_symbol_by_pc (pc);
   if (msym.minsym != NULL
-      && SYMBOL_VALUE_ADDRESS (msym.minsym) == pc
-      && SYMBOL_LINKAGE_NAME (msym.minsym) != NULL)
+      && BMSYMBOL_VALUE_ADDRESS (msym) == pc
+      && MSYMBOL_LINKAGE_NAME (msym.minsym) != NULL)
     {
-      const char *name = SYMBOL_LINKAGE_NAME (msym.minsym);
+      const char *name = MSYMBOL_LINKAGE_NAME (msym.minsym);
 
       /* The GNU linker's Thumb call stub to foo is named
 	 __foo_from_thumb.  */
@@ -684,6 +683,17 @@ thumb2_instruction_changes_pc (unsigned short inst1, unsigned short inst2)
   return 0;
 }
 
+/* Return 1 if the 16-bit Thumb instruction INSN restores SP in
+   epilogue, 0 otherwise.  */
+
+static int
+thumb_instruction_restores_sp (unsigned short insn)
+{
+  return (insn == 0x46bd  /* mov sp, r7 */
+	  || (insn & 0xff80) == 0xb000  /* add sp, imm */
+	  || (insn & 0xfe00) == 0xbc00);  /* pop <registers> */
+}
+
 /* Analyze a Thumb prologue, looking for a recognizable stack frame
    and frame pointer.  Scan until we encounter a store that could
    clobber the stack frame unexpectedly, or an unknown instruction.
@@ -736,16 +746,16 @@ thumb_analyze_prologue (struct gdbarch *gdbarch,
 		pv_area_store (stack, regs[ARM_SP_REGNUM], 4, regs[regno]);
 	      }
 	}
-      else if ((insn & 0xff00) == 0xb000)	/* add sp, #simm  OR  
-						   sub sp, #simm */
+      else if ((insn & 0xff80) == 0xb080)	/* sub sp, #imm */
 	{
 	  offset = (insn & 0x7f) << 2;		/* get scaled offset */
-	  if (insn & 0x80)			/* Check for SUB.  */
-	    regs[ARM_SP_REGNUM] = pv_add_constant (regs[ARM_SP_REGNUM],
-						   -offset);
-	  else
-	    regs[ARM_SP_REGNUM] = pv_add_constant (regs[ARM_SP_REGNUM],
-						   offset);
+	  regs[ARM_SP_REGNUM] = pv_add_constant (regs[ARM_SP_REGNUM],
+						 -offset);
+	}
+      else if (thumb_instruction_restores_sp (insn))
+	{
+	  /* Don't scan past the epilogue.  */
+	  break;
 	}
       else if ((insn & 0xf800) == 0xa800)	/* add Rd, sp, #imm */
 	regs[bits (insn, 8, 10)] = pv_add_constant (regs[ARM_SP_REGNUM],
@@ -1071,7 +1081,7 @@ thumb_analyze_prologue (struct gdbarch *gdbarch,
 	      unsigned int constant;
 	      CORE_ADDR loc;
 
-	      offset = bits (insn, 0, 11);
+	      offset = bits (inst2, 0, 11);
 	      if (insn & 0x0080)
 		loc = start + 4 + offset;
 	      else
@@ -1087,7 +1097,7 @@ thumb_analyze_prologue (struct gdbarch *gdbarch,
 	      unsigned int constant;
 	      CORE_ADDR loc;
 
-	      offset = bits (insn, 0, 7) << 2;
+	      offset = bits (inst2, 0, 7) << 2;
 	      if (insn & 0x0080)
 		loc = start + 4 + offset;
 	      else
@@ -1194,7 +1204,9 @@ arm_analyze_load_stack_chk_guard(CORE_ADDR pc, struct gdbarch *gdbarch,
 	{
 	  *destreg = bits (insn1, 8, 10);
 	  *offset = 2;
-	  address = bits (insn1, 0, 7);
+	  address = (pc & 0xfffffffc) + 4 + (bits (insn1, 0, 7) << 2);
+	  address = read_memory_unsigned_integer (address, 4,
+						  byte_order_for_code);
 	}
       else if ((insn1 & 0xfbf0) == 0xf240) /* movw Rd, #const */
 	{
@@ -1223,9 +1235,12 @@ arm_analyze_load_stack_chk_guard(CORE_ADDR pc, struct gdbarch *gdbarch,
       unsigned int insn
 	= read_memory_unsigned_integer (pc, 4, byte_order_for_code);
 
-      if ((insn & 0x0e5f0000) == 0x041f0000) /* ldr Rd, #immed */
+      if ((insn & 0x0e5f0000) == 0x041f0000) /* ldr Rd, [PC, #immed] */
 	{
-	  address = bits (insn, 0, 11);
+	  address = bits (insn, 0, 11) + pc + 8;
+	  address = read_memory_unsigned_integer (address, 4,
+						  byte_order_for_code);
+
 	  *destreg = bits (insn, 12, 15);
 	  *offset = 4;
 	}
@@ -1296,11 +1311,10 @@ arm_skip_stack_protector(CORE_ADDR pc, struct gdbarch *gdbarch)
     return pc;
 
   stack_chk_guard = lookup_minimal_symbol_by_pc (addr);
-  /* If name of symbol doesn't start with '__stack_chk_guard', this
-     instruction sequence is not for stack protector.  If symbol is
-     removed, we conservatively think this sequence is for stack protector.  */
-  if (stack_chk_guard.minsym
-      && strncmp (SYMBOL_LINKAGE_NAME (stack_chk_guard.minsym),
+  /* ADDR must correspond to a symbol whose name is __stack_chk_guard.
+     Otherwise, this sequence cannot be for stack protector.  */
+  if (stack_chk_guard.minsym == NULL
+      || strncmp (MSYMBOL_LINKAGE_NAME (stack_chk_guard.minsym),
 		  "__stack_chk_guard",
 		  strlen ("__stack_chk_guard")) != 0)
    return pc;
@@ -1384,7 +1398,7 @@ arm_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
     {
       CORE_ADDR post_prologue_pc
 	= skip_prologue_using_sal (gdbarch, func_addr);
-      struct symtab *s = find_pc_symtab (func_addr);
+      struct compunit_symtab *cust = find_pc_compunit_symtab (func_addr);
 
       if (post_prologue_pc)
 	post_prologue_pc
@@ -1398,10 +1412,12 @@ arm_skip_prologue (struct gdbarch *gdbarch, CORE_ADDR pc)
 	 will have producer information for most binaries; if it is
 	 missing (e.g. for -gstabs), assuming the GNU tools.  */
       if (post_prologue_pc
-	  && (s == NULL
-	      || s->producer == NULL
-	      || strncmp (s->producer, "GNU ", sizeof ("GNU ") - 1) == 0 
-	      || strncmp (s->producer, "clang ", sizeof ("clang ") - 1) == 0))
+	  && (cust == NULL
+	      || COMPUNIT_PRODUCER (cust) == NULL
+	      || strncmp (COMPUNIT_PRODUCER (cust), "GNU ",
+			  sizeof ("GNU ") - 1) == 0
+	      || strncmp (COMPUNIT_PRODUCER (cust), "clang ",
+			  sizeof ("clang ") - 1) == 0))
 	return post_prologue_pc;
 
       if (post_prologue_pc != 0)
@@ -2869,6 +2885,64 @@ struct frame_unwind arm_exidx_unwind = {
   arm_exidx_unwind_sniffer
 };
 
+/* Recognize GCC's trampoline for thumb call-indirect.  If we are in a
+   trampoline, return the target PC.  Otherwise return 0.
+
+   void call0a (char c, short s, int i, long l) {}
+
+   int main (void)
+   {
+     (*pointer_to_call0a) (c, s, i, l);
+   }
+
+   Instead of calling a stub library function  _call_via_xx (xx is
+   the register name), GCC may inline the trampoline in the object
+   file as below (register r2 has the address of call0a).
+
+   .global main
+   .type main, %function
+   ...
+   bl .L1
+   ...
+   .size main, .-main
+
+   .L1:
+   bx r2
+
+   The trampoline 'bx r2' doesn't belong to main.  */
+
+static CORE_ADDR
+arm_skip_bx_reg (struct frame_info *frame, CORE_ADDR pc)
+{
+  /* The heuristics of recognizing such trampoline is that FRAME is
+     executing in Thumb mode and the instruction on PC is 'bx Rm'.  */
+  if (arm_frame_is_thumb (frame))
+    {
+      gdb_byte buf[2];
+
+      if (target_read_memory (pc, buf, 2) == 0)
+	{
+	  struct gdbarch *gdbarch = get_frame_arch (frame);
+	  enum bfd_endian byte_order_for_code
+	    = gdbarch_byte_order_for_code (gdbarch);
+	  uint16_t insn
+	    = extract_unsigned_integer (buf, 2, byte_order_for_code);
+
+	  if ((insn & 0xff80) == 0x4700)  /* bx <Rm> */
+	    {
+	      CORE_ADDR dest
+		= get_frame_register_unsigned (frame, bits (insn, 3, 6));
+
+	      /* Clear the LSB so that gdb core sets step-resume
+		 breakpoint at the right address.  */
+	      return UNMAKE_THUMB_ADDR (dest);
+	    }
+	}
+    }
+
+  return 0;
+}
+
 static struct arm_prologue_cache *
 arm_make_stub_cache (struct frame_info *this_frame)
 {
@@ -2905,12 +2979,19 @@ arm_stub_unwind_sniffer (const struct frame_unwind *self,
 {
   CORE_ADDR addr_in_block;
   gdb_byte dummy[4];
+  CORE_ADDR pc, start_addr;
+  const char *name;
 
   addr_in_block = get_frame_address_in_block (this_frame);
+  pc = get_frame_pc (this_frame);
   if (in_plt_section (addr_in_block)
       /* We also use the stub winder if the target memory is unreadable
 	 to avoid having the prologue unwinder trying to read it.  */
-      || target_read_memory (get_frame_pc (this_frame), dummy, 4) != 0)
+      || target_read_memory (pc, dummy, 4) != 0)
+    return 1;
+
+  if (find_pc_partial_function (pc, &name, &start_addr, NULL) == 0
+      && arm_skip_bx_reg (this_frame, pc) != 0)
     return 1;
 
   return 0;
@@ -3196,14 +3277,9 @@ thumb_in_function_epilogue_p (struct gdbarch *gdbarch, CORE_ADDR pc)
 	found_return = 1;
       else if (insn == 0x46f7)  /* mov pc, lr */
 	found_return = 1;
-      else if (insn == 0x46bd)  /* mov sp, r7 */
-	found_stack_adjust = 1;
-      else if ((insn & 0xff00) == 0xb000)  /* add sp, imm or sub sp, imm  */
-	found_stack_adjust = 1;
-      else if ((insn & 0xfe00) == 0xbc00)  /* pop <registers> */
+      else if (thumb_instruction_restores_sp (insn))
 	{
-	  found_stack_adjust = 1;
-	  if (insn & 0x0100)  /* <registers> include PC.  */
+	  if ((insn & 0xff00) == 0xbd00)  /* pop <registers, PC> */
 	    found_return = 1;
 	}
       else if (thumb_insn_size (insn) == 4)  /* 32-bit Thumb-2 instruction */
@@ -3216,20 +3292,18 @@ thumb_in_function_epilogue_p (struct gdbarch *gdbarch, CORE_ADDR pc)
 
 	  if (insn == 0xe8bd)  /* ldm.w sp!, <registers> */
 	    {
-	      found_stack_adjust = 1;
 	      if (insn2 & 0x8000)  /* <registers> include PC.  */
 		found_return = 1;
 	    }
 	  else if (insn == 0xf85d  /* ldr.w <Rt>, [sp], #4 */
 		   && (insn2 & 0x0fff) == 0x0b04)
 	    {
-	      found_stack_adjust = 1;
 	      if ((insn2 & 0xf000) == 0xf000) /* <Rt> is PC.  */
 		found_return = 1;
 	    }
 	  else if ((insn & 0xffbf) == 0xecbd  /* vldm sp!, <list> */
 		   && (insn2 & 0x0e00) == 0x0a00)
-	    found_stack_adjust = 1;
+	    ;
 	  else
 	    break;
 	}
@@ -3246,31 +3320,24 @@ thumb_in_function_epilogue_p (struct gdbarch *gdbarch, CORE_ADDR pc)
      a 32-bit instruction.  This is just a heuristic, so we do not worry
      too much about false positives.  */
 
-  if (!found_stack_adjust)
-    {
-      if (pc - 4 < func_start)
-	return 0;
-      if (target_read_memory (pc - 4, buf, 4))
-	return 0;
+  if (pc - 4 < func_start)
+    return 0;
+  if (target_read_memory (pc - 4, buf, 4))
+    return 0;
 
-      insn = extract_unsigned_integer (buf, 2, byte_order_for_code);
-      insn2 = extract_unsigned_integer (buf + 2, 2, byte_order_for_code);
+  insn = extract_unsigned_integer (buf, 2, byte_order_for_code);
+  insn2 = extract_unsigned_integer (buf + 2, 2, byte_order_for_code);
 
-      if (insn2 == 0x46bd)  /* mov sp, r7 */
-	found_stack_adjust = 1;
-      else if ((insn2 & 0xff00) == 0xb000)  /* add sp, imm or sub sp, imm  */
-	found_stack_adjust = 1;
-      else if ((insn2 & 0xff00) == 0xbc00)  /* pop <registers> without PC */
-	found_stack_adjust = 1;
-      else if (insn == 0xe8bd)  /* ldm.w sp!, <registers> */
-	found_stack_adjust = 1;
-      else if (insn == 0xf85d  /* ldr.w <Rt>, [sp], #4 */
-	       && (insn2 & 0x0fff) == 0x0b04)
-	found_stack_adjust = 1;
-      else if ((insn & 0xffbf) == 0xecbd  /* vldm sp!, <list> */
-	       && (insn2 & 0x0e00) == 0x0a00)
-	found_stack_adjust = 1;
-    }
+  if (thumb_instruction_restores_sp (insn2))
+    found_stack_adjust = 1;
+  else if (insn == 0xe8bd)  /* ldm.w sp!, <registers> */
+    found_stack_adjust = 1;
+  else if (insn == 0xf85d  /* ldr.w <Rt>, [sp], #4 */
+	   && (insn2 & 0x0fff) == 0x0b04)
+    found_stack_adjust = 1;
+  else if ((insn & 0xffbf) == 0xecbd  /* vldm sp!, <list> */
+	   && (insn2 & 0x0e00) == 0x0a00)
+    found_stack_adjust = 1;
 
   return found_stack_adjust;
 }
@@ -3495,8 +3562,8 @@ arm_vfp_cprc_reg_char (enum arm_vfp_cprc_base_type b)
    classified from *BASE_TYPE, or two types differently classified
    from each other, return -1, otherwise return the total number of
    base-type elements found (possibly 0 in an empty structure or
-   array).  Vectors and complex types are not currently supported,
-   matching the generic AAPCS support.  */
+   array).  Vector types are not currently supported, matching the
+   generic AAPCS support.  */
 
 static int
 arm_vfp_cprc_sub_candidate (struct type *t,
@@ -3521,6 +3588,38 @@ arm_vfp_cprc_sub_candidate (struct type *t,
 	  else if (*base_type != VFP_CPRC_DOUBLE)
 	    return -1;
 	  return 1;
+
+	default:
+	  return -1;
+	}
+      break;
+
+    case TYPE_CODE_COMPLEX:
+      /* Arguments of complex T where T is one of the types float or
+	 double get treated as if they are implemented as:
+
+	 struct complexT
+	 {
+	   T real;
+	   T imag;
+	 };
+
+      */
+      switch (TYPE_LENGTH (t))
+	{
+	case 8:
+	  if (*base_type == VFP_CPRC_UNKNOWN)
+	    *base_type = VFP_CPRC_SINGLE;
+	  else if (*base_type != VFP_CPRC_SINGLE)
+	    return -1;
+	  return 2;
+
+	case 16:
+	  if (*base_type == VFP_CPRC_UNKNOWN)
+	    *base_type = VFP_CPRC_DOUBLE;
+	  else if (*base_type != VFP_CPRC_DOUBLE)
+	    return -1;
+	  return 2;
 
 	default:
 	  return -1;
@@ -9225,7 +9324,15 @@ arm_skip_stub (struct frame_info *frame, CORE_ADDR pc)
 
   /* Find the starting address and name of the function containing the PC.  */
   if (find_pc_partial_function (pc, &name, &start_addr, NULL) == 0)
-    return 0;
+    {
+      /* Trampoline 'bx reg' doesn't belong to any functions.  Do the
+	 check here.  */
+      start_addr = arm_skip_bx_reg (frame, pc);
+      if (start_addr != 0)
+	return start_addr;
+
+      return 0;
+    }
 
   /* If PC is in a Thumb call or return stub, return the address of the
      target PC, which is in a register.  The thunk functions are called
@@ -9263,7 +9370,7 @@ arm_skip_stub (struct frame_info *frame, CORE_ADDR pc)
     {
       char *target_name;
       int target_len = namelen - 2;
-      struct minimal_symbol *minsym;
+      struct bound_minimal_symbol minsym;
       struct objfile *objfile;
       struct obj_section *sec;
 
@@ -9279,8 +9386,8 @@ arm_skip_stub (struct frame_info *frame, CORE_ADDR pc)
       sec = find_pc_section (pc);
       objfile = (sec == NULL) ? NULL : sec->objfile;
       minsym = lookup_minimal_symbol (target_name, NULL, objfile);
-      if (minsym != NULL)
-	return SYMBOL_VALUE_ADDRESS (minsym);
+      if (minsym.minsym != NULL)
+	return BMSYMBOL_VALUE_ADDRESS (minsym);
       else
 	return 0;
     }
@@ -10575,6 +10682,8 @@ vfp - VFP co-processor."),
 #define THUMB2_INSN_SIZE_BYTES 4
 
 
+/* Position of the bit within a 32-bit ARM instruction
+   that defines whether the instruction is a load or store.  */
 #define INSN_S_L_BIT_NUM 20
 
 #define REG_ALLOC(REGS, LENGTH, RECORD_BUF) \
@@ -11372,110 +11481,90 @@ arm_record_data_proc_imm (insn_decode_record *arm_insn_r)
   return 0;
 }
 
-/* Handling opcode 010 insns.  */
+/* Handle ARM mode instructions with opcode 010.  */
 
 static int
 arm_record_ld_st_imm_offset (insn_decode_record *arm_insn_r)
 {
   struct regcache *reg_cache = arm_insn_r->regcache;
 
-  uint32_t reg_src1 = 0 , reg_dest = 0;
-  uint32_t offset_12 = 0, tgt_mem_addr = 0;
+  uint32_t reg_base , reg_dest;
+  uint32_t offset_12, tgt_mem_addr;
   uint32_t record_buf[8], record_buf_mem[8];
+  unsigned char wback;
+  ULONGEST u_regval;
 
-  ULONGEST u_regval = 0;
+  /* Calculate wback.  */
+  wback = (bit (arm_insn_r->arm_insn, 24) == 0)
+	  || (bit (arm_insn_r->arm_insn, 21) == 1);
 
-  arm_insn_r->opcode = bits (arm_insn_r->arm_insn, 21, 24);
-  arm_insn_r->decode = bits (arm_insn_r->arm_insn, 4, 7);
+  arm_insn_r->reg_rec_count = 0;
+  reg_base = bits (arm_insn_r->arm_insn, 16, 19);
 
   if (bit (arm_insn_r->arm_insn, INSN_S_L_BIT_NUM))
     {
+      /* LDR (immediate), LDR (literal), LDRB (immediate), LDRB (literal), LDRBT
+	 and LDRT.  */
+
       reg_dest = bits (arm_insn_r->arm_insn, 12, 15);
-      /* LDR insn has a capability to do branching, if
-         MOV LR, PC is precedded by LDR insn having Rn as R15
-         in that case, it emulates branch and link insn, and hence we
-         need to save CSPR and PC as well.  */
-      if (ARM_PC_REGNUM != reg_dest)
-        {
-          record_buf[0] = bits (arm_insn_r->arm_insn, 12, 15);
-          arm_insn_r->reg_rec_count = 1;
-        }
-      else
-        {
-          record_buf[0] = reg_dest;
-          record_buf[1] = ARM_PS_REGNUM;
-          arm_insn_r->reg_rec_count = 2;
-        }
+      record_buf[arm_insn_r->reg_rec_count++] = reg_dest;
+
+      /* The LDR instruction is capable of doing branching.  If MOV LR, PC
+	 preceeds a LDR instruction having R15 as reg_base, it
+	 emulates a branch and link instruction, and hence we need to save
+	 CPSR and PC as well.  */
+      if (ARM_PC_REGNUM == reg_dest)
+	record_buf[arm_insn_r->reg_rec_count++] = ARM_PS_REGNUM;
+
+      /* If wback is true, also save the base register, which is going to be
+	 written to.  */
+      if (wback)
+	record_buf[arm_insn_r->reg_rec_count++] = reg_base;
     }
   else
     {
-      /* Store, immediate offset, immediate pre-indexed,
-         immediate post-indexed.  */
-      reg_src1 = bits (arm_insn_r->arm_insn, 16, 19);
+      /* STR (immediate), STRB (immediate), STRBT and STRT.  */
+
       offset_12 = bits (arm_insn_r->arm_insn, 0, 11);
-      regcache_raw_read_unsigned (reg_cache, reg_src1, &u_regval);
-      /* U == 1 */
+      regcache_raw_read_unsigned (reg_cache, reg_base, &u_regval);
+
+      /* Handle bit U.  */
       if (bit (arm_insn_r->arm_insn, 23))
-        {
-          tgt_mem_addr = u_regval + offset_12;
-        }
+	{
+	  /* U == 1: Add the offset. */
+	  tgt_mem_addr = (uint32_t) u_regval + offset_12;
+	}
       else
-        {
-          tgt_mem_addr = u_regval - offset_12;
-        }
+	{
+	  /* U == 0: subtract the offset. */
+	  tgt_mem_addr = (uint32_t) u_regval - offset_12;
+	}
 
-      switch (arm_insn_r->opcode)
-        {
-          /* STR.  */
-          case 8:
-          case 12:
-          /* STR.  */
-          case 9:
-          case 13:
-          /* STRT.  */    
-          case 1:
-          case 5:
-          /* STR.  */    
-          case 4:
-          case 0:
-            record_buf_mem[0] = 4;
-          break;
+      /* Bit 22 tells us whether the store instruction writes 1 byte or 4
+	 bytes.  */
+      if (bit (arm_insn_r->arm_insn, 22))
+	{
+	  /* STRB and STRBT: 1 byte.  */
+	  record_buf_mem[0] = 1;
+	}
+      else
+	{
+	  /* STR and STRT: 4 bytes.  */
+	  record_buf_mem[0] = 4;
+	}
 
-          /* STRB.  */
-          case 10:
-          case 14:
-          /* STRB.  */    
-          case 11:
-          case 15:
-          /* STRBT.  */    
-          case 3:
-          case 7:
-          /* STRB.  */    
-          case 2:
-          case 6:
-            record_buf_mem[0] = 1;
-          break;
+      /* Handle bit P.  */
+      if (bit (arm_insn_r->arm_insn, 24))
+	record_buf_mem[1] = tgt_mem_addr;
+      else
+	record_buf_mem[1] = (uint32_t) u_regval;
 
-          default:
-            gdb_assert_not_reached ("no decoding pattern found");
-          break;
-        }
-      record_buf_mem[1] = tgt_mem_addr;
       arm_insn_r->mem_rec_count = 1;
 
-      if (9 == arm_insn_r->opcode || 11 == arm_insn_r->opcode
-          || 13 == arm_insn_r->opcode || 15 == arm_insn_r->opcode
-          || 0 == arm_insn_r->opcode || 2 == arm_insn_r->opcode
-          || 4 == arm_insn_r->opcode || 6 == arm_insn_r->opcode
-          || 1 == arm_insn_r->opcode || 3 == arm_insn_r->opcode
-          || 5 == arm_insn_r->opcode || 7 == arm_insn_r->opcode
-         )
-        {
-          /* We are handling pre-indexed mode; post-indexed mode;
-             where Rn is going to be changed.  */
-          record_buf[0] = reg_src1;
-          arm_insn_r->reg_rec_count = 1;
-        }
+      /* If wback is true, also save the base register, which is going to be
+	 written to.  */
+      if (wback)
+	record_buf[arm_insn_r->reg_rec_count++] = reg_base;
     }
 
   REG_ALLOC (arm_insn_r->arm_regs, arm_insn_r->reg_rec_count, record_buf);
@@ -11746,134 +11835,99 @@ arm_record_ld_st_reg_offset (insn_decode_record *arm_insn_r)
   return 0;
 }
 
-/* Handling opcode 100 insns.  */
+/* Handle ARM mode instructions with opcode 100.  */
 
 static int
 arm_record_ld_st_multiple (insn_decode_record *arm_insn_r)
 {
   struct regcache *reg_cache = arm_insn_r->regcache;
-
-  uint32_t register_list[16] = {0}, register_count = 0, register_bits = 0;
-  uint32_t reg_src1 = 0, addr_mode = 0, no_of_regs = 0;
-  uint32_t start_address = 0, index = 0;
+  uint32_t register_count = 0, register_bits;
+  uint32_t reg_base, addr_mode;
   uint32_t record_buf[24], record_buf_mem[48];
+  uint32_t wback;
+  ULONGEST u_regval;
 
-  ULONGEST u_regval[2] = {0};
+  /* Fetch the list of registers.  */
+  register_bits = bits (arm_insn_r->arm_insn, 0, 15);
+  arm_insn_r->reg_rec_count = 0;
 
-  /* This mode is exclusively for load and store multiple.  */
-  /* Handle incremenrt after/before and decrment after.before mode;
-     Rn is changing depending on W bit, but as of now we store Rn too
-     without optimization.  */
+  /* Fetch the base register that contains the address we are loading data
+     to.  */
+  reg_base = bits (arm_insn_r->arm_insn, 16, 19);
+
+  /* Calculate wback.  */
+  wback = (bit (arm_insn_r->arm_insn, 21) == 1);
 
   if (bit (arm_insn_r->arm_insn, INSN_S_L_BIT_NUM))
     {
-      /* LDM  (1,2,3) where LDM  (3) changes CPSR too.  */
+      /* LDM/LDMIA/LDMFD, LDMDA/LDMFA, LDMDB and LDMIB.  */
 
-      if (bit (arm_insn_r->arm_insn, 20) && !bit (arm_insn_r->arm_insn, 22))
-        {
-          register_bits = bits (arm_insn_r->arm_insn, 0, 15);
-          no_of_regs = 15;
-        }
-      else
-        {
-          register_bits = bits (arm_insn_r->arm_insn, 0, 14);
-          no_of_regs = 14;
-        }
-      /* Get Rn.  */
-      reg_src1 = bits (arm_insn_r->arm_insn, 16, 19);
+      /* Find out which registers are going to be loaded from memory.  */
       while (register_bits)
-      {
-        if (register_bits & 0x00000001)
-          record_buf[index++] = register_count;
-        register_bits = register_bits >> 1;
-        register_count++;
-      }
+	{
+	  if (register_bits & 0x00000001)
+	    record_buf[arm_insn_r->reg_rec_count++] = register_count;
+	  register_bits = register_bits >> 1;
+	  register_count++;
+	}
 
-        /* Extra space for Base Register and CPSR; wihtout optimization.  */
-        record_buf[index++] = reg_src1;
-        record_buf[index++] = ARM_PS_REGNUM;
-        arm_insn_r->reg_rec_count = index;
+  
+      /* If wback is true, also save the base register, which is going to be
+	 written to.  */
+      if (wback)
+	record_buf[arm_insn_r->reg_rec_count++] = reg_base;
+
+      /* Save the CPSR register.  */
+      record_buf[arm_insn_r->reg_rec_count++] = ARM_PS_REGNUM;
     }
   else
     {
-      /* It handles both STM(1) and STM(2).  */
-      addr_mode = bits (arm_insn_r->arm_insn, 23, 24);    
+      /* STM (STMIA, STMEA), STMDA (STMED), STMDB (STMFD) and STMIB (STMFA).  */
 
-      register_bits = bits (arm_insn_r->arm_insn, 0, 15);
-      /* Get Rn.  */
-      reg_src1 = bits (arm_insn_r->arm_insn, 16, 19);
-      regcache_raw_read_unsigned (reg_cache, reg_src1, &u_regval[0]);
+      addr_mode = bits (arm_insn_r->arm_insn, 23, 24); 
+
+      regcache_raw_read_unsigned (reg_cache, reg_base, &u_regval);
+
+      /* Find out how many registers are going to be stored to memory.  */
       while (register_bits)
-        {
-          if (register_bits & 0x00000001)
-            register_count++;
-          register_bits = register_bits >> 1;
-        }
+	{
+	  if (register_bits & 0x00000001)
+	    register_count++;
+	  register_bits = register_bits >> 1;
+	}
 
       switch (addr_mode)
-        {
-          /* Decrement after.  */
-          case 0:                          
-            start_address = (u_regval[0]) - (register_count * 4) + 4;
-            arm_insn_r->mem_rec_count = register_count;
-            while (register_count)
-              {
-                record_buf_mem[(register_count * 2) - 1] = start_address;
-                record_buf_mem[(register_count * 2) - 2] = 4;
-                start_address = start_address + 4;
-                register_count--;
-              }
-          break;    
+	{
+	  /* STMDA (STMED): Decrement after.  */
+	  case 0:
+	  record_buf_mem[1] = (uint32_t) u_regval
+			      - register_count * INT_REGISTER_SIZE + 4;
+	  break;
+	  /* STM (STMIA, STMEA): Increment after.  */
+	  case 1:
+	  record_buf_mem[1] = (uint32_t) u_regval;
+	  break;
+	  /* STMDB (STMFD): Decrement before.  */
+	  case 2:
+	  record_buf_mem[1] = (uint32_t) u_regval
+			      - register_count * INT_REGISTER_SIZE;
+	  break;
+	  /* STMIB (STMFA): Increment before.  */
+	  case 3:
+	  record_buf_mem[1] = (uint32_t) u_regval + INT_REGISTER_SIZE;
+	  break;
+	  default:
+	    gdb_assert_not_reached ("no decoding pattern found");
+	  break;
+	}
 
-          /* Increment after.  */
-          case 1:
-            start_address = u_regval[0];
-            arm_insn_r->mem_rec_count = register_count;
-            while (register_count)
-              {
-                record_buf_mem[(register_count * 2) - 1] = start_address;
-                record_buf_mem[(register_count * 2) - 2] = 4;
-                start_address = start_address + 4;
-                register_count--;
-              }
-          break;    
+      record_buf_mem[0] = register_count * INT_REGISTER_SIZE;
+      arm_insn_r->mem_rec_count = 1;
 
-          /* Decrement before.  */
-          case 2:
-
-            start_address = (u_regval[0]) - (register_count * 4);
-            arm_insn_r->mem_rec_count = register_count;
-            while (register_count)
-              {
-                record_buf_mem[(register_count * 2) - 1] = start_address;
-                record_buf_mem[(register_count * 2) - 2] = 4;
-                start_address = start_address + 4;
-                register_count--;
-              }
-          break;    
-
-          /* Increment before.  */
-          case 3:
-            start_address = u_regval[0] + 4;
-            arm_insn_r->mem_rec_count = register_count;
-            while (register_count)
-              {
-                record_buf_mem[(register_count * 2) - 1] = start_address;
-                record_buf_mem[(register_count * 2) - 2] = 4;
-                start_address = start_address + 4;
-                register_count--;
-              }
-          break;    
-
-          default:
-            gdb_assert_not_reached ("no decoding pattern found");
-          break;    
-        }
-
-      /* Base register also changes; based on condition and W bit.  */
-      /* We save it anyway without optimization.  */
-      record_buf[0] = reg_src1;
-      arm_insn_r->reg_rec_count = 1;
+      /* If wback is true, also save the base register, which is going to be
+	 written to.  */
+      if (wback)
+	record_buf[arm_insn_r->reg_rec_count++] = reg_base;
     }
 
   REG_ALLOC (arm_insn_r->arm_regs, arm_insn_r->reg_rec_count, record_buf);
@@ -11915,20 +11969,559 @@ arm_record_unsupported_insn (insn_decode_record *arm_insn_r)
   return -1;
 }
 
+/* Record handler for vector data transfer instructions.  */
+
+static int
+arm_record_vdata_transfer_insn (insn_decode_record *arm_insn_r)
+{
+  uint32_t bits_a, bit_c, bit_l, reg_t, reg_v;
+  uint32_t record_buf[4];
+
+  const int num_regs = gdbarch_num_regs (arm_insn_r->gdbarch);
+  reg_t = bits (arm_insn_r->arm_insn, 12, 15);
+  reg_v = bits (arm_insn_r->arm_insn, 21, 23);
+  bits_a = bits (arm_insn_r->arm_insn, 21, 23);
+  bit_l = bit (arm_insn_r->arm_insn, 20);
+  bit_c = bit (arm_insn_r->arm_insn, 8);
+
+  /* Handle VMOV instruction.  */
+  if (bit_l && bit_c)
+    {
+      record_buf[0] = reg_t;
+      arm_insn_r->reg_rec_count = 1;
+    }
+  else if (bit_l && !bit_c)
+    {
+      /* Handle VMOV instruction.  */
+      if (bits_a == 0x00)
+        {
+          if (bit (arm_insn_r->arm_insn, 20))
+            record_buf[0] = reg_t;
+          else
+            record_buf[0] = num_regs + (bit (arm_insn_r->arm_insn, 7) |
+                            (reg_v << 1));
+
+          arm_insn_r->reg_rec_count = 1;
+        }
+      /* Handle VMRS instruction.  */
+      else if (bits_a == 0x07)
+        {
+          if (reg_t == 15)
+            reg_t = ARM_PS_REGNUM;
+
+          record_buf[0] = reg_t;
+          arm_insn_r->reg_rec_count = 1;
+        }
+    }
+  else if (!bit_l && !bit_c)
+    {
+      /* Handle VMOV instruction.  */
+      if (bits_a == 0x00)
+        {
+          if (bit (arm_insn_r->arm_insn, 20))
+            record_buf[0] = reg_t;
+          else
+            record_buf[0] = num_regs + (bit (arm_insn_r->arm_insn, 7) |
+                            (reg_v << 1));
+
+          arm_insn_r->reg_rec_count = 1;
+        }
+      /* Handle VMSR instruction.  */
+      else if (bits_a == 0x07)
+        {
+          record_buf[0] = ARM_FPSCR_REGNUM;
+          arm_insn_r->reg_rec_count = 1;
+        }
+    }
+  else if (!bit_l && bit_c)
+    {
+      /* Handle VMOV instruction.  */
+      if (!(bits_a & 0x04))
+        {
+          record_buf[0] = (reg_v | (bit (arm_insn_r->arm_insn, 7) << 4))
+                          + ARM_D0_REGNUM;
+          arm_insn_r->reg_rec_count = 1;
+        }
+      /* Handle VDUP instruction.  */
+      else
+        {
+          if (bit (arm_insn_r->arm_insn, 21))
+            {
+              reg_v = reg_v | (bit (arm_insn_r->arm_insn, 7) << 4);
+              record_buf[0] = reg_v + ARM_D0_REGNUM;
+              record_buf[1] = reg_v + ARM_D0_REGNUM + 1;
+              arm_insn_r->reg_rec_count = 2;
+            }
+          else
+            {
+              reg_v = reg_v | (bit (arm_insn_r->arm_insn, 7) << 4);
+              record_buf[0] = reg_v + ARM_D0_REGNUM;
+              arm_insn_r->reg_rec_count = 1;
+            }
+        }
+    }
+
+  REG_ALLOC (arm_insn_r->arm_regs, arm_insn_r->reg_rec_count, record_buf);
+  return 0;
+}
+
+/* Record handler for extension register load/store instructions.  */
+
+static int
+arm_record_exreg_ld_st_insn (insn_decode_record *arm_insn_r)
+{
+  uint32_t opcode, single_reg;
+  uint8_t op_vldm_vstm;
+  uint32_t record_buf[8], record_buf_mem[128];
+  ULONGEST u_regval = 0;
+
+  struct regcache *reg_cache = arm_insn_r->regcache;
+  const int num_regs = gdbarch_num_regs (arm_insn_r->gdbarch);
+
+  opcode = bits (arm_insn_r->arm_insn, 20, 24);
+  single_reg = bit (arm_insn_r->arm_insn, 8);
+  op_vldm_vstm = opcode & 0x1b;
+
+  /* Handle VMOV instructions.  */
+  if ((opcode & 0x1e) == 0x04)
+    {
+      if (bit (arm_insn_r->arm_insn, 4))
+        {
+          record_buf[0] = bits (arm_insn_r->arm_insn, 12, 15);
+          record_buf[1] = bits (arm_insn_r->arm_insn, 16, 19);
+          arm_insn_r->reg_rec_count = 2;
+        }
+      else
+        {
+          uint8_t reg_m = (bits (arm_insn_r->arm_insn, 0, 3) << 1)
+                          | bit (arm_insn_r->arm_insn, 5);
+
+          if (!single_reg)
+            {
+              record_buf[0] = num_regs + reg_m;
+              record_buf[1] = num_regs + reg_m + 1;
+              arm_insn_r->reg_rec_count = 2;
+            }
+          else
+            {
+              record_buf[0] = reg_m + ARM_D0_REGNUM;
+              arm_insn_r->reg_rec_count = 1;
+            }
+        }
+    }
+  /* Handle VSTM and VPUSH instructions.  */
+  else if (op_vldm_vstm == 0x08 || op_vldm_vstm == 0x0a
+          || op_vldm_vstm == 0x12)
+    {
+      uint32_t start_address, reg_rn, imm_off32, imm_off8, memory_count;
+      uint32_t memory_index = 0;
+
+      reg_rn = bits (arm_insn_r->arm_insn, 16, 19);
+      regcache_raw_read_unsigned (reg_cache, reg_rn, &u_regval);
+      imm_off8 = bits (arm_insn_r->arm_insn, 0, 7);
+      imm_off32 = imm_off8 << 24;
+      memory_count = imm_off8;
+
+      if (bit (arm_insn_r->arm_insn, 23))
+        start_address = u_regval;
+      else
+        start_address = u_regval - imm_off32;
+
+      if (bit (arm_insn_r->arm_insn, 21))
+        {
+          record_buf[0] = reg_rn;
+          arm_insn_r->reg_rec_count = 1;
+        }
+
+      while (memory_count > 0)
+        {
+          if (!single_reg)
+            {
+              record_buf_mem[memory_index] = start_address;
+              record_buf_mem[memory_index + 1] = 4;
+              start_address = start_address + 4;
+              memory_index = memory_index + 2;
+            }
+          else
+            {
+              record_buf_mem[memory_index] = start_address;
+              record_buf_mem[memory_index + 1] = 4;
+              record_buf_mem[memory_index + 2] = start_address + 4;
+              record_buf_mem[memory_index + 3] = 4;
+              start_address = start_address + 8;
+              memory_index = memory_index + 4;
+            }
+          memory_count--;
+        }
+      arm_insn_r->mem_rec_count = (memory_index >> 1);
+    }
+  /* Handle VLDM instructions.  */
+  else if (op_vldm_vstm == 0x09 || op_vldm_vstm == 0x0b
+          || op_vldm_vstm == 0x13)
+    {
+      uint32_t reg_count, reg_vd;
+      uint32_t reg_index = 0;
+
+      reg_vd = bits (arm_insn_r->arm_insn, 12, 15);
+      reg_count = bits (arm_insn_r->arm_insn, 0, 7);
+
+      if (single_reg)
+        reg_vd = reg_vd | (bit (arm_insn_r->arm_insn, 22) << 4);
+      else
+        reg_vd = (reg_vd << 1) | bit (arm_insn_r->arm_insn, 22);
+
+      if (bit (arm_insn_r->arm_insn, 21))
+        record_buf[reg_index++] = bits (arm_insn_r->arm_insn, 16, 19);
+
+      while (reg_count > 0)
+        {
+          if (single_reg)
+              record_buf[reg_index++] = num_regs + reg_vd + reg_count - 1;
+          else
+              record_buf[reg_index++] = ARM_D0_REGNUM + reg_vd + reg_count - 1;
+
+          reg_count--;
+        }
+      arm_insn_r->reg_rec_count = reg_index;
+    }
+  /* VSTR Vector store register.  */
+  else if ((opcode & 0x13) == 0x10)
+    {
+      uint32_t start_address, reg_rn, imm_off32, imm_off8, memory_count;
+      uint32_t memory_index = 0;
+
+      reg_rn = bits (arm_insn_r->arm_insn, 16, 19);
+      regcache_raw_read_unsigned (reg_cache, reg_rn, &u_regval);
+      imm_off8 = bits (arm_insn_r->arm_insn, 0, 7);
+      imm_off32 = imm_off8 << 24;
+      memory_count = imm_off8;
+
+      if (bit (arm_insn_r->arm_insn, 23))
+        start_address = u_regval + imm_off32;
+      else
+        start_address = u_regval - imm_off32;
+
+      if (single_reg)
+        {
+          record_buf_mem[memory_index] = start_address;
+          record_buf_mem[memory_index + 1] = 4;
+          arm_insn_r->mem_rec_count = 1;
+        }
+      else
+        {
+          record_buf_mem[memory_index] = start_address;
+          record_buf_mem[memory_index + 1] = 4;
+          record_buf_mem[memory_index + 2] = start_address + 4;
+          record_buf_mem[memory_index + 3] = 4;
+          arm_insn_r->mem_rec_count = 2;
+        }
+    }
+  /* VLDR Vector load register.  */
+  else if ((opcode & 0x13) == 0x11)
+    {
+      uint32_t reg_vd = bits (arm_insn_r->arm_insn, 12, 15);
+
+      if (!single_reg)
+        {
+          reg_vd = reg_vd | (bit (arm_insn_r->arm_insn, 22) << 4);
+          record_buf[0] = ARM_D0_REGNUM + reg_vd;
+        }
+      else
+        {
+          reg_vd = (reg_vd << 1) | bit (arm_insn_r->arm_insn, 22);
+          record_buf[0] = num_regs + reg_vd;
+        }
+      arm_insn_r->reg_rec_count = 1;
+    }
+
+  REG_ALLOC (arm_insn_r->arm_regs, arm_insn_r->reg_rec_count, record_buf);
+  MEM_ALLOC (arm_insn_r->arm_mems, arm_insn_r->mem_rec_count, record_buf_mem);
+  return 0;
+}
+
+/* Record handler for arm/thumb mode VFP data processing instructions.  */
+
+static int
+arm_record_vfp_data_proc_insn (insn_decode_record *arm_insn_r)
+{
+  uint32_t opc1, opc2, opc3, dp_op_sz, bit_d, reg_vd;
+  uint32_t record_buf[4];
+  enum insn_types {INSN_T0, INSN_T1, INSN_T2, INSN_T3, INSN_INV};
+  enum insn_types curr_insn_type = INSN_INV;
+
+  reg_vd = bits (arm_insn_r->arm_insn, 12, 15);
+  opc1 = bits (arm_insn_r->arm_insn, 20, 23);
+  opc2 = bits (arm_insn_r->arm_insn, 16, 19);
+  opc3 = bits (arm_insn_r->arm_insn, 6, 7);
+  dp_op_sz = bit (arm_insn_r->arm_insn, 8);
+  bit_d = bit (arm_insn_r->arm_insn, 22);
+  opc1 = opc1 & 0x04;
+
+  /* Handle VMLA, VMLS.  */
+  if (opc1 == 0x00)
+    {
+      if (bit (arm_insn_r->arm_insn, 10))
+        {
+          if (bit (arm_insn_r->arm_insn, 6))
+            curr_insn_type = INSN_T0;
+          else
+            curr_insn_type = INSN_T1;
+        }
+      else
+        {
+          if (dp_op_sz)
+            curr_insn_type = INSN_T1;
+          else
+            curr_insn_type = INSN_T2;
+        }
+    }
+  /* Handle VNMLA, VNMLS, VNMUL.  */
+  else if (opc1 == 0x01)
+    {
+      if (dp_op_sz)
+        curr_insn_type = INSN_T1;
+      else
+        curr_insn_type = INSN_T2;
+    }
+  /* Handle VMUL.  */
+  else if (opc1 == 0x02 && !(opc3 & 0x01))
+    {
+      if (bit (arm_insn_r->arm_insn, 10))
+        {
+          if (bit (arm_insn_r->arm_insn, 6))
+            curr_insn_type = INSN_T0;
+          else
+            curr_insn_type = INSN_T1;
+        }
+      else
+        {
+          if (dp_op_sz)
+            curr_insn_type = INSN_T1;
+          else
+            curr_insn_type = INSN_T2;
+        }
+    }
+  /* Handle VADD, VSUB.  */
+  else if (opc1 == 0x03)
+    {
+      if (!bit (arm_insn_r->arm_insn, 9))
+        {
+          if (bit (arm_insn_r->arm_insn, 6))
+            curr_insn_type = INSN_T0;
+          else
+            curr_insn_type = INSN_T1;
+        }
+      else
+        {
+          if (dp_op_sz)
+            curr_insn_type = INSN_T1;
+          else
+            curr_insn_type = INSN_T2;
+        }
+    }
+  /* Handle VDIV.  */
+  else if (opc1 == 0x0b)
+    {
+      if (dp_op_sz)
+        curr_insn_type = INSN_T1;
+      else
+        curr_insn_type = INSN_T2;
+    }
+  /* Handle all other vfp data processing instructions.  */
+  else if (opc1 == 0x0b)
+    {
+      /* Handle VMOV.  */
+      if (!(opc3 & 0x01) || (opc2 == 0x00 && opc3 == 0x01))
+        {
+          if (bit (arm_insn_r->arm_insn, 4))
+            {
+              if (bit (arm_insn_r->arm_insn, 6))
+                curr_insn_type = INSN_T0;
+              else
+                curr_insn_type = INSN_T1;
+            }
+          else
+            {
+              if (dp_op_sz)
+                curr_insn_type = INSN_T1;
+              else
+                curr_insn_type = INSN_T2;
+            }
+        }
+      /* Handle VNEG and VABS.  */
+      else if ((opc2 == 0x01 && opc3 == 0x01)
+              || (opc2 == 0x00 && opc3 == 0x03))
+        {
+          if (!bit (arm_insn_r->arm_insn, 11))
+            {
+              if (bit (arm_insn_r->arm_insn, 6))
+                curr_insn_type = INSN_T0;
+              else
+                curr_insn_type = INSN_T1;
+            }
+          else
+            {
+              if (dp_op_sz)
+                curr_insn_type = INSN_T1;
+              else
+                curr_insn_type = INSN_T2;
+            }
+        }
+      /* Handle VSQRT.  */
+      else if (opc2 == 0x01 && opc3 == 0x03)
+        {
+          if (dp_op_sz)
+            curr_insn_type = INSN_T1;
+          else
+            curr_insn_type = INSN_T2;
+        }
+      /* Handle VCVT.  */
+      else if (opc2 == 0x07 && opc3 == 0x03)
+        {
+          if (!dp_op_sz)
+            curr_insn_type = INSN_T1;
+          else
+            curr_insn_type = INSN_T2;
+        }
+      else if (opc3 & 0x01)
+        {
+          /* Handle VCVT.  */
+          if ((opc2 == 0x08) || (opc2 & 0x0e) == 0x0c)
+            {
+              if (!bit (arm_insn_r->arm_insn, 18))
+                curr_insn_type = INSN_T2;
+              else
+                {
+                  if (dp_op_sz)
+                    curr_insn_type = INSN_T1;
+                  else
+                    curr_insn_type = INSN_T2;
+                }
+            }
+          /* Handle VCVT.  */
+          else if ((opc2 & 0x0e) == 0x0a || (opc2 & 0x0e) == 0x0e)
+            {
+              if (dp_op_sz)
+                curr_insn_type = INSN_T1;
+              else
+                curr_insn_type = INSN_T2;
+            }
+          /* Handle VCVTB, VCVTT.  */
+          else if ((opc2 & 0x0e) == 0x02)
+            curr_insn_type = INSN_T2;
+          /* Handle VCMP, VCMPE.  */
+          else if ((opc2 & 0x0e) == 0x04)
+            curr_insn_type = INSN_T3;
+        }
+    }
+
+  switch (curr_insn_type)
+    {
+      case INSN_T0:
+        reg_vd = reg_vd | (bit_d << 4);
+        record_buf[0] = reg_vd + ARM_D0_REGNUM;
+        record_buf[1] = reg_vd + ARM_D0_REGNUM + 1;
+        arm_insn_r->reg_rec_count = 2;
+        break;
+
+      case INSN_T1:
+        reg_vd = reg_vd | (bit_d << 4);
+        record_buf[0] = reg_vd + ARM_D0_REGNUM;
+        arm_insn_r->reg_rec_count = 1;
+        break;
+
+      case INSN_T2:
+        reg_vd = (reg_vd << 1) | bit_d;
+        record_buf[0] = reg_vd + ARM_D0_REGNUM;
+        arm_insn_r->reg_rec_count = 1;
+        break;
+
+      case INSN_T3:
+        record_buf[0] = ARM_FPSCR_REGNUM;
+        arm_insn_r->reg_rec_count = 1;
+        break;
+
+      default:
+        gdb_assert_not_reached ("no decoding pattern found");
+        break;
+    }
+
+  REG_ALLOC (arm_insn_r->arm_regs, arm_insn_r->reg_rec_count, record_buf);
+  return 0;
+}
+
+/* Handling opcode 110 insns.  */
+
+static int
+arm_record_asimd_vfp_coproc (insn_decode_record *arm_insn_r)
+{
+  uint32_t op, op1, op1_sbit, op1_ebit, coproc;
+
+  coproc = bits (arm_insn_r->arm_insn, 8, 11);
+  op1 = bits (arm_insn_r->arm_insn, 20, 25);
+  op1_ebit = bit (arm_insn_r->arm_insn, 20);
+
+  if ((coproc & 0x0e) == 0x0a)
+    {
+      /* Handle extension register ld/st instructions.  */
+      if (!(op1 & 0x20))
+        return arm_record_exreg_ld_st_insn (arm_insn_r);
+
+      /* 64-bit transfers between arm core and extension registers.  */
+      if ((op1 & 0x3e) == 0x04)
+        return arm_record_exreg_ld_st_insn (arm_insn_r);
+    }
+  else
+    {
+      /* Handle coprocessor ld/st instructions.  */
+      if (!(op1 & 0x3a))
+        {
+          /* Store.  */
+          if (!op1_ebit)
+            return arm_record_unsupported_insn (arm_insn_r);
+          else
+            /* Load.  */
+            return arm_record_unsupported_insn (arm_insn_r);
+        }
+
+      /* Move to coprocessor from two arm core registers.  */
+      if (op1 == 0x4)
+        return arm_record_unsupported_insn (arm_insn_r);
+
+      /* Move to two arm core registers from coprocessor.  */
+      if (op1 == 0x5)
+        {
+          uint32_t reg_t[2];
+
+          reg_t[0] = bits (arm_insn_r->arm_insn, 12, 15);
+          reg_t[1] = bits (arm_insn_r->arm_insn, 16, 19);
+          arm_insn_r->reg_rec_count = 2;
+
+          REG_ALLOC (arm_insn_r->arm_regs, arm_insn_r->reg_rec_count, reg_t);
+          return 0;
+       }
+    }
+  return arm_record_unsupported_insn (arm_insn_r);
+}
+
 /* Handling opcode 111 insns.  */
 
 static int
 arm_record_coproc_data_proc (insn_decode_record *arm_insn_r)
 {
+  uint32_t op, op1_sbit, op1_ebit, coproc;
   struct gdbarch_tdep *tdep = gdbarch_tdep (arm_insn_r->gdbarch);
   struct regcache *reg_cache = arm_insn_r->regcache;
-  uint32_t ret = 0; /* function return value: -1:record failure ;  0:success  */
   ULONGEST u_regval = 0;
 
   arm_insn_r->opcode = bits (arm_insn_r->arm_insn, 24, 27);
+  coproc = bits (arm_insn_r->arm_insn, 8, 11);
+  op1_sbit = bit (arm_insn_r->arm_insn, 24);
+  op1_ebit = bit (arm_insn_r->arm_insn, 20);
+  op = bit (arm_insn_r->arm_insn, 4);
 
   /* Handle arm SWI/SVC system call instructions.  */
-  if (15 == arm_insn_r->opcode)
+  if (op1_sbit)
     {
       if (tdep->arm_syscall_record != NULL)
         {
@@ -11941,21 +12534,52 @@ arm_record_coproc_data_proc (insn_decode_record *arm_insn_r)
           else /* EABI.  */
             regcache_raw_read_unsigned (reg_cache, 7, &svc_number);
 
-          ret = tdep->arm_syscall_record (reg_cache, svc_number);
+          return tdep->arm_syscall_record (reg_cache, svc_number);
         }
       else
         {
           printf_unfiltered (_("no syscall record support\n"));
-          ret = -1;
+          return -1;
         }
+    }
+
+  if ((coproc & 0x0e) == 0x0a)
+    {
+      /* VFP data-processing instructions.  */
+      if (!op1_sbit && !op)
+        return arm_record_vfp_data_proc_insn (arm_insn_r);
+
+      /* Advanced SIMD, VFP instructions.  */
+      if (!op1_sbit && op)
+        return arm_record_vdata_transfer_insn (arm_insn_r);
     }
   else
     {
-      arm_record_unsupported_insn (arm_insn_r);
-      ret = -1;
+      /* Coprocessor data operations.  */
+      if (!op1_sbit && !op)
+        return arm_record_unsupported_insn (arm_insn_r);
+
+      /* Move to Coprocessor from ARM core register.  */
+      if (!op1_sbit && !op1_ebit && op)
+        return arm_record_unsupported_insn (arm_insn_r);
+
+      /* Move to arm core register from coprocessor.  */
+      if (!op1_sbit && op1_ebit && op)
+        {
+          uint32_t record_buf[1];
+
+          record_buf[0] = bits (arm_insn_r->arm_insn, 12, 15);
+          if (record_buf[0] == 15)
+            record_buf[0] = ARM_PS_REGNUM;
+
+          arm_insn_r->reg_rec_count = 1;
+          REG_ALLOC (arm_insn_r->arm_regs, arm_insn_r->reg_rec_count,
+                     record_buf);
+          return 0;
+        }
     }
 
-  return ret;
+  return arm_record_unsupported_insn (arm_insn_r);
 }
 
 /* Handling opcode 000 insns.  */
@@ -12871,6 +13495,206 @@ thumb2_record_lmul_lmla_div (insn_decode_record *thumb2_insn_r)
   return ARM_RECORD_SUCCESS;
 }
 
+/* Record handler for thumb32 coprocessor instructions.  */
+
+static int
+thumb2_record_coproc_insn (insn_decode_record *thumb2_insn_r)
+{
+  if (bit (thumb2_insn_r->arm_insn, 25))
+    return arm_record_coproc_data_proc (thumb2_insn_r);
+  else
+    return arm_record_asimd_vfp_coproc (thumb2_insn_r);
+}
+
+/* Record handler for advance SIMD structure load/store instructions.  */
+
+static int
+thumb2_record_asimd_struct_ld_st (insn_decode_record *thumb2_insn_r)
+{
+  struct regcache *reg_cache = thumb2_insn_r->regcache;
+  uint32_t l_bit, a_bit, b_bits;
+  uint32_t record_buf[128], record_buf_mem[128];
+  uint32_t reg_rn, reg_vd, address, f_esize, f_elem;
+  uint32_t index_r = 0, index_e = 0, bf_regs = 0, index_m = 0, loop_t = 0;
+  uint8_t f_ebytes;
+
+  l_bit = bit (thumb2_insn_r->arm_insn, 21);
+  a_bit = bit (thumb2_insn_r->arm_insn, 23);
+  b_bits = bits (thumb2_insn_r->arm_insn, 8, 11);
+  reg_rn = bits (thumb2_insn_r->arm_insn, 16, 19);
+  reg_vd = bits (thumb2_insn_r->arm_insn, 12, 15);
+  reg_vd = (bit (thumb2_insn_r->arm_insn, 22) << 4) | reg_vd;
+  f_ebytes = (1 << bits (thumb2_insn_r->arm_insn, 6, 7));
+  f_esize = 8 * f_ebytes;
+  f_elem = 8 / f_ebytes;
+
+  if (!l_bit)
+    {
+      ULONGEST u_regval = 0;
+      regcache_raw_read_unsigned (reg_cache, reg_rn, &u_regval);
+      address = u_regval;
+
+      if (!a_bit)
+        {
+          /* Handle VST1.  */
+          if (b_bits == 0x02 || b_bits == 0x0a || (b_bits & 0x0e) == 0x06)
+            {
+              if (b_bits == 0x07)
+                bf_regs = 1;
+              else if (b_bits == 0x0a)
+                bf_regs = 2;
+              else if (b_bits == 0x06)
+                bf_regs = 3;
+              else if (b_bits == 0x02)
+                bf_regs = 4;
+              else
+                bf_regs = 0;
+
+              for (index_r = 0; index_r < bf_regs; index_r++)
+                {
+                  for (index_e = 0; index_e < f_elem; index_e++)
+                    {
+                      record_buf_mem[index_m++] = f_ebytes;
+                      record_buf_mem[index_m++] = address;
+                      address = address + f_ebytes;
+                      thumb2_insn_r->mem_rec_count += 1;
+                    }
+                }
+            }
+          /* Handle VST2.  */
+          else if (b_bits == 0x03 || (b_bits & 0x0e) == 0x08)
+            {
+              if (b_bits == 0x09 || b_bits == 0x08)
+                bf_regs = 1;
+              else if (b_bits == 0x03)
+                bf_regs = 2;
+              else
+                bf_regs = 0;
+
+              for (index_r = 0; index_r < bf_regs; index_r++)
+                for (index_e = 0; index_e < f_elem; index_e++)
+                  {
+                    for (loop_t = 0; loop_t < 2; loop_t++)
+                      {
+                        record_buf_mem[index_m++] = f_ebytes;
+                        record_buf_mem[index_m++] = address + (loop_t * f_ebytes);
+                        thumb2_insn_r->mem_rec_count += 1;
+                      }
+                    address = address + (2 * f_ebytes);
+                  }
+            }
+          /* Handle VST3.  */
+          else if ((b_bits & 0x0e) == 0x04)
+            {
+              for (index_e = 0; index_e < f_elem; index_e++)
+                {
+                  for (loop_t = 0; loop_t < 3; loop_t++)
+                    {
+                      record_buf_mem[index_m++] = f_ebytes;
+                      record_buf_mem[index_m++] = address + (loop_t * f_ebytes);
+                      thumb2_insn_r->mem_rec_count += 1;
+                    }
+                  address = address + (3 * f_ebytes);
+                }
+            }
+          /* Handle VST4.  */
+          else if (!(b_bits & 0x0e))
+            {
+              for (index_e = 0; index_e < f_elem; index_e++)
+                {
+                  for (loop_t = 0; loop_t < 4; loop_t++)
+                    {
+                      record_buf_mem[index_m++] = f_ebytes;
+                      record_buf_mem[index_m++] = address + (loop_t * f_ebytes);
+                      thumb2_insn_r->mem_rec_count += 1;
+                    }
+                  address = address + (4 * f_ebytes);
+                }
+            }
+        }
+      else
+        {
+          uint8_t bft_size = bits (thumb2_insn_r->arm_insn, 10, 11);
+
+          if (bft_size == 0x00)
+            f_ebytes = 1;
+          else if (bft_size == 0x01)
+            f_ebytes = 2;
+          else if (bft_size == 0x02)
+            f_ebytes = 4;
+          else
+            f_ebytes = 0;
+
+          /* Handle VST1.  */
+          if (!(b_bits & 0x0b) || b_bits == 0x08)
+            thumb2_insn_r->mem_rec_count = 1;
+          /* Handle VST2.  */
+          else if ((b_bits & 0x0b) == 0x01 || b_bits == 0x09)
+            thumb2_insn_r->mem_rec_count = 2;
+          /* Handle VST3.  */
+          else if ((b_bits & 0x0b) == 0x02 || b_bits == 0x0a)
+            thumb2_insn_r->mem_rec_count = 3;
+          /* Handle VST4.  */
+          else if ((b_bits & 0x0b) == 0x03 || b_bits == 0x0b)
+            thumb2_insn_r->mem_rec_count = 4;
+
+          for (index_m = 0; index_m < thumb2_insn_r->mem_rec_count; index_m++)
+            {
+              record_buf_mem[index_m] = f_ebytes;
+              record_buf_mem[index_m] = address + (index_m * f_ebytes);
+            }
+        }
+    }
+  else
+    {
+      if (!a_bit)
+        {
+          /* Handle VLD1.  */
+          if (b_bits == 0x02 || b_bits == 0x0a || (b_bits & 0x0e) == 0x06)
+            thumb2_insn_r->reg_rec_count = 1;
+          /* Handle VLD2.  */
+          else if (b_bits == 0x03 || (b_bits & 0x0e) == 0x08)
+            thumb2_insn_r->reg_rec_count = 2;
+          /* Handle VLD3.  */
+          else if ((b_bits & 0x0e) == 0x04)
+            thumb2_insn_r->reg_rec_count = 3;
+          /* Handle VLD4.  */
+          else if (!(b_bits & 0x0e))
+            thumb2_insn_r->reg_rec_count = 4;
+        }
+      else
+        {
+          /* Handle VLD1.  */
+          if (!(b_bits & 0x0b) || b_bits == 0x08 || b_bits == 0x0c)
+            thumb2_insn_r->reg_rec_count = 1;
+          /* Handle VLD2.  */
+          else if ((b_bits & 0x0b) == 0x01 || b_bits == 0x09 || b_bits == 0x0d)
+            thumb2_insn_r->reg_rec_count = 2;
+          /* Handle VLD3.  */
+          else if ((b_bits & 0x0b) == 0x02 || b_bits == 0x0a || b_bits == 0x0e)
+            thumb2_insn_r->reg_rec_count = 3;
+          /* Handle VLD4.  */
+          else if ((b_bits & 0x0b) == 0x03 || b_bits == 0x0b || b_bits == 0x0f)
+            thumb2_insn_r->reg_rec_count = 4;
+
+          for (index_r = 0; index_r < thumb2_insn_r->reg_rec_count; index_r++)
+            record_buf[index_r] = reg_vd + ARM_D0_REGNUM + index_r;
+        }
+    }
+
+  if (bits (thumb2_insn_r->arm_insn, 0, 3) != 15)
+    {
+      record_buf[index_r] = reg_rn;
+      thumb2_insn_r->reg_rec_count += 1;
+    }
+
+  REG_ALLOC (thumb2_insn_r->arm_regs, thumb2_insn_r->reg_rec_count,
+            record_buf);
+  MEM_ALLOC (thumb2_insn_r->arm_mems, thumb2_insn_r->mem_rec_count,
+            record_buf_mem);
+  return 0;
+}
+
 /* Decodes thumb2 instruction type and invokes its record handler.  */
 
 static unsigned int
@@ -12902,7 +13726,7 @@ thumb2_record_decode_insn_handler (insn_decode_record *thumb2_insn_r)
       else if (op2 & 0x40)
         {
           /* Co-processor instructions.  */
-          arm_record_unsupported_insn (thumb2_insn_r);
+          return thumb2_record_coproc_insn (thumb2_insn_r);
         }
     }
   else if (op1 == 0x02)
@@ -12933,7 +13757,7 @@ thumb2_record_decode_insn_handler (insn_decode_record *thumb2_insn_r)
       else if (!((op2 & 0x71) ^ 0x10))
         {
           /* Advanced SIMD or structure load/store instructions.  */
-          return arm_record_unsupported_insn (thumb2_insn_r);
+          return thumb2_record_asimd_struct_ld_st (thumb2_insn_r);
         }
       else if (!((op2 & 0x67) ^ 0x01))
         {
@@ -12968,7 +13792,7 @@ thumb2_record_decode_insn_handler (insn_decode_record *thumb2_insn_r)
       else if (op2 & 0x40)
         {
           /* Co-processor instructions.  */
-          return arm_record_unsupported_insn (thumb2_insn_r);
+          return thumb2_record_coproc_insn (thumb2_insn_r);
         }
    }
 
@@ -12989,7 +13813,7 @@ extract_arm_insn (insn_decode_record *insn_record, uint32_t insn_size)
     return 1;
   insn_record->arm_insn = (uint32_t) extract_unsigned_integer (&buf[0],
                            insn_size, 
-                           gdbarch_byte_order (insn_record->gdbarch));
+			   gdbarch_byte_order_for_code (insn_record->gdbarch));
   return 0;
 }
 
@@ -13012,7 +13836,7 @@ decode_insn (insn_decode_record *arm_record, record_type_t record_type,
     arm_record_ld_st_reg_offset,        /* 011.  */
     arm_record_ld_st_multiple,          /* 100.  */
     arm_record_b_bl,                    /* 101.  */
-    arm_record_unsupported_insn,        /* 110.  */
+    arm_record_asimd_vfp_coproc,        /* 110.  */
     arm_record_coproc_data_proc         /* 111.  */
   };
 
