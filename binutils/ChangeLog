@@ -1,3 +1,102 @@
+2014-12-02  Denis Chertykov  <chertykov@gmail.com>
+
+	* MAINTAINERS: Fix my email address.
+
+2014-12-01  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* dwarf.c (process_cu_tu_index): Properly check for an out of
+	range row index.
+
+2014-12-01  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/17512
+	* dwarf.h (struct dwarf_section): Add user_data field.
+	* dwarf.c (frame_need_space): Check for an over large register
+	number.
+	(display_debug_frames): Check the return value from
+	frame_need_space.  Check for a CFA expression that is so long the
+	start address wraps around.
+	(debug_displays): Initialise the user_data field.
+	* objdump.c (load_specific_debug_section): Save the BFD section
+	pointer in the user_data field of the dwarf_section structure.
+	(free_debug_section): Update BFD section data when freeing section
+	contents.
+	* readelf.c (load_specific_debug_section): Initialise the
+	user_data field.
+
+2014-12-01  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/17531
+	* dwarf.c (process_cu_tu_index): Check for an out of range row
+	index.
+	* elfcomm.c (adjust_relative_path): Change name_len parameter to
+	an unsigned long.  Check for path length overflow.
+	(process_archive_index_and_symbols): Check for invalid header
+	size.
+	(setup_archive): Add checks for invalid archives.
+	(get_archive_member_name): Add range checks.
+	* elfcomm.h (adjust_relative_path): Update prototyoe.
+	* readelf.c (process_archive): Add range checks.
+
+2014-11-28  Alan Modra  <amodra@gmail.com>
+
+	* readelf.c (get_32bit_elf_symbols): Cast bfd_size_type values to
+	unsigned long for %lx.
+	(get_64bit_elf_symbols, process_section_groups): Likewise.
+
+2014-11-27  Espen Grindhaug <espen@grindhaug.org>
+	    Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/17531
+	* readelf.c (get_data): Move excessive length check to earlier on
+	in the function and allow for wraparound in the arithmetic.
+	(get_32bit_elf_symbols): Terminate early if the section size is
+	zero.  Check for an invalid sh_entsize.  Check for an index
+	section with an invalid size.
+	(get_64bit_elf_symbols): Likewise.
+	(process_section_groups): Check for an invalid sh_entsize.
+
+2014-11-24  Mark Wielaard  <mjw@redhat.com>
+
+	* dwarf.c (read_and_display_attr_value): Handle DW_LANG_C11,
+	DW_LANG_C_plus_plus_11 and DW_LANG_C_plus_plus_14.
+
+2014-11-26  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/17512
+	* dwarf.c (display_block): Do nothing if the block starts after
+	the end of the buffer.
+	(read_and_display_attr_value): Add range checks.
+	(struct Frame_Chunk): Make the ncols and ra fields unsigned.
+	(frame_need_space): Test for an ncols of zero.
+	(read_cie): Fail if the augmentation data extends off the end of
+	the buffer.
+	(display_debug_frames): Add checks for read_cie failing.  Add
+	range checks.
+
+2014-11-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* objdump.c (objdump_print_symname): Replace
+	bfd_elf_get_symbol_version_string with
+	bfd_get_symbol_version_string.
+
+2014-11-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/16496
+	* objdump.c (objdump_print_symname): Call
+	bfd_elf_get_symbol_version_string to get ELF symbol version
+	string.  Append version string if needed.
+
+	* readelf.c (versioned_symbol_info): New enum.
+	(get_symbol_version_string): New.  Extracted from
+	process_symbol_table.
+	(dump_relocations): Add a new argument to indicate if dynamic
+	symbol table is used.  Use get_symbol_version_string to get
+	symbol version string for dynamic symbol.  Append version string
+	if needed.
+	(process_relocs): Updated dump_relocations call.
+	(process_symbol_table): Use get_symbol_version_string.
+
 2014-11-24  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* configure: Regenerated.

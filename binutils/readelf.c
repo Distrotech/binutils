@@ -165,7 +165,7 @@
 #endif
 
 char * program_name = "readelf";
-static long archive_file_offset;
+static unsigned long archive_file_offset;
 static unsigned long archive_file_size;
 static bfd_size_type current_file_size;
 static unsigned long dynamic_addr;
@@ -272,6 +272,20 @@ typedef enum print_mode
 }
 print_mode;
 
+/* Versioned symbol info.  */
+enum versioned_symbol_info
+{
+  symbol_undefined,
+  symbol_hidden,
+  symbol_public
+};
+
+static const char *get_symbol_version_string
+  (FILE *file, int is_dynsym, const char *strtab,
+   unsigned long int strtab_size, unsigned int si,
+   Elf_Internal_Sym *psym, enum versioned_symbol_info *sym_info,
+   unsigned short *vna_other);
+
 #define UNKNOWN -1
 
 #define SECTION_NAME(X)						\
@@ -299,36 +313,40 @@ print_mode;
     }						\
   while (0)
 
-/* Retrieve NMEMB structures, each SIZE bytes long from FILE starting at OFFSET.
+/* Retrieve NMEMB structures, each SIZE bytes long from FILE starting at OFFSET +
+   the offset of the current archive member, if we are examining an archive.
    Put the retrieved data into VAR, if it is not NULL.  Otherwise allocate a buffer
    using malloc and fill that.  In either case return the pointer to the start of
    the retrieved data or NULL if something went wrong.  If something does go wrong
-   emit an error message using REASON as part of the context.  */
+   and REASON is not NULL then emit an error message using REASON as part of the
+   context.  */
 
 static void *
-get_data (void * var, FILE * file, long offset, size_t size, size_t nmemb,
+get_data (void * var, FILE * file, unsigned long offset, size_t size, size_t nmemb,
 	  const char * reason)
 {
   void * mvar;
+  size_t amt = size * nmemb;
 
   if (size == 0 || nmemb == 0)
     return NULL;
+
+  /* Be kind to memory chekers (eg valgrind, address sanitizer) by not
+     attempting to allocate memory when the read is bound to fail.  */
+  if (amt > current_file_size
+      || offset + archive_file_offset + amt > current_file_size)
+    {
+      if (reason)
+	error (_("Reading 0x%lx bytes extends past end of file for %s\n"),
+	       (unsigned long) amt, reason);
+      return NULL;
+    }
 
   if (fseek (file, archive_file_offset + offset, SEEK_SET))
     {
       if (reason)
 	error (_("Unable to seek to 0x%lx for %s\n"),
 	       (unsigned long) archive_file_offset + offset, reason);
-      return NULL;
-    }
-
-  /* Be kind to memory chekers (eg valgrind, address sanitizer) by not
-     attempting to allocate memory when the read is bound to fail.  */
-  if (offset + archive_file_offset + size * nmemb > current_file_size)
-    {
-      if (reason)
-	error (_("Reading 0x%lx bytes extends past end of file for %s\n"),
-	       (unsigned long) (size * nmemb), reason);
       return NULL;
     }
 
@@ -348,14 +366,14 @@ get_data (void * var, FILE * file, long offset, size_t size, size_t nmemb,
 	  return NULL;
 	}
 
-      ((char *) mvar)[size * nmemb] = '\0';
+      ((char *) mvar)[amt] = '\0';
     }
 
   if (fread (mvar, size, nmemb, file) != nmemb)
     {
       if (reason)
 	error (_("Unable to read in 0x%lx bytes of %s\n"),
-	       (unsigned long)(size * nmemb), reason);
+	       (unsigned long) amt, reason);
       if (mvar != var)
 	free (mvar);
       return NULL;
@@ -1015,7 +1033,8 @@ dump_relocations (FILE * file,
 		  unsigned long nsyms,
 		  char * strtab,
 		  unsigned long strtablen,
-		  int is_rela)
+		  int is_rela,
+		  int is_dynsym)
 {
   unsigned int i;
   Elf_Internal_Rela * rels;
@@ -1448,8 +1467,19 @@ dump_relocations (FILE * file,
 	  else
 	    {
 	      Elf_Internal_Sym * psym;
+	      const char * version_string;
+	      enum versioned_symbol_info sym_info;
+	      unsigned short vna_other;
 
 	      psym = symtab + symtab_index;
+
+	      version_string
+		= get_symbol_version_string (file, is_dynsym,
+					     strtab, strtablen,
+					     symtab_index,
+					     psym,
+					     &sym_info,
+					     &vna_other);
 
 	      printf (" ");
 
@@ -1477,6 +1507,9 @@ dump_relocations (FILE * file,
 		    name = strtab + psym->st_name;
 
 		  len = print_symbol (width, name);
+		  if (version_string)
+		    printf (sym_info == symbol_public ? "@@%s" : "@%s",
+			    version_string);
 		  printf ("()%-*s", len <= width ? (width + 1) - len : 1, " ");
 		}
 	      else
@@ -1535,7 +1568,12 @@ dump_relocations (FILE * file,
 	      else if (psym->st_name >= strtablen)
 		printf (_("<corrupt string table index: %3ld>"), psym->st_name);
 	      else
-		print_symbol (22, strtab + psym->st_name);
+		{
+		  print_symbol (22, strtab + psym->st_name);
+		  if (version_string)
+		    printf (sym_info == symbol_public ? "@@%s" : "@%s",
+			    version_string);
+		}
 
 	      if (is_rela)
 		{
@@ -4725,10 +4763,18 @@ get_32bit_elf_symbols (FILE * file,
   Elf_Internal_Sym * psym;
   unsigned int j;
 
-  /* Run some sanity checks first.  */
-  if (section->sh_entsize == 0)
+  if (section->sh_size == 0)
     {
-      error (_("sh_entsize is zero\n"));
+      if (num_syms_return != NULL)
+	* num_syms_return = 0;
+      return NULL;
+    }
+
+  /* Run some sanity checks first.  */
+  if (section->sh_entsize == 0 || section->sh_entsize > section->sh_size)
+    {
+      error (_("Section %s has an invalid sh_entsize of 0x%lx\n"),
+	     printable_section_name (section), (unsigned long) section->sh_entsize);
       goto exit_point;
     }
 
@@ -4743,7 +4789,10 @@ get_32bit_elf_symbols (FILE * file,
 
   if (number * sizeof (Elf32_External_Sym) > section->sh_size + 1)
     {
-      error (_("Invalid sh_entsize\n"));
+      error (_("Size (0x%lx) of section %s is not a multiple of its sh_entsize (0x%lx)\n"),
+	     (unsigned long) section->sh_size,
+	     printable_section_name (section),
+	     (unsigned long) section->sh_entsize);
       goto exit_point;
     }
 
@@ -4763,6 +4812,15 @@ get_32bit_elf_symbols (FILE * file,
                                                    _("symbol table section indicies"));
       if (shndx == NULL)
 	goto exit_point;
+      /* PR17531: file: heap-buffer-overflow */
+      else if (symtab_shndx_hdr->sh_size / sizeof (Elf_External_Sym_Shndx) < number)
+	{
+	  error (_("Index section %s has an sh_size of 0x%lx - expected 0x%lx\n"),
+		 printable_section_name (symtab_shndx_hdr),
+		 (unsigned long) symtab_shndx_hdr->sh_size,
+		 (unsigned long) section->sh_size);
+	  goto exit_point;
+	}
     }
 
   isyms = (Elf_Internal_Sym *) cmalloc (number, sizeof (Elf_Internal_Sym));
@@ -4813,17 +4871,27 @@ get_64bit_elf_symbols (FILE * file,
   Elf_Internal_Sym * psym;
   unsigned int j;
 
-  /* Run some sanity checks first.  */
-  if (section->sh_entsize == 0)
+  if (section->sh_size == 0)
     {
-      error (_("sh_entsize is zero\n"));
+      if (num_syms_return != NULL)
+	* num_syms_return = 0;
+      return NULL;
+    }
+
+  /* Run some sanity checks first.  */
+  if (section->sh_entsize == 0 || section->sh_entsize > section->sh_size)
+    {
+      error (_("Section %s has an invalid sh_entsize of 0x%lx\n"),
+	     printable_section_name (section),
+	     (unsigned long) section->sh_entsize);
       goto exit_point;
     }
 
   if (section->sh_size > current_file_size)
     {
       error (_("Section %s has an invalid sh_size of 0x%lx\n"),
-	     printable_section_name (section), (unsigned long) section->sh_size);
+	     printable_section_name (section),
+	     (unsigned long) section->sh_size);
       goto exit_point;
     }
 
@@ -4831,7 +4899,10 @@ get_64bit_elf_symbols (FILE * file,
 
   if (number * sizeof (Elf64_External_Sym) > section->sh_size + 1)
     {
-      error (_("Invalid sh_entsize\n"));
+      error (_("Size (0x%lx) of section %s is not a multiple of its sh_entsize (0x%lx)\n"),
+	     (unsigned long) section->sh_size,
+	     printable_section_name (section),
+	     (unsigned long) section->sh_entsize);
       goto exit_point;
     }
 
@@ -4850,6 +4921,14 @@ get_64bit_elf_symbols (FILE * file,
                                                    _("symbol table section indicies"));
       if (shndx == NULL)
 	goto exit_point;
+      else if (symtab_shndx_hdr->sh_size / sizeof (Elf_External_Sym_Shndx) < number)
+	{
+	  error (_("Index section %s has an sh_size of 0x%lx - expected 0x%lx\n"),
+		 printable_section_name (symtab_shndx_hdr),
+		 (unsigned long) symtab_shndx_hdr->sh_size,
+		 (unsigned long) section->sh_size);
+	  goto exit_point;
+	}
     }
 
   isyms = (Elf_Internal_Sym *) cmalloc (number, sizeof (Elf_Internal_Sym));
@@ -5765,6 +5844,16 @@ process_section_groups (FILE * file)
 		? strtab + sym->st_name : _("<corrupt>");
 	    }
 
+	  /* PR 17531: file: loop.  */
+	  if (section->sh_entsize > section->sh_size)
+	    {
+	      error (_("Section %s has sh_entsize (0x%lx) which is larger than its size (0x%lx)\n"),
+		     printable_section_name (section),
+		     (unsigned long) section->sh_entsize,
+		     (unsigned long) section->sh_size);
+	      break;
+	    }
+
 	  start = (unsigned char *) get_data (NULL, file, section->sh_offset,
                                               1, section->sh_size,
                                               _("section data"));
@@ -6100,7 +6189,8 @@ process_relocs (FILE * file)
 				offset_from_vma (file, rel_offset, rel_size),
 				rel_size,
 				dynamic_symbols, num_dynamic_syms,
-				dynamic_strings, dynamic_strings_length, is_rela);
+				dynamic_strings, dynamic_strings_length,
+				is_rela, 1);
 	    }
 	}
 
@@ -6175,14 +6265,16 @@ process_relocs (FILE * file)
 		    }
 
 		  dump_relocations (file, rel_offset, rel_size,
-				    symtab, nsyms, strtab, strtablen, is_rela);
+				    symtab, nsyms, strtab, strtablen,
+				    is_rela,
+				    symsec->sh_type == SHT_DYNSYM);
 		  if (strtab)
 		    free (strtab);
 		  free (symtab);
 		}
 	      else
 		dump_relocations (file, rel_offset, rel_size,
-				  NULL, 0, NULL, 0, is_rela);
+				  NULL, 0, NULL, 0, is_rela, 0);
 
 	      found = 1;
 	    }
@@ -9884,6 +9976,181 @@ print_dynamic_symbol (bfd_vma si, unsigned long hn)
   putchar ('\n');
 }
 
+static const char *
+get_symbol_version_string (FILE *file, int is_dynsym,
+			   const char *strtab,
+			   unsigned long int strtab_size,
+			   unsigned int si, Elf_Internal_Sym *psym,
+			   enum versioned_symbol_info *sym_info,
+			   unsigned short *vna_other)
+{
+  const char *version_string = NULL;
+
+  if (is_dynsym
+      && version_info[DT_VERSIONTAGIDX (DT_VERSYM)] != 0)
+    {
+      unsigned char data[2];
+      unsigned short vers_data;
+      unsigned long offset;
+      int is_nobits;
+      int check_def;
+
+      offset = offset_from_vma
+	(file, version_info[DT_VERSIONTAGIDX (DT_VERSYM)],
+	 sizeof data + si * sizeof (vers_data));
+
+      if (get_data (&data, file, offset + si * sizeof (vers_data),
+		    sizeof (data), 1, _("version data")) == NULL)
+	return NULL;
+
+      vers_data = byte_get (data, 2);
+
+      is_nobits = (psym->st_shndx < elf_header.e_shnum
+		   && section_headers[psym->st_shndx].sh_type
+		   == SHT_NOBITS);
+
+      check_def = (psym->st_shndx != SHN_UNDEF);
+
+      if ((vers_data & VERSYM_HIDDEN) || vers_data > 1)
+	{
+	  if (version_info[DT_VERSIONTAGIDX (DT_VERNEED)]
+	      && (is_nobits || ! check_def))
+	    {
+	      Elf_External_Verneed evn;
+	      Elf_Internal_Verneed ivn;
+	      Elf_Internal_Vernaux ivna;
+
+	      /* We must test both.  */
+	      offset = offset_from_vma
+		(file, version_info[DT_VERSIONTAGIDX (DT_VERNEED)],
+		 sizeof evn);
+
+	      do
+		{
+		  unsigned long vna_off;
+
+		  if (get_data (&evn, file, offset, sizeof (evn), 1,
+				_("version need")) == NULL)
+		    {
+		      ivna.vna_next = 0;
+		      ivna.vna_other = 0;
+		      ivna.vna_name = 0;
+		      break;
+		    }
+
+		  ivn.vn_aux  = BYTE_GET (evn.vn_aux);
+		  ivn.vn_next = BYTE_GET (evn.vn_next);
+
+		  vna_off = offset + ivn.vn_aux;
+
+		  do
+		    {
+		      Elf_External_Vernaux evna;
+
+		      if (get_data (&evna, file, vna_off,
+				    sizeof (evna), 1,
+				    _("version need aux (3)")) == NULL)
+			{
+			  ivna.vna_next = 0;
+			  ivna.vna_other = 0;
+			  ivna.vna_name = 0;
+			}
+		      else
+			{
+			  ivna.vna_other = BYTE_GET (evna.vna_other);
+			  ivna.vna_next  = BYTE_GET (evna.vna_next);
+			  ivna.vna_name  = BYTE_GET (evna.vna_name);
+			}
+
+		      vna_off += ivna.vna_next;
+		    }
+		  while (ivna.vna_other != vers_data
+			 && ivna.vna_next != 0);
+
+		  if (ivna.vna_other == vers_data)
+		    break;
+
+		  offset += ivn.vn_next;
+		}
+	      while (ivn.vn_next != 0);
+
+	      if (ivna.vna_other == vers_data)
+		{
+		  *sym_info = symbol_undefined;
+		  *vna_other = ivna.vna_other;
+		  version_string = (ivna.vna_name < strtab_size
+				    ? strtab + ivna.vna_name
+				    : _("<corrupt>"));
+		  check_def = 0;
+		}
+	      else if (! is_nobits)
+		error (_("bad dynamic symbol\n"));
+	      else
+		check_def = 1;
+	    }
+
+	  if (check_def)
+	    {
+	      if (vers_data != 0x8001
+		  && version_info[DT_VERSIONTAGIDX (DT_VERDEF)])
+		{
+		  Elf_Internal_Verdef ivd;
+		  Elf_Internal_Verdaux ivda;
+		  Elf_External_Verdaux evda;
+		  unsigned long off;
+
+		  off = offset_from_vma
+		    (file,
+		     version_info[DT_VERSIONTAGIDX (DT_VERDEF)],
+		     sizeof (Elf_External_Verdef));
+
+		  do
+		    {
+		      Elf_External_Verdef evd;
+
+		      if (get_data (&evd, file, off, sizeof (evd),
+				    1, _("version def")) == NULL)
+			{
+			  ivd.vd_ndx = 0;
+			  ivd.vd_aux = 0;
+			  ivd.vd_next = 0;
+			}
+		      else
+			{
+			  ivd.vd_ndx = BYTE_GET (evd.vd_ndx);
+			  ivd.vd_aux = BYTE_GET (evd.vd_aux);
+			  ivd.vd_next = BYTE_GET (evd.vd_next);
+			}
+
+		      off += ivd.vd_next;
+		    }
+		  while (ivd.vd_ndx != (vers_data & VERSYM_VERSION)
+			 && ivd.vd_next != 0);
+
+		  off -= ivd.vd_next;
+		  off += ivd.vd_aux;
+
+		  if (get_data (&evda, file, off, sizeof (evda),
+				1, _("version def aux")) == NULL)
+		    return version_string;
+
+		  ivda.vda_name = BYTE_GET (evda.vda_name);
+
+		  if (psym->st_name != ivda.vda_name)
+		    {
+		      *sym_info = ((vers_data & VERSYM_HIDDEN) != 0
+				   ? symbol_hidden : symbol_public);
+		      version_string = (ivda.vda_name < strtab_size
+					? strtab + ivda.vda_name
+					: _("<corrupt>"));
+		    }
+		}
+	    }
+	}
+    }
+  return version_string;
+}
+
 /* Dump the symbol table.  */
 static int
 process_symbol_table (FILE * file)
@@ -10184,6 +10451,10 @@ process_symbol_table (FILE * file)
 
 	  for (si = 0, psym = symtab; si < num_syms; si++, psym++)
 	    {
+	      const char *version_string;
+	      enum versioned_symbol_info sym_info;
+	      unsigned short vna_other;
+
 	      printf ("%6d: ", si);
 	      print_vma (psym->st_value, LONG_HEX);
 	      putchar (' ');
@@ -10200,163 +10471,18 @@ process_symbol_table (FILE * file)
 	      print_symbol (25, psym->st_name < strtab_size
 			    ? strtab + psym->st_name : _("<corrupt>"));
 
-	      if (section->sh_type == SHT_DYNSYM
-		  && version_info[DT_VERSIONTAGIDX (DT_VERSYM)] != 0)
+	      version_string
+		= get_symbol_version_string (file,
+					     section->sh_type == SHT_DYNSYM,
+					     strtab, strtab_size, si,
+					     psym, &sym_info, &vna_other);
+	      if (version_string)
 		{
-		  unsigned char data[2];
-		  unsigned short vers_data;
-		  unsigned long offset;
-		  int is_nobits;
-		  int check_def;
-
-		  offset = offset_from_vma
-		    (file, version_info[DT_VERSIONTAGIDX (DT_VERSYM)],
-		     sizeof data + si * sizeof (vers_data));
-
-		  if (get_data (&data, file, offset + si * sizeof (vers_data),
-				sizeof (data), 1, _("version data")) == NULL)
-		    break;
-
-		  vers_data = byte_get (data, 2);
-
-		  is_nobits = (psym->st_shndx < elf_header.e_shnum
-			       && section_headers[psym->st_shndx].sh_type
-				  == SHT_NOBITS);
-
-		  check_def = (psym->st_shndx != SHN_UNDEF);
-
-		  if ((vers_data & VERSYM_HIDDEN) || vers_data > 1)
-		    {
-		      if (version_info[DT_VERSIONTAGIDX (DT_VERNEED)]
-			  && (is_nobits || ! check_def))
-			{
-			  Elf_External_Verneed evn;
-			  Elf_Internal_Verneed ivn;
-			  Elf_Internal_Vernaux ivna;
-
-			  /* We must test both.  */
-			  offset = offset_from_vma
-			    (file, version_info[DT_VERSIONTAGIDX (DT_VERNEED)],
-			     sizeof evn);
-
-			  do
-			    {
-			      unsigned long vna_off;
-
-			      if (get_data (&evn, file, offset, sizeof (evn), 1,
-					    _("version need")) == NULL)
-				{
-				  ivna.vna_next = 0;
-				  ivna.vna_other = 0;
-				  ivna.vna_name = 0;
-				  break;
-				}
-
-			      ivn.vn_aux  = BYTE_GET (evn.vn_aux);
-			      ivn.vn_next = BYTE_GET (evn.vn_next);
-
-			      vna_off = offset + ivn.vn_aux;
-
-			      do
-				{
-				  Elf_External_Vernaux evna;
-
-				  if (get_data (&evna, file, vna_off,
-						sizeof (evna), 1,
-						_("version need aux (3)")) == NULL)
-				    {
-				      ivna.vna_next = 0;
-				      ivna.vna_other = 0;
-				      ivna.vna_name = 0;
-				    }
-				  else
-				    {
-				      ivna.vna_other = BYTE_GET (evna.vna_other);
-				      ivna.vna_next  = BYTE_GET (evna.vna_next);
-				      ivna.vna_name  = BYTE_GET (evna.vna_name);
-				    }
-
-				  vna_off += ivna.vna_next;
-				}
-			      while (ivna.vna_other != vers_data
-				     && ivna.vna_next != 0);
-
-			      if (ivna.vna_other == vers_data)
-				break;
-
-			      offset += ivn.vn_next;
-			    }
-			  while (ivn.vn_next != 0);
-
-			  if (ivna.vna_other == vers_data)
-			    {
-			      printf ("@%s (%d)",
-				      ivna.vna_name < strtab_size
-				      ? strtab + ivna.vna_name : _("<corrupt>"),
-				      ivna.vna_other);
-			      check_def = 0;
-			    }
-			  else if (! is_nobits)
-			    error (_("bad dynamic symbol\n"));
-			  else
-			    check_def = 1;
-			}
-
-		      if (check_def)
-			{
-			  if (vers_data != 0x8001
-			      && version_info[DT_VERSIONTAGIDX (DT_VERDEF)])
-			    {
-			      Elf_Internal_Verdef ivd;
-			      Elf_Internal_Verdaux ivda;
-			      Elf_External_Verdaux evda;
-			      unsigned long off;
-
-			      off = offset_from_vma
-				(file,
-				 version_info[DT_VERSIONTAGIDX (DT_VERDEF)],
-				 sizeof (Elf_External_Verdef));
-
-			      do
-				{
-				  Elf_External_Verdef evd;
-
-				  if (get_data (&evd, file, off, sizeof (evd),
-						1, _("version def")) == NULL)
-				    {
-				      ivd.vd_ndx = 0;
-				      ivd.vd_aux = 0;
-				      ivd.vd_next = 0;
-				    }
-				  else
-				    {
-				      ivd.vd_ndx = BYTE_GET (evd.vd_ndx);
-				      ivd.vd_aux = BYTE_GET (evd.vd_aux);
-				      ivd.vd_next = BYTE_GET (evd.vd_next);
-				    }
-
-				  off += ivd.vd_next;
-				}
-			      while (ivd.vd_ndx != (vers_data & VERSYM_VERSION)
-				     && ivd.vd_next != 0);
-
-			      off -= ivd.vd_next;
-			      off += ivd.vd_aux;
-
-			      if (get_data (&evda, file, off, sizeof (evda),
-					    1, _("version def aux")) == NULL)
-				break;
-
-			      ivda.vda_name = BYTE_GET (evda.vda_name);
-
-			      if (psym->st_name != ivda.vda_name)
-				printf ((vers_data & VERSYM_HIDDEN)
-					? "@%s" : "@@%s",
-					ivda.vda_name < strtab_size
-					? strtab + ivda.vda_name : _("<corrupt>"));
-			    }
-			}
-		    }
+		  if (sym_info == symbol_undefined)
+		    printf ("@%s (%d)", version_string, vna_other);
+		  else
+		    printf (sym_info == symbol_hidden ? "@%s" : "@@%s",
+			    version_string);
 		}
 
 	      putchar ('\n');
@@ -11592,6 +11718,7 @@ load_specific_debug_section (enum dwarf_section_display_enum debug,
 
   snprintf (buf, sizeof (buf), _("%s section data"), section->name);
   section->address = sec->sh_addr;
+  section->user_data = NULL;
   section->start = (unsigned char *) get_data (NULL, (FILE *) file,
                                                sec->sh_offset, 1,
                                                sec->sh_size, buf);
@@ -15140,11 +15267,11 @@ process_archive (char * file_name, FILE * file, bfd_boolean is_thin_archive)
 	error (_("%s: unable to dump the index as none was found\n"), file_name);
       else
 	{
-	  unsigned int i, l;
+	  unsigned long i, l;
 	  unsigned long current_pos;
 
-	  printf (_("Index of archive %s: (%ld entries, 0x%lx bytes in the symbol table)\n"),
-		  file_name, (long) arch.index_num, arch.sym_size);
+	  printf (_("Index of archive %s: (%lu entries, 0x%lx bytes in the symbol table)\n"),
+		  file_name, (unsigned long) arch.index_num, arch.sym_size);
 	  current_pos = ftell (file);
 
 	  for (i = l = 0; i < arch.index_num; i++)
@@ -15175,8 +15302,9 @@ process_archive (char * file_name, FILE * file, bfd_boolean is_thin_archive)
 			 file_name);
 		  break;
 		}
-	      printf ("\t%s\n", arch.sym_table + l);
-	      l += strlen (arch.sym_table + l) + 1;
+	      /* PR 17531: file: 0b6630b2.  */
+	      printf ("\t%.*s\n", (int) (arch.sym_size - l), arch.sym_table + l);
+	      l += strnlen (arch.sym_table + l, arch.sym_size - l) + 1;
 	    }
 
 	  if (arch.uses_64bit_indicies)

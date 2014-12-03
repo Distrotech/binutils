@@ -795,7 +795,8 @@ objdump_print_symname (bfd *abfd, struct disassemble_info *inf,
 		       asymbol *sym)
 {
   char *alloc;
-  const char *name;
+  const char *name, *version_string = NULL;
+  bfd_boolean hidden = FALSE;
 
   alloc = NULL;
   name = bfd_asymbol_name (sym);
@@ -807,10 +808,24 @@ objdump_print_symname (bfd *abfd, struct disassemble_info *inf,
 	name = alloc;
     }
 
+  version_string = bfd_get_symbol_version_string (abfd, sym, &hidden);
+
+  if (bfd_is_und_section (bfd_get_section (sym)))
+    hidden = TRUE;
+
   if (inf != NULL)
-    (*inf->fprintf_func) (inf->stream, "%s", name);
+    {
+      (*inf->fprintf_func) (inf->stream, "%s", name);
+      if (version_string && *version_string != '\0')
+	(*inf->fprintf_func) (inf->stream, hidden ? "@%s" : "@@%s",
+			      version_string);
+    }
   else
-    printf ("%s", name);
+    {
+      printf ("%s", name);
+      if (version_string && *version_string != '\0')
+	printf (hidden ? "@%s" : "@@%s", version_string);
+    }
 
   if (alloc != NULL)
     free (alloc);
@@ -2265,6 +2280,7 @@ load_specific_debug_section (enum dwarf_section_display_enum debug,
   section->address = bfd_get_section_vma (abfd, sec);
   section->size = bfd_get_section_size (sec);
   section->start = NULL;
+  section->user_data = sec;
   ret = bfd_get_full_section_contents (abfd, sec, &section->start);
 
   if (! ret)
@@ -2330,6 +2346,22 @@ free_debug_section (enum dwarf_section_display_enum debug)
 
   if (section->start == NULL)
     return;
+
+  /* PR 17512: file: 0f67f69d.  */
+  if (section->user_data != NULL)
+    {
+      asection * sec = (asection *) section->user_data;
+
+      /* If we are freeing contents that are also pointed to by the BFD
+	 library's section structure then make sure to update those pointers
+	 too.  Otherwise, the next time we try to load data for this section
+	 we can end up using a stale pointer.  */
+      if (section->start == sec->contents)
+	{
+	  sec->contents = NULL;
+	  sec->flags &= ~ SEC_IN_MEMORY;
+	}
+    }
 
   free ((char *) section->start);
   section->start = NULL;

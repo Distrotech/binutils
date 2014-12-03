@@ -1,3 +1,195 @@
+2014-12-02  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf_x86_64_relocate_section): Check
+	info->executable for symbols which need copy relocs.
+
+2014-12-02  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf_x86_64_check_relocs): Revert the last
+	change.
+	(elf_x86_64_adjust_dynamic_symbol): Don't check !info->shared
+	with ELIMINATE_COPY_RELOCS.
+	(elf_x86_64_allocate_dynrelocs): For PIE, discard space for
+	relocs against symbols which turn out to need copy relocs.
+
+2014-12-02  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* elf64-x86-64.c (elf_x86_64_create_dynamic_sections): Always
+	allow copy relocs for building executables.
+	(elf_x86_64_check_relocs): Allow copy relocs for non-GOT
+	pc-relative relocation in shared object.
+	(elf_x86_64_adjust_dynamic_symbol): Allocate copy relocs for
+	PIE.
+	(elf_x86_64_relocate_section): Don't copy a pc-relative
+	relocation into the output file if the symbol needs copy reloc.
+
+2014-12-02  Andrew Bennett  <andrew.bennett@imgtec.com>
+
+	* elfxx-mips.c (mips_elf_calculate_relocation): Only check for
+	overflow on non-weak undefined symbols.
+
+2014-12-02  Alan Modra  <amodra@gmail.com>
+
+	* elf64-ppc.c (OPD_NDX): Define.  Use throughout for sizing/indexing
+	_opd_sec_data array, halving required memory.
+	(sort_r_offset): New function.
+	(ppc64_elf_edit_opd): Sort incoming relocs.  Accept .opd
+	sections with a mix of 16 and 24 byte OPD entries.  Don't
+	attempt to honour --non-overlapping-opd for .opd sections with
+	unexpected relocs.  Simplify opd entry size calculations by
+	first finding the reloc for the next entry.  Make edit loop
+	handle one opd entry per iteration, with an inner loop
+	handling relocs per entry.
+
+2014-12-01  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/17512
+	* archive.c (do_slurp_coff_armap): Add range checks to prevent
+	running off the end of the string table.
+	* compress.c (bfd_get_full_section_contents): Return a NULL
+	pointer for zero sized sections.  Do not attempt to copy a buffer
+	onto itself.
+	* elf-attrs.c (_bfd_elf_parse_attributes): Check for an empty
+	header.  Add range checks to avoid running off the end of the
+	section.
+	* elf.c (bfd_elf_get_str_section): Seek before allocating so that
+	if the seek fails, no memory is allocated.
+	(bfd_elf_string_from_elf_section): Do not allocate a string from a
+	non string section.  It only leads to trouble later on.
+	(_bfd_elf_print_private_bfd_data): Check for there being too
+	little external dynamic data.
+	(bfd_section_from_shdr): Replace assertion with a failure mode.
+	(bfd_section_from_shdr): When walking a loaded group section use
+	the internal structure size, not the external size.  Check for the
+	group section being empty.
+	* elf32-i386.c (elf_i386_rtype_to_howto): Replace assertion with a
+	failure mode.
+	* elfcode.h (elf_slurp_reloc_table): Likewise.
+	* reloc.c (bfd_perform_relocation): Avoid seg-fault if the howto
+	parameter is NULL.
+
+2014-11-30  Alan Modra  <amodra@gmail.com>
+
+	PR 16452, 16457
+	* elflink.c (_bfd_elf_link_find_version_dependencies): Exclude
+	symbols from libraries that won't be listed in DT_NEEDED.
+	(elf_link_output_extsym): Don't output verdefs for such symbols.
+
+2014-11-28  Alan Modra  <amodra@gmail.com>
+
+	* elf.c (_bfd_elf_slurp_version_tables): Exit loops when vn_next/
+	vna_next/vd_next/vda_next is zero.  Correct counts.
+
+2014-11-27  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/17512
+	* ecoff.c (_bfd_ecoff_slurp_symbol_table): Warn about and correct
+	a discrepancy between the isymMax and ifdMax values in the
+	symbolic header.
+	* elf.c (_bfd_elf_print_private_bfd_data): Fix the range check
+	scanning the external dynamic entries.
+
+2014-11-26  Nick Clifton  <nickc@redhat.com>
+
+	PR binutils/17512
+	* coff-h8300.c (rtype2howto): Replace abort with returning a NULL
+	value.
+	* coff-h8500.c (rtype2howto): Likewise.
+	* coff-tic30.c (rtype2howto): Likewise.
+	* coff-z80.c (rtype2howto): Likewise.
+	* coff-z8k.c (rtype2howto): Likewise.
+	* coff-ia64.c (RTYPE2HOWTO): Always return a valid howto.
+	* coff-m68k.c (m68k_rtype2howto): Return a NULL howto if none
+	could be found.
+	* coff-mcore.c (RTYPE2HOWTO): Add range checking.
+	* coff-w65.c (rtype2howto): Likewise.
+	* coff-we32k.c (RTYPE2HOWTO): Likewise.
+	* pe-mips.c (RTYPE2HOWTO): Likewise.
+	* coff-x86_64.c (coff_amd64_reloc): Likewise.  Replace abort with
+	an error return.
+	* coffcode.h (coff_slurp_reloc_table): Allow the rel parameter to
+	be unused.
+	* coffgen.c (make_a_section_from_file): Check the length of a
+	section name before testing to see if it is a debug section name.
+	(coff_object_p): Zero out any uninitialised bytes in the opt
+	header.
+	* ecoff.c (_bfd_ecoff_slurp_symbolic_info): Test for the raw
+	source being empty when there are values to be processed.
+	(_bfd_ecoff_slurp_symbol_table): Add range check.
+	* mach-o.c (bfd_mach_o_canonicalize_one_reloc): Likewise.
+	(bfd_mach_o_mangle_sections): Move test for too many sections to
+	before the allocation of the section table.
+	(bfd_mach_o_read_symtab_strtab): If the read fails, free the
+	memory and nullify the symbol pointer.
+	* reloc.c (bfd_generic_get_relocated_section_contents): Add
+	handling of a bfd_reloc_notsupported return value.
+	* versados.c (EDATA): Add range checking.
+	(get_record): Likewise.
+	(process_otr): Check for contents being available before updating
+	them.
+	(versados_canonicalize_reloc): Add range check.
+
+2014-11-26  Alan Modra  <amodra@gmail.com>
+
+	* elf.c (_bfd_elf_slurp_version_tables): Delay allocation of
+	internal verref buffer.  Error for zero sh_info.  Print errors.
+	Check for zero vd_ndx.  Use bfd_zalloc for vd_auxptr buffer.
+
+2014-11-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	* targets.c (BFD_JUMP_TABLE_SYMBOLS): Use
+	NAME##_get_symbol_version_string.
+	(bfd_get_symbol_version_string): New.
+	* aout-adobe.c (aout_32_get_symbol_version_string): Define using
+	_bfd_nosymbols define.
+	* aout-target.h (MY_get_symbol_version_string): Likewise.
+	* aout-tic30.c (MY_get_symbol_version_string): Likewise.
+	* binary.c (binary_get_symbol_version_string): Likewise.
+	* bout.c (aout_32_get_symbol_version_string): Likewise.
+	* coff-rs6000.c (_bfd_xcoff_get_symbol_version_string): Likewise.
+	* i386msdos.c (msdos_get_symbol_version_string): Likewise.
+	* i386os9k.c (aout_32_get_symbol_version_string): Likewise.
+	* ieee.c (ieee_get_symbol_version_string): Likewise.
+	* ihex.c (ihex_get_symbol_version_string): Likewise.
+	* libecoff.h (_bfd_ecoff_get_symbol_version_string): Likewise.
+	* mach-o-target.c (bfd_mach_o_get_symbol_version_string): Likewise.
+	* mmo.c (mmo_get_symbol_version_string): Likewise.
+	* nlm-target.h (nlm_get_symbol_version_string): Likewise.
+	* oasys.c (oasys_get_symbol_version_string): Likewise.
+	* pef.c (bfd_pef_get_symbol_version_string): Likewise.
+	* plugin.c (bfd_plugin_get_symbol_version_string): Likewise.
+	* ppcboot.c (ppcboot_get_symbol_version_string): Likewise.
+	* som.c (som_get_symbol_version_string): Likewise.
+	* srec.c (srec_get_symbol_version_string): Likewise.
+	* tekhex.c (tekhex_get_symbol_version_string): Likewise.
+	* versados.c (versados_get_symbol_version_string): Likewise.
+	* vms-alpha.c (alpha_vms_get_symbol_version_string): Likewise.
+	* xsym.c (bfd_sym_get_symbol_version_string): Likewise.
+
+	* coff64-rs6000.c (rs6000_xcoff64_vec): Use
+	coff_get_symbol_version_string.
+	(rs6000_xcoff64_aix_vec): Likewise.
+
+	* elf-bfd.h (bfd_elf_get_symbol_version_string): Renamed to ...
+	(_bfd_elf_get_symbol_version_string): This.
+	* elf.c: Likewise.
+	(bfd_elf_print_symbol): Updated.
+	* elfxx-target.h (bfd_elfNN_get_symbol_version_string): Define.
+
+	* libbfd-in.h (_bfd_nosymbols_get_symbol_version_string): Define.
+	* libcoff-in.h (coff_get_symbol_version_string): Likewise.
+	* bfd-in2.h: Regenerated.
+	* libbfd.h: Likewise.
+	* libcoff.h: Likewise.
+
+2014-11-25  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR binutils/16496
+	* elf-bfd.h (bfd_elf_get_symbol_version_string): New.
+	* elf.c (bfd_elf_get_symbol_version_string): New.  Extracted
+	from bfd_elf_print_symbol.
+	(bfd_elf_print_symbol): Use it.
+
 2014-11-25  H.J. Lu  <hongjiu.lu@intel.com>
 
 	* elf32-i386.c (elf_i386_got_plt_entry): New.
