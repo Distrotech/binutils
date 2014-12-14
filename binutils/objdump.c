@@ -51,6 +51,7 @@
 #include "sysdep.h"
 #include "bfd.h"
 #include "elf-bfd.h"
+#include "coff-bfd.h"
 #include "progress.h"
 #include "bucomm.h"
 #include "elfcomm.h"
@@ -2360,6 +2361,7 @@ free_debug_section (enum dwarf_section_display_enum debug)
 	{
 	  sec->contents = NULL;
 	  sec->flags &= ~ SEC_IN_MEMORY;
+	  sec->compress_status = COMPRESS_SECTION_NONE;
 	}
     }
 
@@ -3425,7 +3427,15 @@ display_any_bfd (bfd *file, int level)
 	  display_any_bfd (arfile, level + 1);
 
 	  if (last_arfile != NULL)
-	    bfd_close (last_arfile);
+	    {
+	      bfd_close (last_arfile);
+	      /* PR 17512: file: ac585d01.  */
+	      if (arfile == last_arfile)
+		{
+		  last_arfile = NULL;
+		  break;
+		}
+	    }
 	  last_arfile = arfile;
 	}
 

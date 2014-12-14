@@ -36,6 +36,25 @@ esac
 AM_CONDITIONAL(GMAKE, test "$MAKE_IS_GNU" = yes)
 AC_PROG_MAKE_SET
 
+# Enable gdbtk.
+AC_ARG_ENABLE(gdbtk,
+[  --enable-gtk            enable gdbtk graphical user interface (GUI)],,
+  [if test -d $srcdir/../gdbtk && test -d $srcdir/gdb.gdbtk; then
+    enable_gdbtk=yes
+  else
+    enable_gdbtk=no
+  fi])
+# We unconditionally disable gdbtk tests on selected platforms.
+case $host_os in
+  go32* | windows*)
+    enable_gdbtk=no ;;
+esac
+
+# Add gdbtk tests when appropriate.
+if test $enable_gdbtk = yes; then
+   AC_CONFIG_SUBDIRS(gdb.gdbtk)
+fi
+
 # Enable shared libraries.
 AC_ARG_ENABLE(shared,
 [  --enable-shared         build shared libraries [deault=yes]],,
@@ -80,9 +99,9 @@ AC_SUBST(EXTRA_RULES)
 AC_OUTPUT([Makefile \
   gdb.ada/Makefile \
   gdb.arch/Makefile gdb.asm/Makefile gdb.base/Makefile gdb.btrace/Makefile \
-  gdb.cell/Makefile gdb.cp/Makefile gdb.disasm/Makefile gdb.dwarf2/Makefile \
-  gdb.dlang/Makefile gdb.fortran/Makefile gdb.gdb/Makefile gdb.go/Makefile \
-  gdb.server/Makefile gdb.java/Makefile \
+  gdb.cell/Makefile gdb.compile/Makefile gdb.cp/Makefile gdb.disasm/Makefile \
+  gdb.dwarf2/Makefile gdb.dlang/Makefile gdb.fortran/Makefile gdb.gdb/Makefile \
+  gdb.go/Makefile gdb.server/Makefile gdb.java/Makefile \
   gdb.hp/Makefile gdb.hp/gdb.objdbg/Makefile gdb.hp/gdb.base-hp/Makefile \
   gdb.hp/gdb.aCC/Makefile gdb.hp/gdb.compat/Makefile \
   gdb.hp/gdb.defects/Makefile gdb.guile/Makefile gdb.linespec/Makefile \

@@ -2518,6 +2518,23 @@ proc skip_libstdcxx_probe_tests {} {
     return $ok
 }
 
+# Return 1 if we should skip tests of the "compile" feature.
+# This must be invoked after the inferior has been started.
+
+proc skip_compile_feature_tests {} {
+    global gdb_prompt
+
+    set result 0
+    gdb_test_multiple "compile code -- ;" "check for working compile command" {
+	"Could not load libcc1.*\r\n$gdb_prompt $" {
+	    set result 1
+	}
+	-re "\r\n$gdb_prompt $" {
+	}
+    }
+    return $result
+}
+
 # Check whether we're testing with the remote or extended-remote
 # targets.
 
@@ -2535,6 +2552,31 @@ proc gdb_is_target_remote {} {
 	}
     }
     return 0
+}
+
+# Return 1 if the current remote target is an instance of our GDBserver, 0
+# otherwise.  Return -1 if there was an error and we can't tell.
+
+gdb_caching_proc target_is_gdbserver {
+    global gdb_prompt
+
+    set is_gdbserver -1
+    set test "Probing for GDBserver"
+
+    gdb_test_multiple "monitor help" $test {
+	-re "The following monitor commands are supported.*Quit GDBserver.*$gdb_prompt $" {
+	    set is_gdbserver 1
+	}
+	-re "$gdb_prompt $" {
+	    set is_gdbserver 0
+	}
+    }
+
+    if { $is_gdbserver == -1 } {
+	verbose -log "Unable to tell whether we are using GDBserver or not."
+    }
+
+    return $is_gdbserver
 }
 
 set compiler_info		"unknown"
@@ -4330,14 +4372,14 @@ gdb_caching_proc gdb_has_argv0 {
 # foo.debug --> foo's debug info
 # foo --> like foo, but with a new .gnu_debuglink section pointing to foo.debug.
 
-# Return the build-id hex string (usually 160 bits as 40 hex characters)
-# converted to the form: .build-id/ab/cdef1234...89.debug
-# Return "" if no build-id found.
-proc build_id_debug_filename_get { exec } {
-    set tmp [standard_output_file "${exec}-tmp"]
+# Fetch the build id from the file.
+# Returns "" if there is none.
+
+proc get_build_id { filename } {
+    set tmp [standard_output_file "${filename}-tmp"]
     set objcopy_program [gdb_find_objcopy]
 
-    set result [catch "exec $objcopy_program -j .note.gnu.build-id -O binary $exec $tmp" output]
+    set result [catch "exec $objcopy_program -j .note.gnu.build-id -O binary $filename $tmp" output]
     verbose "result is $result"
     verbose "output is $output"
     if {$result == 1} {
@@ -4355,6 +4397,17 @@ proc build_id_debug_filename_get { exec } {
     }
     # Convert it to hex.
     binary scan $data H* data
+    return $data
+}
+
+# Return the build-id hex string (usually 160 bits as 40 hex characters)
+# converted to the form: .build-id/ab/cdef1234...89.debug
+# Return "" if no build-id found.
+proc build_id_debug_filename_get { filename } {
+    set data [get_build_id $filename]
+    if { $data == "" } {
+	return ""
+    }
     regsub {^..} $data {\0/} data
     return ".build-id/${data}.debug"
 }

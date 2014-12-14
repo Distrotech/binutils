@@ -1,3 +1,30 @@
+2014-12-12  Phil Muldoon  <pmuldoon@redhat.com>
+	    Jan Kratochvil  <jan.kratochvil@redhat.com>
+
+	* gdb.texinfo (Altering): Update.
+	(Compiling and Injecting Code): New node.
+
+2014-12-12  Doug Evans  <dje@google.com>
+
+	* python.texi (Objfiles In Python): Document gdb.lookup_objfile.
+
+2014-12-12  Andreas Arnez  <arnez@linux.vnet.ibm.com>
+
+	* gdb.texinfo: Document "maint print user-registers".
+
+2014-12-08  Doug Evans  <dje@google.com>
+
+	* python.texi (Objfiles In Python): Document Objfile.owner.
+
+2014-12-04  Doug Evans  <dje@google.com>
+
+	* python.texi (Objfiles In Python): Document
+	Objfile.add_separate_debug_file.
+
+2014-12-04  Doug Evans  <dje@google.com>
+
+	* python.texi (Objfiles In Python): Document Objfile.build_id.
+
 2014-12-02  Nick Bull  <nicholaspbull@gmail.com>
 
 	* python.texi (Events In Python): Document new events

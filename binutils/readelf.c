@@ -149,6 +149,7 @@
 #include "elf/tilepro.h"
 #include "elf/v850.h"
 #include "elf/vax.h"
+#include "elf/visium.h"
 #include "elf/x86-64.h"
 #include "elf/xc16x.h"
 #include "elf/xgate.h"
@@ -754,6 +755,7 @@ guess_is_rela (unsigned int e_machine)
     case EM_V850:
     case EM_CYGNUS_V850:
     case EM_VAX:
+    case EM_VISIUM:
     case EM_X86_64:
     case EM_L1OM:
     case EM_K1OM:
@@ -1342,6 +1344,10 @@ dump_relocations (FILE * file,
 
 	case EM_VAX:
 	  rtype = elf_vax_reloc_type (type);
+	  break;
+
+	case EM_VISIUM:
+	  rtype = elf_visium_reloc_type (type);
 	  break;
 
 	case EM_ADAPTEVA_EPIPHANY:
@@ -2125,6 +2131,7 @@ get_machine_name (unsigned e_machine)
     case EM_SVX:		return "Silicon Graphics SVx";
     case EM_ST19:		return "STMicroelectronics ST19 8-bit microcontroller";
     case EM_VAX:		return "Digital VAX";
+    case EM_VISIUM:		return "CDS VISIUMcore processor";
     case EM_AVR_OLD:
     case EM_AVR:		return "Atmel AVR 8-bit microcontroller";
     case EM_CRIS:		return "Axis Communications 32-bit embedded processor";
@@ -2440,6 +2447,77 @@ decode_ARM_machine_flags (unsigned e_flags, char buf[])
 }
 
 static void
+decode_AVR_machine_flags (unsigned e_flags, char buf[], size_t size)
+{
+  --size; /* Leave space for null terminator.  */
+
+  switch (e_flags & EF_AVR_MACH)
+    {
+    case E_AVR_MACH_AVR1:
+      strncat (buf, ", avr:1", size);
+      break;
+    case E_AVR_MACH_AVR2:
+      strncat (buf, ", avr:2", size);
+      break;
+    case E_AVR_MACH_AVR25:
+      strncat (buf, ", avr:25", size);
+      break;
+    case E_AVR_MACH_AVR3:
+      strncat (buf, ", avr:3", size);
+      break;
+    case E_AVR_MACH_AVR31:
+      strncat (buf, ", avr:31", size);
+      break;
+    case E_AVR_MACH_AVR35:
+      strncat (buf, ", avr:35", size);
+      break;
+    case E_AVR_MACH_AVR4:
+      strncat (buf, ", avr:4", size);
+      break;
+    case E_AVR_MACH_AVR5:
+      strncat (buf, ", avr:5", size);
+      break;
+    case E_AVR_MACH_AVR51:
+      strncat (buf, ", avr:51", size);
+      break;
+    case E_AVR_MACH_AVR6:
+      strncat (buf, ", avr:6", size);
+      break;
+    case E_AVR_MACH_AVRTINY:
+      strncat (buf, ", avr:100", size);
+      break;
+    case E_AVR_MACH_XMEGA1:
+      strncat (buf, ", avr:101", size);
+      break;
+    case E_AVR_MACH_XMEGA2:
+      strncat (buf, ", avr:102", size);
+      break;
+    case E_AVR_MACH_XMEGA3:
+      strncat (buf, ", avr:103", size);
+      break;
+    case E_AVR_MACH_XMEGA4:
+      strncat (buf, ", avr:104", size);
+      break;
+    case E_AVR_MACH_XMEGA5:
+      strncat (buf, ", avr:105", size);
+      break;
+    case E_AVR_MACH_XMEGA6:
+      strncat (buf, ", avr:106", size);
+      break;
+    case E_AVR_MACH_XMEGA7:
+      strncat (buf, ", avr:107", size);
+      break;
+    default:
+      strncat (buf, ", avr:<unknown>", size);
+      break;
+    }
+
+  size -= strlen (buf);
+  if (e_flags & EF_AVR_LINKRELAX_PREPARED)
+    strncat (buf, ", link-relax", size);
+}
+
+static void
 decode_NDS32_machine_flags (unsigned e_flags, char buf[], size_t size)
 {
   unsigned abi;
@@ -2659,6 +2737,10 @@ get_machine_flags (unsigned e_flags, unsigned e_machine)
 	case EM_ARM:
 	  decode_ARM_machine_flags (e_flags, buf);
 	  break;
+
+        case EM_AVR:
+          decode_AVR_machine_flags (e_flags, buf, sizeof buf);
+          break;
 
 	case EM_BLACKFIN:
 	  if (e_flags & EF_BFIN_PIC)
@@ -3125,7 +3207,9 @@ get_machine_flags (unsigned e_flags, unsigned e_machine)
                   strcat (buf, ", abort");
                   break;
                 default:
-                  abort ();
+		  warn (_("Unrecognised IA64 VMS Command Code: %x\n"),
+			e_flags & EF_IA_64_VMS_COMCOD);
+		  strcat (buf, ", <unknown>");
                 }
             }
 	  break;
@@ -3137,6 +3221,15 @@ get_machine_flags (unsigned e_flags, unsigned e_machine)
 	    strcat (buf, ", D-Float");
 	  if ((e_flags & EF_VAX_GFLOAT))
 	    strcat (buf, ", G-Float");
+	  break;
+
+        case EM_VISIUM:
+	  if (e_flags & EF_VISIUM_ARCH_MCM)
+	    strcat (buf, ", mcm");
+	  else if (e_flags & EF_VISIUM_ARCH_MCM24)
+	    strcat (buf, ", mcm24");
+	  if (e_flags & EF_VISIUM_ARCH_GR6)
+	    strcat (buf, ", gr6");
 	  break;
 
 	case EM_RL78:
@@ -3235,6 +3328,7 @@ get_osabi_name (unsigned int osabi)
 
 	  case EM_MSP430:
 	  case EM_MSP430_OLD:
+	  case EM_VISIUM:
 	    switch (osabi)
 	      {
 	      case ELFOSABI_STANDALONE:	return _("Standalone App");
@@ -5089,7 +5183,10 @@ get_elf_section_flags (bfd_vma sh_flags)
 	      if (p != buff + field_size + 4)
 		{
 		  if (size < (10 + 2))
-		    abort ();
+		    {
+		      warn (_("Internal error: not enough buffer room for section flag info"));
+		      return _("<unknown>");
+		    }
 		  size -= 2;
 		  *p++ = ',';
 		  *p++ = ' ';
@@ -5153,7 +5250,10 @@ get_elf_section_flags (bfd_vma sh_flags)
 	  if (p != buff + field_size + 4)
 	    {
 	      if (size < (2 + 1))
-		abort ();
+		{
+		  warn (_("Internal error: not enough buffer room for section flag info"));
+		  return _("<unknown>");
+		}
 	      size -= 2;
 	      *p++ = ',';
 	      *p++ = ' ';
@@ -5168,7 +5268,10 @@ get_elf_section_flags (bfd_vma sh_flags)
 	  if (p != buff + field_size + 4)
 	    {
 	      if (size < (2 + 1))
-		abort ();
+		{
+		  warn (_("Internal error: not enough buffer room for section flag info"));
+		  return _("<unknown>");
+		}
 	      size -= 2;
 	      *p++ = ',';
 	      *p++ = ' ';
@@ -5183,7 +5286,10 @@ get_elf_section_flags (bfd_vma sh_flags)
 	  if (p != buff + field_size + 4)
 	    {
 	      if (size < (2 + 1))
-		abort ();
+		{
+		  warn (_("Internal error: not enough buffer room for section flag info"));
+		  return _("<unknown>");
+		}
 	      size -= 2;
 	      *p++ = ',';
 	      *p++ = ' ';
@@ -6387,6 +6493,7 @@ dump_ia64_unwind (struct ia64_unw_aux_info * aux)
       bfd_vma offset;
       const unsigned char * dp;
       const unsigned char * head;
+      const unsigned char * end;
       const char * procname;
 
       find_symbol_for_address (aux->symtab, aux->nsyms, aux->strtab,
@@ -6409,6 +6516,18 @@ dump_ia64_unwind (struct ia64_unw_aux_info * aux)
       printf ("], info at +0x%lx\n",
 	      (unsigned long) (tp->info.offset - aux->seg_base));
 
+      /* PR 17531: file: 86232b32.  */
+      if (aux->info == NULL)
+	continue;
+
+      /* PR 17531: file: 0997b4d1.  */
+      if ((ABSADDR (tp->info) - aux->info_addr) >= aux->info_size)
+	{
+	  warn (_("Invalid offset %lx in table entry %ld\n"),
+		(long) tp->info.offset, (long) (tp - aux->table));
+	  continue;
+	}
+
       head = aux->info + (ABSADDR (tp->info) - aux->info_addr);
       stamp = byte_get ((unsigned char *) head, sizeof (stamp));
 
@@ -6426,12 +6545,16 @@ dump_ia64_unwind (struct ia64_unw_aux_info * aux)
 	}
 
       in_body = 0;
-      for (dp = head + 8; dp < head + 8 + eh_addr_size * UNW_LENGTH (stamp);)
+      end = head + 8 + eh_addr_size * UNW_LENGTH (stamp);
+      /* PR 17531: file: 16ceda89.  */
+      if (end > aux->info + aux->info_size)
+	end = aux->info + aux->info_size;
+      for (dp = head + 8; dp < end;)
 	dp = unw_decode (dp, in_body, & in_body);
     }
 }
 
-static int
+static bfd_boolean
 slurp_ia64_unwind_table (FILE * file,
 			 struct ia64_unw_aux_info * aux,
 			 Elf_Internal_Shdr * sec)
@@ -6447,13 +6570,15 @@ slurp_ia64_unwind_table (FILE * file,
   Elf_Internal_Sym * sym;
   const char * relname;
 
+  aux->table_len = 0;
+
   /* First, find the starting address of the segment that includes
      this section: */
 
   if (elf_header.e_phnum)
     {
       if (! get_program_headers (file))
-	  return 0;
+	  return FALSE;
 
       for (seg = program_headers;
 	   seg < program_headers + elf_header.e_phnum;
@@ -6476,12 +6601,14 @@ slurp_ia64_unwind_table (FILE * file,
   table = (unsigned char *) get_data (NULL, file, sec->sh_offset, 1, size,
                                       _("unwind table"));
   if (!table)
-    return 0;
+    return FALSE;
 
+  aux->table_len = size / (3 * eh_addr_size);
   aux->table = (struct ia64_unw_table_entry *)
-      xcmalloc (size / (3 * eh_addr_size), sizeof (aux->table[0]));
+    xcmalloc (aux->table_len, sizeof (aux->table[0]));
   tep = aux->table;
-  for (tp = table; tp < table + size; ++tep)
+
+  for (tp = table; tp <= table + size - (3 * eh_addr_size); ++tep)
     {
       tep->start.section = SHN_UNDEF;
       tep->end.section   = SHN_UNDEF;
@@ -6507,7 +6634,12 @@ slurp_ia64_unwind_table (FILE * file,
 
       if (!slurp_rela_relocs (file, relsec->sh_offset, relsec->sh_size,
 			      & rela, & nrelas))
-	return 0;
+	{
+	  free (aux->table);
+	  aux->table = NULL;
+	  aux->table_len = 0;
+	  return FALSE;
+	}
 
       for (rp = rela; rp < rela + nrelas; ++rp)
 	{
@@ -6522,7 +6654,14 @@ slurp_ia64_unwind_table (FILE * file,
 
 	  i = rp->r_offset / (3 * eh_addr_size);
 
-	  switch (rp->r_offset/eh_addr_size % 3)
+	  /* PR 17531: file: 5bc8d9bf.  */
+	  if (i >= aux->table_len)
+	    {
+	      warn (_("Skipping reloc with overlarge offset: %lx\n"), i);
+	      continue;
+	    }
+
+	  switch (rp->r_offset / eh_addr_size % 3)
 	    {
 	    case 0:
 	      aux->table[i].start.section = sym->st_shndx;
@@ -6544,8 +6683,7 @@ slurp_ia64_unwind_table (FILE * file,
       free (rela);
     }
 
-  aux->table_len = size / (3 * eh_addr_size);
-  return 1;
+  return TRUE;
 }
 
 static void
@@ -6682,9 +6820,8 @@ ia64_process_unwind (FILE * file)
 		  (unsigned long) unwsec->sh_offset,
 		  (unsigned long) (unwsec->sh_size / (3 * eh_addr_size)));
 
-	  (void) slurp_ia64_unwind_table (file, & aux, unwsec);
-
-	  if (aux.table_len > 0)
+	  if (slurp_ia64_unwind_table (file, & aux, unwsec)
+	      && aux.table_len > 0)
 	    dump_ia64_unwind (& aux);
 
 	  if (aux.table)
@@ -9303,7 +9440,6 @@ process_version_sections (FILE * file)
 		/* Check for overflow.  */
 		if (ent.vn_aux > (size_t) (endbuf - vstart))
 		  break;
-
 		vstart += ent.vn_aux;
 
 		for (j = 0, isum = idx + ent.vn_aux; j < ent.vn_cnt; ++j)
@@ -9332,9 +9468,14 @@ process_version_sections (FILE * file)
 			    get_ver_flags (aux.vna_flags), aux.vna_other);
 
 		    /* Check for overflow.  */
-		    if (aux.vna_next > (size_t) (endbuf - vstart))
-		      break;
-
+		    if (aux.vna_next > (size_t) (endbuf - vstart)
+			|| (aux.vna_next == 0 && j < ent.vn_cnt - 1))
+		      {
+			warn (_("Invalid vna_next field of %lx\n"),
+			      aux.vna_next);
+			j = ent.vn_cnt;
+			break;
+		      }
 		    isum   += aux.vna_next;
 		    vstart += aux.vna_next;
 		  }
@@ -9711,7 +9852,9 @@ get_symbol_visibility (unsigned int visibility)
     case STV_INTERNAL:	return "INTERNAL";
     case STV_HIDDEN:	return "HIDDEN";
     case STV_PROTECTED: return "PROTECTED";
-    default: abort ();
+    default:
+      error (_("Unrecognized visibility value: %u"), visibility);
+      return _("<unknown>");
     }
 }
 
@@ -9766,7 +9909,10 @@ get_ia64_symbol_other (unsigned int other)
               strcat (res, " RSV");
               break;
             default:
-              abort ();
+	      warn (_("Unrecognized IA64 VMS ST Function type: %d\n"),
+		    VMS_ST_FUNC_TYPE (other));
+	      strcat (res, " <unknown>");
+	      break;
             }
           break;
         default:
@@ -9787,7 +9933,10 @@ get_ia64_symbol_other (unsigned int other)
           strcat (res, " LNK");
           break;
         default:
-          abort ();
+	  warn (_("Unrecognized IA64 VMS ST Linkage: %d\n"),
+		VMS_ST_LINKAGE (other));
+	  strcat (res, " <unknown>");
+	  break;
         }
 
       if (res[0] != 0)
@@ -10005,7 +10154,8 @@ get_symbol_version_string (FILE *file, int is_dynsym,
 
       vers_data = byte_get (data, 2);
 
-      is_nobits = (psym->st_shndx < elf_header.e_shnum
+      is_nobits = (section_headers != NULL
+		   && psym->st_shndx < elf_header.e_shnum
 		   && section_headers[psym->st_shndx].sh_type
 		   == SHT_NOBITS);
 
@@ -10971,6 +11121,8 @@ is_32bit_abs_reloc (unsigned int reloc_type)
       return reloc_type == 0x33; /* R_V810_WORD.  */
     case EM_VAX:
       return reloc_type == 1; /* R_VAX_32.  */
+    case EM_VISIUM:
+      return reloc_type == 3;  /* R_VISIUM_32. */
     case EM_X86_64:
     case EM_L1OM:
     case EM_K1OM:
@@ -10986,9 +11138,16 @@ is_32bit_abs_reloc (unsigned int reloc_type)
     case EM_XTENSA:
       return reloc_type == 1; /* R_XTENSA_32.  */
     default:
-      error (_("Missing knowledge of 32-bit reloc types used in DWARF sections of machine number %d\n"),
-	     elf_header.e_machine);
-      abort ();
+      {
+	static unsigned int prev_warn = 0;
+
+	/* Avoid repeating the same warning multiple times.  */
+	if (prev_warn != elf_header.e_machine)
+	  error (_("Missing knowledge of 32-bit reloc types used in DWARF sections of machine number %d\n"),
+		 elf_header.e_machine);
+	prev_warn = elf_header.e_machine;
+	return FALSE;
+      }
     }
 }
 
@@ -11038,6 +11197,8 @@ is_32bit_pcrel_reloc (unsigned int reloc_type)
       return reloc_type == 6; /* R_TILEGX_32_PCREL.  */
     case EM_TILEPRO:
       return reloc_type == 4; /* R_TILEPRO_32_PCREL.  */
+    case EM_VISIUM:
+      return reloc_type == 6;  /* R_VISIUM_32_PCREL */
     case EM_X86_64:
     case EM_L1OM:
     case EM_K1OM:
@@ -11195,6 +11356,8 @@ is_16bit_abs_reloc (unsigned int reloc_type)
     case EM_CYGNUS_MN10300:
     case EM_MN10300:
       return reloc_type == 2; /* R_MN10300_16.  */
+    case EM_VISIUM:
+      return reloc_type == 2; /* R_VISIUM_16. */
     case EM_XGATE:
       return reloc_type == 3; /* R_XGATE_16.  */
     default:
@@ -11347,8 +11510,11 @@ apply_relocations (void * file,
 	    reloc_size = 2;
 	  else
 	    {
-	      warn (_("unable to apply unsupported reloc type %d to section %s\n"),
-		    reloc_type, printable_section_name (section));
+	      static unsigned int prev_reloc = 0;
+	      if (reloc_type != prev_reloc)
+		warn (_("unable to apply unsupported reloc type %d to section %s\n"),
+		      reloc_type, printable_section_name (section));
+	      prev_reloc = reloc_type;
 	      continue;
 	    }
 
@@ -12255,7 +12421,8 @@ display_arm_attribute (unsigned char * p,
 	      break;
 
 	    default:
-	      abort ();
+	      printf (_("<unknown: %d>\n"), tag);
+	      break;
 	    }
 	  return p;
 

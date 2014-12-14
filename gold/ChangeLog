@@ -1,3 +1,39 @@
+2014-12-10  Jing Yu  <jingyu@google.com>
+
+	* aarch64.cc (Target_aarch64): Add new variable stub_group_size_.
+	(AArch64_relocate_functions::maybe_apply_stub): Add new parameter.
+	Update error message.
+	(Target_aarch64::do_relax): Use absolute value of option
+	stub_group_size. Replace local variable with class member
+	stub_group_size_.
+
+2014-12-04  Alan Modra  <amodra@gmail.com>
+
+	* powerpc.cc (Target_powerpc::Branch_info::make_stub): Ignore
+	addend of PLTREL24 reloc when not generating a plt stub.  Make
+	max_branch_offset an "Address".
+	(Stub_table::can_reach_stub): Make max_branch_offset an "Address".
+	(Target_powerpc::Relocate::relocate): Likewise.
+
+2014-12-04  Alan Modra  <amodra@gmail.com>
+
+	PR 17670
+	* symtab.cc (Symbol::set_undefined): Remove assertion.
+	* powerpc.cc (Target_powerpc::symval_for_branch): Don't assert
+	on symbols defined in discarded sections, instead return false.
+	Rearrange params, update all callers.
+	(Target_powerpc::Branch_info::make_stub): Don't make stubs for
+	branches to syms in discarded sections.
+	(Global_symbol_visitor_opd::operator()): Set discarded opd syms
+	undefined and flag as discarded.
+	(Target_powerpc::Relocate::relocate): Localize variable.
+
+2014-12-03  H.J. Lu  <hongjiu.lu@intel.com>
+
+	PR gold/17675
+	* testsuite/Makefile.am (pie_copyrelocs_test_CXXFLAGS): New.
+	* testsuite/Makefile.in: Regenerated.
+
 2014-12-03  Alan Modra  <amodra@gmail.com>
 
 	PR 17566
