@@ -4470,22 +4470,46 @@ Target_x86_64<size>::do_calls_non_split(Relobj* object, unsigned int shndx,
   // The function starts with a comparison of the stack pointer and a
   // field in the TCB.  This is followed by a jump.
 
-  // cmp %fs:NN,%rsp
-  if (this->match_view(view, view_size, fnoffset, "\x64\x48\x3b\x24\x25", 5)
-      && fnsize > 9)
+  const char *cmp_insn, *lea_r10_insn, *lea_r11_insn;
+  size_t cmp_insn_len, nop_insn_len;
+
+  if (size == 32)
+    {
+      // For X32
+      // cmp %fs:NN,%esp
+      cmp_insn = "\x64\x3b\x24\x25";
+      cmp_insn_len = 4;
+      // lea NN(%rsp),%r10d
+      // lea NN(%rsp),%r11d
+      lea_r10_insn = "\x44\x8d\x94\x24";
+      lea_r11_insn = "\x44\x8d\x9c\x24";
+      nop_insn_len = 7;
+    }
+  else
+    {
+      // cmp %fs:NN,%rsp
+      cmp_insn = "\x64\x48\x3b\x24\x25";
+      cmp_insn_len = 5;
+      // lea NN(%rsp),%r10
+      // lea NN(%rsp),%r11
+      lea_r10_insn = "\x4c\x8d\x94\x24";
+      lea_r11_insn = "\x4c\x8d\x9c\x24";
+      nop_insn_len = 8;
+    }
+
+  if (this->match_view(view, view_size, fnoffset, cmp_insn, cmp_insn_len)
+      && fnsize > (nop_insn_len + 1))
     {
       // We will call __morestack if the carry flag is set after this
       // comparison.  We turn the comparison into an stc instruction
       // and some nops.
       view[fnoffset] = '\xf9';
-      this->set_view_to_nop(view, view_size, fnoffset + 1, 8);
+      this->set_view_to_nop(view, view_size, fnoffset + 1, nop_insn_len);
     }
-  // lea NN(%rsp),%r10
-  // lea NN(%rsp),%r11
   else if ((this->match_view(view, view_size, fnoffset,
-			     "\x4c\x8d\x94\x24", 4)
+			     lea_r10_insn, 4)
 	    || this->match_view(view, view_size, fnoffset,
-				"\x4c\x8d\x9c\x24", 4))
+				lea_r11_insn, 4))
 	   && fnsize > 8)
     {
       // This is loading an offset from the stack pointer for a
