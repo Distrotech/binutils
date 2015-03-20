@@ -564,6 +564,8 @@ struct bfd_section_already_linked;
 struct bfd_elf_version_tree;
 #endif
 
+extern bfd_boolean _bfd_link_keep_memory (struct bfd_link_info *);
+
 extern bfd_boolean bfd_section_already_linked_table_init (void);
 extern void bfd_section_already_linked_table_free (void);
 extern bfd_boolean _bfd_handle_already_linked

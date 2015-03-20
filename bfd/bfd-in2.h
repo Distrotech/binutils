@@ -571,6 +571,8 @@ struct bfd_section_already_linked;
 struct bfd_elf_version_tree;
 #endif
 
+extern bfd_boolean _bfd_link_keep_memory (struct bfd_link_info *);
+
 extern bfd_boolean bfd_section_already_linked_table_init (void);
 extern void bfd_section_already_linked_table_free (void);
 extern bfd_boolean _bfd_handle_already_linked
@@ -6482,6 +6484,9 @@ struct bfd
   /* A field used by _bfd_generic_link_add_archive_symbols.  This will
      be used only for archive elements.  */
   int archive_pass;
+
+  /* The total size of memory from bfd_alloc.  */
+  bfd_size_type alloc_size;
 
   /* Stuff only useful for object files:
      The start address.  */

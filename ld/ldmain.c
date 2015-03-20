@@ -21,6 +21,7 @@
 
 #include "sysdep.h"
 #include "bfd.h"
+#include "bfd_stdint.h"
 #include "safe-ctype.h"
 #include "libiberty.h"
 #include "progress.h"
@@ -275,6 +276,8 @@ main (int argc, char **argv)
 
   link_info.allow_undefined_version = TRUE;
   link_info.keep_memory = TRUE;
+  /* Limit the allocated memory size to half of the address space.  */
+  link_info.max_alloc_size = ((uintptr_t) (void *) -1) / 2;
   link_info.combreloc = TRUE;
   link_info.strip_discarded = TRUE;
   link_info.emit_hash = TRUE;

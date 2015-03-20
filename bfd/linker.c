@@ -3303,3 +3303,36 @@ bfd_hide_sym_by_version (struct bfd_elf_version_tree *verdefs,
   bfd_find_version_for_sym (verdefs, sym_name, &hidden);
   return hidden;
 }
+
+bfd_boolean
+_bfd_link_keep_memory (struct bfd_link_info * info)
+{
+  bfd *abfd;
+  bfd_size_type size;
+
+  if (!info->keep_memory)
+    return FALSE;
+
+  /* Keep allocated memory size below limit only for 32-bit hosts.  */
+  if (sizeof (void *) > 4)
+    return TRUE;
+
+  abfd = info->input_bfds;
+  size = info->cache_size;
+  do
+    {
+      if (size >= info->max_alloc_size)
+	{
+	  /* Over the limit.  Reduce the memory usage.  */
+	  info->keep_memory = FALSE;
+	  return FALSE;
+	}
+      if (!abfd)
+	break;
+      size += abfd->alloc_size;
+      abfd = abfd->link.next;
+    }
+  while (1);
+
+  return TRUE;
+}

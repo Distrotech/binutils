@@ -544,6 +544,13 @@ struct bfd_link_info
 
   /* The version information.  */
   struct bfd_elf_version_tree *version_info;
+
+  /* Size of cache.  Backend can use it to keep strace cache size.   */
+  bfd_size_type cache_size;
+
+  /* The maximum size of allocated memory.  Backend can use cache_size
+     and and max_alloc_size to decide if keep_memory should be honored.  */
+  bfd_size_type max_alloc_size;
 };
 
 /* This structures holds a set of callback functions.  These are called

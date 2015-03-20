@@ -2162,14 +2162,16 @@ elf_link_read_relocs_from_section (bfd *abfd,
    according to the KEEP_MEMORY argument.  If O has two relocation
    sections (both REL and RELA relocations), then the REL_HDR
    relocations will appear first in INTERNAL_RELOCS, followed by the
-   RELA_HDR relocations.  */
+   RELA_HDR relocations.  If INFO isn't NULL and KEEP_MEMORY is TRUE,
+   update cache_size.  */
 
 Elf_Internal_Rela *
-_bfd_elf_link_read_relocs (bfd *abfd,
-			   asection *o,
-			   void *external_relocs,
-			   Elf_Internal_Rela *internal_relocs,
-			   bfd_boolean keep_memory)
+_bfd_elf_link_info_read_relocs (bfd *abfd,
+				struct bfd_link_info *info,
+				asection *o,
+				void *external_relocs,
+				Elf_Internal_Rela *internal_relocs,
+				bfd_boolean keep_memory)
 {
   void *alloc1 = NULL;
   Elf_Internal_Rela *alloc2 = NULL;
@@ -2190,7 +2192,11 @@ _bfd_elf_link_read_relocs (bfd *abfd,
       size = o->reloc_count;
       size *= bed->s->int_rels_per_ext_rel * sizeof (Elf_Internal_Rela);
       if (keep_memory)
-	internal_relocs = alloc2 = (Elf_Internal_Rela *) bfd_alloc (abfd, size);
+	{
+	  internal_relocs = alloc2 = (Elf_Internal_Rela *) bfd_alloc (abfd, size);
+	  if (info)
+	    info->cache_size += size;
+	}
       else
 	internal_relocs = alloc2 = (Elf_Internal_Rela *) bfd_malloc (size);
       if (internal_relocs == NULL)
@@ -2254,6 +2260,22 @@ _bfd_elf_link_read_relocs (bfd *abfd,
 	free (alloc2);
     }
   return NULL;
+}
+
+/* This is similar to _bfd_elf_link_info_read_relocs, except for that
+   NULL is passed to _bfd_elf_link_info_read_relocs for pointer to
+   struct bfd_link_info.  */
+
+Elf_Internal_Rela *
+_bfd_elf_link_read_relocs (bfd *abfd,
+			   asection *o,
+			   void *external_relocs,
+			   Elf_Internal_Rela *internal_relocs,
+			   bfd_boolean keep_memory)
+{
+  return _bfd_elf_link_info_read_relocs (abfd, NULL, o, external_relocs,
+					 internal_relocs, keep_memory);
+
 }
 
 /* Compute the size of, and allocate space for, REL_HDR which is the
@@ -4806,8 +4828,10 @@ error_free_dyn:
 	      || bfd_is_abs_section (o->output_section))
 	    continue;
 
-	  internal_relocs = _bfd_elf_link_read_relocs (abfd, o, NULL, NULL,
-						       info->keep_memory);
+	  internal_relocs = _bfd_elf_link_info_read_relocs (abfd, info,
+							    o, NULL,
+							    NULL,
+							    _bfd_link_keep_memory (info));
 	  if (internal_relocs == NULL)
 	    goto error_return;
 
@@ -9717,8 +9741,10 @@ elf_link_input_bfd (struct elf_final_link_info *flinfo, bfd *input_bfd)
 
 	  /* Get the swapped relocs.  */
 	  internal_relocs
-	    = _bfd_elf_link_read_relocs (input_bfd, o, flinfo->external_relocs,
-					 flinfo->internal_relocs, FALSE);
+	    = _bfd_elf_link_info_read_relocs (input_bfd, flinfo->info, o,
+					      flinfo->external_relocs,
+					      flinfo->internal_relocs,
+					      FALSE);
 	  if (internal_relocs == NULL
 	      && o->reloc_count > 0)
 	    return FALSE;
@@ -10902,13 +10928,14 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 
   /* Allocate a buffer to hold swapped out symbols.  This is to avoid
      continuously seeking to the right position in the file.  */
-  if (! info->keep_memory || max_sym_count < 20)
+  if (! _bfd_link_keep_memory (info) || max_sym_count < 20)
     flinfo.symbuf_size = 20;
   else
     flinfo.symbuf_size = max_sym_count;
   amt = flinfo.symbuf_size;
   amt *= bed->s->sizeof_sym;
   flinfo.symbuf = (bfd_byte *) bfd_malloc (amt);
+  info->cache_size += amt;
   if (flinfo.symbuf == NULL)
     goto error_return;
   if (elf_numsections (abfd) > (SHN_LORESERVE & 0xFFFF))
@@ -11695,8 +11722,12 @@ init_reloc_cookie (struct elf_reloc_cookie *cookie,
 	  info->callbacks->einfo (_("%P%X: can not read symbols: %E\n"));
 	  return FALSE;
 	}
-      if (info->keep_memory)
-	symtab_hdr->contents = (bfd_byte *) cookie->locsyms;
+      if (_bfd_link_keep_memory (info) )
+	{
+	  symtab_hdr->contents = (bfd_byte *) cookie->locsyms;
+	  info->cache_size += (cookie->locsymcount
+			       * sizeof (Elf_External_Sym_Shndx));
+	}
     }
   return TRUE;
 }
@@ -11733,8 +11764,9 @@ init_reloc_cookie_rels (struct elf_reloc_cookie *cookie,
     {
       bed = get_elf_backend_data (abfd);
 
-      cookie->rels = _bfd_elf_link_read_relocs (abfd, sec, NULL, NULL,
-						info->keep_memory);
+      cookie->rels = _bfd_elf_link_info_read_relocs (abfd, info, sec,
+						     NULL, NULL,
+						     _bfd_link_keep_memory (info));
       if (cookie->rels == NULL)
 	return FALSE;
       cookie->rel = cookie->rels;
@@ -12202,8 +12234,9 @@ elf_gc_sweep (bfd *abfd, struct bfd_link_info *info)
 	      bfd_boolean r;
 
 	      internal_relocs
-		= _bfd_elf_link_read_relocs (o->owner, o, NULL, NULL,
-					     info->keep_memory);
+		= _bfd_elf_link_info_read_relocs (o->owner, info, o,
+						  NULL, NULL,
+						  _bfd_link_keep_memory (info));
 	      if (internal_relocs == NULL)
 		return FALSE;
 
@@ -12288,14 +12321,21 @@ elf_gc_propagate_vtable_entries_used (struct elf_link_hash_entry *h, void *okp)
   return TRUE;
 }
 
+struct link_info_ok
+{
+  struct bfd_link_info *info;
+  bfd_boolean ok;
+};
+
 static bfd_boolean
-elf_gc_smash_unused_vtentry_relocs (struct elf_link_hash_entry *h, void *okp)
+elf_gc_smash_unused_vtentry_relocs (struct elf_link_hash_entry *h, void *ptr)
 {
   asection *sec;
   bfd_vma hstart, hend;
   Elf_Internal_Rela *relstart, *relend, *rel;
   const struct elf_backend_data *bed;
   unsigned int log_file_align;
+  struct link_info_ok *info = (struct link_info_ok *) ptr;
 
   /* Take care of both those symbols that do not describe vtables as
      well as those that are not loaded.  */
@@ -12309,9 +12349,10 @@ elf_gc_smash_unused_vtentry_relocs (struct elf_link_hash_entry *h, void *okp)
   hstart = h->root.u.def.value;
   hend = hstart + h->size;
 
-  relstart = _bfd_elf_link_read_relocs (sec->owner, sec, NULL, NULL, TRUE);
+  relstart = _bfd_elf_link_info_read_relocs (sec->owner, info->info,
+					     sec, NULL, NULL, TRUE);
   if (!relstart)
-    return *(bfd_boolean *) okp = FALSE;
+    return info->ok = FALSE;
   bed = get_elf_backend_data (sec->owner);
   log_file_align = bed->s->log_file_align;
 
@@ -12397,6 +12438,7 @@ bfd_elf_gc_sections (bfd *abfd, struct bfd_link_info *info)
   elf_gc_mark_hook_fn gc_mark_hook;
   const struct elf_backend_data *bed = get_elf_backend_data (abfd);
   struct elf_link_hash_table *htab;
+  struct link_info_ok info_ok;
 
   if (!bed->can_gc_sections
       || !is_elf_hash_table (info->hash))
@@ -12433,8 +12475,10 @@ bfd_elf_gc_sections (bfd *abfd, struct bfd_link_info *info)
     return FALSE;
 
   /* Kill the vtable relocations that were not used.  */
-  elf_link_hash_traverse (htab, elf_gc_smash_unused_vtentry_relocs, &ok);
-  if (!ok)
+  info_ok.info = info;
+  info_ok.ok = TRUE;
+  elf_link_hash_traverse (htab, elf_gc_smash_unused_vtentry_relocs, &info_ok);
+  if (!info_ok.ok)
     return FALSE;
 
   /* Mark dynamically referenced symbols.  */

@@ -2903,9 +2903,9 @@ elf_x86_64_convert_mov_to_lea (bfd *abfd, asection *sec,
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
 
   /* Load the relocations for this section.  */
-  internal_relocs = (_bfd_elf_link_read_relocs
-		     (abfd, sec, NULL, (Elf_Internal_Rela *) NULL,
-		      link_info->keep_memory));
+  internal_relocs = (_bfd_elf_link_info_read_relocs
+		     (abfd, link_info, sec, NULL, NULL,
+		      _bfd_link_keep_memory (link_info)));
   if (internal_relocs == NULL)
     return FALSE;
 
@@ -2992,12 +2992,13 @@ elf_x86_64_convert_mov_to_lea (bfd *abfd, asection *sec,
   if (contents != NULL
       && elf_section_data (sec)->this_hdr.contents != contents)
     {
-      if (!changed_contents && !link_info->keep_memory)
+      if (!changed_contents && !_bfd_link_keep_memory (link_info))
 	free (contents);
       else
 	{
 	  /* Cache the section contents for elf_link_input_bfd.  */
 	  elf_section_data (sec)->this_hdr.contents = contents;
+	  link_info->cache_size += sec->size;
 	}
     }
 
