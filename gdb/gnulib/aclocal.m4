@@ -589,27 +589,6 @@ if test x"${install_sh}" != xset; then
 fi
 AC_SUBST(install_sh)])
 
-# Copyright (C) 2003, 2005  Free Software Foundation, Inc.
-#
-# This file is free software; the Free Software Foundation
-# gives unlimited permission to copy and/or distribute it,
-# with or without modifications, as long as this notice is preserved.
-
-# serial 2
-
-# Check whether the underlying file-system supports filenames
-# with a leading dot.  For instance MS-DOS doesn't.
-AC_DEFUN([AM_SET_LEADING_DOT],
-[rm -rf .tst 2>/dev/null
-mkdir .tst 2>/dev/null
-if test -d .tst; then
-  am__leading_dot=.
-else
-  am__leading_dot=_
-fi
-rmdir .tst 2>/dev/null
-AC_SUBST([am__leading_dot])])
-
 # Add --enable-maintainer-mode option to configure.         -*- Autoconf -*-
 # From Jim Meyering
 
@@ -1012,7 +991,11 @@ AC_SUBST([am__tar])
 AC_SUBST([am__untar])
 ]) # _AM_PROG_TAR
 
+m4_include([../../config/depstand.m4])
+m4_include([../../config/lead-dot.m4])
+m4_include([../../config/override.m4])
 m4_include([import/m4/00gnulib.m4])
+m4_include([import/m4/absolute-header.m4])
 m4_include([import/m4/alloca.m4])
 m4_include([import/m4/canonicalize.m4])
 m4_include([import/m4/codeset.m4])
@@ -1033,6 +1016,7 @@ m4_include([import/m4/fnmatch.m4])
 m4_include([import/m4/fpieee.m4])
 m4_include([import/m4/frexp.m4])
 m4_include([import/m4/frexpl.m4])
+m4_include([import/m4/gettimeofday.m4])
 m4_include([import/m4/glibc21.m4])
 m4_include([import/m4/gnulib-common.m4])
 m4_include([import/m4/gnulib-comp.m4])
@@ -1074,7 +1058,9 @@ m4_include([import/m4/stdio_h.m4])
 m4_include([import/m4/stdlib_h.m4])
 m4_include([import/m4/string_h.m4])
 m4_include([import/m4/strstr.m4])
+m4_include([import/m4/sys_socket_h.m4])
 m4_include([import/m4/sys_stat_h.m4])
+m4_include([import/m4/sys_time_h.m4])
 m4_include([import/m4/sys_types_h.m4])
 m4_include([import/m4/time_h.m4])
 m4_include([import/m4/unistd_h.m4])
