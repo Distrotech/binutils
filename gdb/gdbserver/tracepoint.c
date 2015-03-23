@@ -2568,11 +2568,12 @@ cmd_qtdp (char *own_buf)
 	}
 
       trace_debug ("Defined %stracepoint %d at 0x%s, "
-		   "enabled %d step %" PRIu64 " pass %" PRIu64,
+		   "enabled %d step %s pass %s",
 		   tpoint->type == fast_tracepoint ? "fast "
 		   : tpoint->type == static_tracepoint ? "static " : "",
 		   tpoint->number, paddress (tpoint->address), tpoint->enabled,
-		   tpoint->step_count, tpoint->pass_count);
+		   pulongest (tpoint->step_count),
+		   pulongest (tpoint->pass_count));
     }
   else if (tpoint)
     add_tracepoint_action (tpoint, packet);
@@ -3440,9 +3441,9 @@ stop_tracing (void)
   if (stopping_tracepoint)
     {
       trace_debug ("Stopping the trace because "
-		   "tracepoint %d was hit %" PRIu64 " times",
+		   "tracepoint %d was hit %s times",
 		   stopping_tracepoint->number,
-		   stopping_tracepoint->pass_count);
+		   pulongest (stopping_tracepoint->pass_count));
       tracing_stop_reason = "tpasscount";
       tracing_stop_tpnum = stopping_tracepoint->number;
     }
@@ -4643,8 +4644,9 @@ collect_data_at_tracepoint (struct tracepoint_hit_ctx *ctx, CORE_ADDR stop_pc,
       && stopping_tracepoint == NULL)
     stopping_tracepoint = tpoint;
 
-  trace_debug ("Making new traceframe for tracepoint %d at 0x%s, hit %" PRIu64,
-	       tpoint->number, paddress (tpoint->address), tpoint->hit_count);
+  trace_debug ("Making new traceframe for tracepoint %d at 0x%s, hit %s",
+	       tpoint->number, paddress (tpoint->address),
+	       pulongest (tpoint->hit_count));
 
   tframe = add_traceframe (tpoint);
 
@@ -4680,10 +4682,10 @@ collect_data_at_step (struct tracepoint_hit_ctx *ctx,
   int acti;
 
   trace_debug ("Making new step traceframe for "
-	       "tracepoint %d at 0x%s, step %d of %" PRIu64 ", hit %" PRIu64,
+	       "tracepoint %d at 0x%s, step %d of %s, hit %s",
 	       tpoint->number, paddress (tpoint->address),
-	       current_step, tpoint->step_count,
-	       tpoint->hit_count);
+	       current_step, pulongest (tpoint->step_count),
+	       pulongest (tpoint->hit_count));
 
   tframe = add_traceframe (tpoint);
 
