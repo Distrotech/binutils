@@ -53,7 +53,7 @@ IMPORTED_GNULIB_MODULES="\
 "
 
 # The gnulib commit ID to use for the update.
-GNULIB_COMMIT_SHA1="8d5bd1402003bd0153984b138735adf537d960b0"
+GNULIB_COMMIT_SHA1="d164bf67cc2d471facdd5d3b09f80f3688b3a21b"
 
 # The expected version number for the various auto tools we will
 # use after the import.
@@ -110,7 +110,7 @@ if [ "$ver" != "$AUTOMAKE_VERSION" ]; then
 fi
 
 # Verify that we have the correct version of aclocal.
-ver=`aclocal --version 2>&1 | head -1 | sed 's/.*) //'`
+ver=`aclocal --version 2>&1 | grep -v "called too early to check prototype" | head -1 | sed 's/.*) //'`
 if [ "$ver" != "$ACLOCAL_VERSION" ]; then
    echo "Error: Wrong aclocal version: $ver. Aborting."
    exit 1
