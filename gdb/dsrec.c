@@ -19,7 +19,7 @@
 #include "defs.h"
 #include "serial.h"
 #include "srec.h"
-#include <sys/time.h>
+#include "gdb_sys_time.h"
 #include <time.h>
 #include "gdb_bfd.h"
 

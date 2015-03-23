@@ -31,7 +31,7 @@
 #include "command.h"
 #include "gdbcmd.h"
 #include "symfile.h"		/* for generic load */
-#include <sys/time.h>
+#include "gdb_sys_time.h"
 #include <time.h>		/* for time_t */
 #include "objfiles.h"		/* for ALL_OBJFILES etc.  */
 #include "inferior.h"

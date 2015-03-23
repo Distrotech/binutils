@@ -45,7 +45,7 @@
 #include "filestuff.h"
 #include "rsp-low.h"
 
-#include <sys/time.h>
+#include "gdb_sys_time.h"
 
 #include "event-loop.h"
 #include "event-top.h"
