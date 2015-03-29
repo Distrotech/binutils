@@ -4858,6 +4858,7 @@ lang_size_sections_1
 	      }
 	    else
 	      {
+		bfd_vma savedot;
 		if (os->addr_tree == NULL)
 		  {
 		    /* No address specified for this section, get one
@@ -4914,20 +4915,44 @@ lang_size_sections_1
 		  section_alignment = os->section_alignment;
 
 		/* Align to what the section needs.  */
+		savedot = newdot;
 		if (section_alignment > 0)
-		  {
-		    bfd_vma savedot = newdot;
-		    newdot = align_power (newdot, section_alignment);
+		  newdot = align_power (newdot, section_alignment);
 
-		    dotdelta = newdot - savedot;
-		    if (dotdelta != 0
-			&& (config.warn_section_align
-			    || os->addr_tree != NULL)
-			&& expld.phase != lang_mark_phase_enum)
-		      einfo (_("%P: warning: changing start of section"
-			       " %s by %lu bytes\n"),
-			     os->name, (unsigned long) dotdelta);
+		if (expld.dataseg.first_sec == os->bfd_section)
+		  {
+		    /* If a padding in file will be used for PT_GNU_RELRO
+		       segment, check if we can reduce the padding by
+		       increase the address of the first relro section.
+		       It is a tradeoff between memory size and file size.
+		       We only do it if file size will be reduced by more
+		       than maximum page minus a page and memory size will
+		       be increased by less than a page.  */
+		    bfd_vma pad
+		      = ((newdot - expld.dataseg.min_base)
+			 % expld.dataseg.maxpagesize);
+		    if (pad)
+		      {
+			bfd_vma nextdot
+			  = expld.dataseg.maxpagesize - pad;
+			nextdot = align_power (newdot + nextdot,
+					       section_alignment);
+			if (((nextdot - newdot)
+			     < expld.dataseg.pagesize)
+			    && pad > (expld.dataseg.maxpagesize
+				      - expld.dataseg.pagesize))
+			  newdot = nextdot;
+		      }
 		  }
+
+		dotdelta = newdot - savedot;
+		if (dotdelta != 0
+		    && (config.warn_section_align
+			|| os->addr_tree != NULL)
+		    && expld.phase != lang_mark_phase_enum)
+		  einfo (_("%P: warning: changing start of section"
+			   " %s by %lu bytes\n"),
+			 os->name, (unsigned long) dotdelta);
 
 		bfd_set_section_vma (0, os->bfd_section, newdot);
 
@@ -5409,16 +5434,21 @@ lang_size_sections (bfd_boolean *relax, bfd_boolean check_regions)
 	     and DATA_SEGMENT_RELRO_END can cause excessive padding to
 	     be inserted at DATA_SEGMENT_RELRO_END.  Try to start a
 	     bit lower so that the section alignments will fit in.  */
-	  asection *sec;
+	  asection *sec, *first_sec = NULL;
 	  unsigned int max_alignment_power = 0;
 
 	  /* Find maximum alignment power of sections between
 	     DATA_SEGMENT_ALIGN and DATA_SEGMENT_RELRO_END.  */
-	  for (sec = link_info.output_bfd->sections; sec; sec = sec->next)
-	    if (sec->vma >= expld.dataseg.base
-		&& sec->vma < expld.dataseg.relro_end
-		&& sec->alignment_power > max_alignment_power)
-	      max_alignment_power = sec->alignment_power;
+	  for (sec = link_info.output_bfd->sections;
+	       sec && sec->vma < expld.dataseg.relro_end;
+	       sec = sec->next)
+	    if (sec->vma >= expld.dataseg.base)
+	      {
+		if (first_sec == NULL)
+		  first_sec = sec;
+		if (sec->alignment_power > max_alignment_power)
+		  max_alignment_power = sec->alignment_power;
+	      }
 
 	  if (((bfd_vma) 1 << max_alignment_power) < expld.dataseg.pagesize)
 	    {
@@ -5427,8 +5457,10 @@ lang_size_sections (bfd_boolean *relax, bfd_boolean check_regions)
 		 simply subtracting 1 << max_alignment_power which is
 		 what we used to do here.  */
 	      expld.dataseg.base &= ~((1 << max_alignment_power) - 1);
+	      expld.dataseg.first_sec = first_sec;
 	      lang_reset_memory_regions ();
 	      one_lang_size_sections_pass (relax, check_regions);
+	      expld.dataseg.first_sec = NULL;
 	    }
 	}
       link_info.relro_start = expld.dataseg.base;

@@ -158,6 +158,8 @@ struct ldexp_control {
 
     bfd_vma base, min_base, relro_end, end, pagesize, maxpagesize;
 
+    asection *first_sec;
+
     enum relro_enum relro;
 
     union lang_statement_union *relro_start_stat;
