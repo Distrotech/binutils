@@ -25,6 +25,7 @@
 
 #include "sysdep.h"
 #include "bfd.h"
+#include "elf-bfd.h"
 #include "libbfd.h"
 #include "hashtab.h"
 #include "libiberty.h"
@@ -283,19 +284,29 @@ sec_merge_add (struct sec_merge_hash *tab, const char *str,
 }
 
 static bfd_boolean
-sec_merge_emit (bfd *abfd, struct sec_merge_hash_entry *entry)
+sec_merge_emit (bfd *abfd, struct sec_merge_hash_entry *entry,
+		file_ptr offset)
 {
   struct sec_merge_sec_info *secinfo = entry->secinfo;
   asection *sec = secinfo->sec;
   char *pad = NULL;
   bfd_size_type off = 0;
   int alignment_power = sec->output_section->alignment_power;
+  unsigned char *contents = NULL;
 
   if (alignment_power)
     {
       pad = (char *) bfd_zmalloc ((bfd_size_type) 1 << alignment_power);
       if (pad == NULL)
 	return FALSE;
+    }
+
+  if (bfd_get_flavour (abfd) == bfd_target_elf_flavour)
+    {
+      Elf_Internal_Shdr *hdr
+	= &elf_section_data (sec->output_section)->this_hdr;
+      if (hdr->sh_offset == (file_ptr) -1)
+	contents = hdr->contents;
     }
 
   for (; entry != NULL && entry->secinfo == secinfo; entry = entry->next)
@@ -306,7 +317,12 @@ sec_merge_emit (bfd *abfd, struct sec_merge_hash_entry *entry)
       len = -off & (entry->alignment - 1);
       if (len != 0)
 	{
-	  if (bfd_bwrite (pad, len, abfd) != len)
+	  if (contents)
+	    {
+	      memcpy (contents + offset, pad, len);
+	      offset += len;
+	    }
+	  else if (bfd_bwrite (pad, len, abfd) != len)
 	    goto err;
 	  off += len;
 	}
@@ -314,7 +330,12 @@ sec_merge_emit (bfd *abfd, struct sec_merge_hash_entry *entry)
       str = entry->root.string;
       len = entry->len;
 
-      if (bfd_bwrite (str, len, abfd) != len)
+      if (contents)
+	{
+	  memcpy (contents + offset, str, len);
+	  offset += len;
+	}
+      else if (bfd_bwrite (str, len, abfd) != len)
 	goto err;
 
       off += len;
@@ -322,9 +343,13 @@ sec_merge_emit (bfd *abfd, struct sec_merge_hash_entry *entry)
 
   /* Trailing alignment needed?  */
   off = sec->size - off;
-  if (off != 0
-      && bfd_bwrite (pad, off, abfd) != off)
-    goto err;
+  if (off != 0)
+    {
+      if (contents)
+	memcpy (contents + offset, pad, off);
+      else if (bfd_bwrite (pad, off, abfd) != off)
+	goto err;
+    }
 
   if (pad != NULL)
     free (pad);
@@ -785,6 +810,7 @@ _bfd_write_merged_section (bfd *output_bfd, asection *sec, void *psecinfo)
 {
   struct sec_merge_sec_info *secinfo;
   file_ptr pos;
+  unsigned char *contents;
 
   secinfo = (struct sec_merge_sec_info *) psecinfo;
 
@@ -794,12 +820,42 @@ _bfd_write_merged_section (bfd *output_bfd, asection *sec, void *psecinfo)
   if (secinfo->first_str == NULL)
     return TRUE;
 
-  /* FIXME: octets_per_byte.  */
-  pos = sec->output_section->filepos + sec->output_offset;
-  if (bfd_seek (output_bfd, pos, SEEK_SET) != 0)
-    return FALSE;
+  contents = NULL;
 
-  if (! sec_merge_emit (output_bfd, secinfo->first_str))
+  /* FIXME: octets_per_byte.  */
+  if (bfd_get_flavour (output_bfd) == bfd_target_elf_flavour)
+    {
+      Elf_Internal_Shdr *hdr
+	= &elf_section_data (sec->output_section)->this_hdr;
+      if (hdr->sh_offset == (file_ptr) -1)
+	{
+	  if ((sec->output_section->flags & SEC_ELF_COMPRESS) == 0)
+	    abort ();
+
+	  /* Cache the section contents so that they can be compressed
+	     later.  */
+	  contents = hdr->contents;
+	  if (contents == NULL)
+	    {
+	      /* Use bfd_malloc since it will be freed by
+		 bfd_compress_section_contents.  */
+	      contents = (unsigned char *) bfd_malloc (hdr->sh_size);
+	      if (contents == NULL)
+		return FALSE;
+	      hdr->contents = contents;
+	    }
+	}
+    }
+
+  if (contents == NULL)
+    {
+      pos = sec->output_section->filepos + sec->output_offset;
+      if (bfd_seek (output_bfd, pos, SEEK_SET) != 0)
+	return FALSE;
+    }
+
+  if (! sec_merge_emit (output_bfd, secinfo->first_str,
+			sec->output_offset))
     return FALSE;
 
   return TRUE;
