@@ -257,6 +257,7 @@ static unsigned int  num_cmdline_dump_sects = 0;
    dump_sects_byname list.  */
 static dump_type *   dump_sects = NULL;
 static unsigned int  num_dump_sects = 0;
+static dump_type dump_sects_all = 0;
 
 
 /* How to print a vma value.  */
@@ -3898,6 +3899,8 @@ get_section_type_name (unsigned int sh_type)
 #define OPTION_DWARF_DEPTH	514
 #define OPTION_DWARF_START	515
 #define OPTION_DWARF_CHECK	516
+#define OPTION_HEX_DUMP_ALL	517
+#define OPTION_STRING_DUMP_ALL	518
 
 static struct option options[] =
 {
@@ -3924,8 +3927,10 @@ static struct option options[] =
   {"unwind",	       no_argument, 0, 'u'},
   {"archive-index",    no_argument, 0, 'c'},
   {"hex-dump",	       required_argument, 0, 'x'},
+  {"hex-dump-all",     no_argument, 0, OPTION_HEX_DUMP_ALL},
   {"relocated-dump",   required_argument, 0, 'R'},
   {"string-dump",      required_argument, 0, 'p'},
+  {"string-dump-all",  no_argument, 0, OPTION_STRING_DUMP_ALL},
 #ifdef SUPPORT_DISASSEMBLY
   {"instruction-dump", required_argument, 0, 'i'},
 #endif
@@ -3969,8 +3974,10 @@ usage (FILE * stream)
   -D --use-dynamic       Use the dynamic section info when displaying symbols\n\
   -x --hex-dump=<number|name>\n\
                          Dump the contents of section <number|name> as bytes\n\
+  --hex-dump-all         Dump the contents of all sections as bytes\n\
   -p --string-dump=<number|name>\n\
                          Dump the contents of section <number|name> as strings\n\
+  --string-dump-all      Dump the contents of all sections as strings\n\
   -R --relocated-dump=<number|name>\n\
                          Dump the contents of section <number|name> as relocated bytes\n\
   -w[lLiaprmfFsoRt] or\n\
@@ -4160,8 +4167,16 @@ parse_args (int argc, char ** argv)
 	case 'x':
 	  request_dump (HEX_DUMP);
 	  break;
+	case OPTION_HEX_DUMP_ALL:
+	  do_dump++;
+	  dump_sects_all |= HEX_DUMP;
+	  break;
 	case 'p':
 	  request_dump (STRING_DUMP);
+	  break;
+	case OPTION_STRING_DUMP_ALL:
+	  do_dump++;
+	  dump_sects_all |= STRING_DUMP;
 	  break;
 	case 'R':
 	  request_dump (RELOC_DUMP);
@@ -12272,23 +12287,29 @@ process_section_contents (FILE * file)
   initialise_dumps_byname ();
 
   for (i = 0, section = section_headers;
-       i < elf_header.e_shnum && i < num_dump_sects;
+       i < elf_header.e_shnum && (dump_sects_all || i < num_dump_sects);
        i++, section++)
     {
+      if (section->sh_type == SHT_NULL)
+	continue;
+
 #ifdef SUPPORT_DISASSEMBLY
-      if (dump_sects[i] & DISASS_DUMP)
+      if ((dump_sects_all & DISASS_DUMP)
+	  || (i < num_dump_sects && (dump_sects[i] & DISASS_DUMP)))
 	disassemble_section (section, file);
 #endif
-      if (dump_sects[i] & HEX_DUMP)
+      if ((dump_sects_all & HEX_DUMP)
+	  || (i < num_dump_sects && (dump_sects[i] & HEX_DUMP)))
 	dump_section_as_bytes (section, file, FALSE);
 
-      if (dump_sects[i] & RELOC_DUMP)
+      if (i < num_dump_sects && (dump_sects[i] & RELOC_DUMP))
 	dump_section_as_bytes (section, file, TRUE);
 
-      if (dump_sects[i] & STRING_DUMP)
+      if ((dump_sects_all & STRING_DUMP)
+	  || (i < num_dump_sects && (dump_sects[i] & STRING_DUMP)))
 	dump_section_as_strings (section, file);
 
-      if (dump_sects[i] & DEBUG_DUMP)
+      if (i < num_dump_sects && (dump_sects[i] & DEBUG_DUMP))
 	display_debug_section (i, section, file);
     }
 
