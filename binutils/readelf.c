@@ -12076,11 +12076,15 @@ load_specific_debug_section (enum dwarf_section_display_enum debug,
 
   /* If it is already loaded, do nothing.  */
   if (section->start != NULL)
-    return 1;
+    {
+      if (section->user_data == sec && section->size == sec->sh_size)
+	return 1;
+      free_debug_section (debug);
+    }
 
   snprintf (buf, sizeof (buf), _("%s section data"), section->name);
   section->address = sec->sh_addr;
-  section->user_data = NULL;
+  section->user_data = sec;
   section->start = (unsigned char *) get_data (NULL, (FILE *) file,
                                                sec->sh_offset, 1,
                                                sec->sh_size, buf);
@@ -12146,12 +12150,6 @@ load_debug_section (enum dwarf_section_display_enum debug, void * file)
   if (sec == NULL)
     return 0;
 
-  /* If we're loading from a subset of sections, and we've loaded
-     a section matching this name before, it's likely that it's a
-     different one.  */
-  if (section_subset != NULL)
-    free_debug_section (debug);
-
   return load_specific_debug_section (debug, sec, (FILE *) file);
 }
 
@@ -12205,10 +12203,6 @@ display_debug_section (int shndx, Elf_Internal_Shdr * section, FILE * file)
         || streq (debug_displays[i].section.compressed_name, name))
       {
 	struct dwarf_section * sec = &debug_displays [i].section;
-	int secondary = (section != find_section (name));
-
-	if (secondary)
-	  free_debug_section ((enum dwarf_section_display_enum) i);
 
 	if (i == line && const_strneq (name, ".debug_line."))
 	  sec->name = name;
@@ -12226,9 +12220,6 @@ display_debug_section (int shndx, Elf_Internal_Shdr * section, FILE * file)
 	    result &= debug_displays[i].display (sec, file);
 
 	    section_subset = NULL;
-
-	    if (secondary || (i != info && i != abbrev))
-	      free_debug_section ((enum dwarf_section_display_enum) i);
 	  }
 
 	break;
