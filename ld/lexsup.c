@@ -1677,6 +1677,10 @@ elf_shlib_list_options (FILE *file)
   fprintf (file, _("\
   -z nocombreloc              Don't merge dynamic relocs into one section\n"));
   fprintf (file, _("\
+  -z extern-protected-data    Treat protected data symbol as external\n"));
+  fprintf (file, _("\
+  -z noextern-protected-data  Don't treat protected data symbol as external\n"));
+  fprintf (file, _("\
   -z global                   Make symbols in DSO available for subsequently\n\
 			       loaded objects\n"));
   fprintf (file, _("\

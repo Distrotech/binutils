@@ -2335,6 +2335,10 @@ fragment <<EOF
 	link_info.error_textrel = FALSE;
       else if (strcmp (optarg, "textoff") == 0)
 	link_info.error_textrel = FALSE;
+      else if (strcmp (optarg, "extern-protected-data") == 0)
+	link_info.extern_protected_data = 1;
+      else if (strcmp (optarg, "noextern-protected-data") == 0)
+	link_info.extern_protected_data = 0;
 EOF
 fi
 
