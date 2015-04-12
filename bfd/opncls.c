@@ -784,7 +784,10 @@ bfd_close_all_done (bfd *abfd)
   ret = bfd_cache_close (abfd);
 
   if (ret)
-    _maybe_make_executable (abfd);
+    {
+      _maybe_make_executable (abfd);
+      ret = bfd_mmap_close (abfd);
+    }
 
   _bfd_delete_bfd (abfd);
 

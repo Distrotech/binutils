@@ -8535,6 +8535,7 @@ elf_link_flush_output_syms (struct elf_final_link_info *flinfo,
       hdr = &elf_tdata (flinfo->output_bfd)->symtab_hdr;
       pos = hdr->sh_offset + hdr->sh_size;
       amt = flinfo->symbuf_count * bed->s->sizeof_sym;
+      bfd_mmap_resize (flinfo->output_bfd, pos + amt);
       if (bfd_seek (flinfo->output_bfd, pos, SEEK_SET) != 0
 	  || bfd_bwrite (flinfo->symbuf, amt, flinfo->output_bfd) != amt)
 	return FALSE;
@@ -10636,6 +10637,7 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
   asection *attr_section = NULL;
   bfd_vma attr_size = 0;
   const char *std_attrs_section;
+  file_ptr off;
 
   if (! is_elf_hash_table (info->hash))
     return FALSE;
@@ -10883,6 +10885,8 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
       esdo->rela.count = 0;
     }
 
+  off = elf_next_file_pos (abfd);
+  bfd_mmap_resize (abfd, off);
   abfd->output_has_begun = TRUE;
 
   /* We have now assigned file positions for all the sections except
@@ -10924,8 +10928,6 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 
   if (info->strip != strip_all || emit_relocs)
     {
-      file_ptr off = elf_next_file_pos (abfd);
-
       _bfd_elf_assign_file_position_for_section (symtab_hdr, off, TRUE);
 
       /* Note that at this point elf_next_file_pos (abfd) is
@@ -11303,7 +11305,7 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
       /* Finish up and write out the symbol string table (.strtab)
 	 section.  */
       Elf_Internal_Shdr *symstrtab_hdr;
-      file_ptr off = symtab_hdr->sh_offset + symtab_hdr->sh_size;
+      off = symtab_hdr->sh_offset + symtab_hdr->sh_size;
 
       symtab_shndx_hdr = &elf_tdata (abfd)->symtab_shndx_hdr;
       if (symtab_shndx_hdr->sh_name != 0)
@@ -11337,6 +11339,8 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
       off = _bfd_elf_assign_file_position_for_section (symstrtab_hdr,
 						       off, TRUE);
       elf_next_file_pos (abfd) = off;
+
+      bfd_mmap_resize (abfd, off);
 
       if (bfd_seek (abfd, symstrtab_hdr->sh_offset, SEEK_SET) != 0
 	  || ! _bfd_stringtab_emit (abfd, flinfo.symstrtab))
@@ -11602,8 +11606,6 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 	    {
 	      /* The contents of the .dynstr section are actually in a
 		 stringtab.  */
-	      file_ptr off;
-
 	      off = elf_section_data (o->output_section)->this_hdr.sh_offset;
 	      if (bfd_seek (abfd, off, SEEK_SET) != 0
 		  || ! _bfd_elf_strtab_emit (abfd,
