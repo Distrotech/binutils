@@ -3740,9 +3740,9 @@ _bfd_elf_compute_section_file_positions (bfd *abfd,
 	  || ! _bfd_stringtab_emit (abfd, strtab))
 	return FALSE;
       _bfd_stringtab_free (strtab);
-    }
 
-  abfd->output_has_begun = TRUE;
+      abfd->output_has_begun = TRUE;
+    }
 
   return TRUE;
 }
