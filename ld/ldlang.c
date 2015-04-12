@@ -871,10 +871,10 @@ walk_wild_file (lang_wild_statement_type *s,
 	     archive which is included, BFD will call ldlang_add_file,
 	     which will set the usrdata field of the member to the
 	     lang_input_statement.  */
-	  if (member->usrdata != NULL)
+	  if (bfd_usrdata (member) != NULL)
 	    {
 	      walk_wild_section (s,
-				 (lang_input_statement_type *) member->usrdata,
+				 (lang_input_statement_type *) bfd_usrdata (member),
 				 callback, data);
 	    }
 
@@ -6208,7 +6208,7 @@ ldlang_add_file (lang_input_statement_type *entry)
 
   *link_info.input_bfds_tail = entry->the_bfd;
   link_info.input_bfds_tail = &entry->the_bfd->link.next;
-  entry->the_bfd->usrdata = entry;
+  bfd_usrdata (entry->the_bfd) = entry;
   bfd_set_gp_size (entry->the_bfd, g_switch_value);
 
   /* Look through the sections and check for any which should not be

@@ -145,7 +145,10 @@ _bfd_free_cached_info (bfd *abfd)
       abfd->section_last = NULL;
       abfd->outsymbols = NULL;
       abfd->tdata.any = NULL;
-      abfd->usrdata = NULL;
+      if (abfd->direction == write_direction)
+	bfd_usrdata (abfd) = (void *) -1;
+      else
+	bfd_usrdata (abfd) = NULL;
       abfd->memory = NULL;
     }
 
@@ -240,7 +243,10 @@ bfd_fopen (const char *filename, const char *target, const char *mode, int fd)
   else if (mode[0] == 'r')
     nbfd->direction = read_direction;
   else
-    nbfd->direction = write_direction;
+    {
+      nbfd->direction = write_direction;
+      bfd_usrdata (nbfd) = (void *) -1;
+    }
 
   if (! bfd_cache_init (nbfd))
     {
@@ -660,6 +666,7 @@ bfd_openw (const char *filename, const char *target)
      rather make a copy - the original might go away.  */
   nbfd->filename = xstrdup (filename);
   nbfd->direction = write_direction;
+  bfd_usrdata (nbfd) = (void *) -1;
 
   if (bfd_open_file (nbfd) == NULL)
     {
@@ -859,6 +866,7 @@ bfd_make_writable (bfd *abfd)
   abfd->iovec = &_bfd_memory_iovec;
   abfd->origin = 0;
   abfd->direction = write_direction;
+  bfd_usrdata (abfd) = (void *) -1;
   abfd->where = 0;
 
   return TRUE;
@@ -905,7 +913,7 @@ bfd_make_readable (bfd *abfd)
   abfd->opened_once = FALSE;
   abfd->output_has_begun = FALSE;
   abfd->section_count = 0;
-  abfd->usrdata = NULL;
+  bfd_usrdata (abfd) = NULL;
   abfd->cacheable = FALSE;
   abfd->flags |= BFD_IN_MEMORY;
   abfd->mtime_set = FALSE;

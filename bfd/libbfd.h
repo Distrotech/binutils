@@ -901,6 +901,8 @@ struct _bfd_window_internal {
   unsigned mapped : 1;         /* 1 = mmap, 0 = malloc */
 };
 /* Extracted from cache.c.  */
+void bfd_cache_snip (bfd *abfd);
+
 bfd_boolean bfd_cache_init (bfd *abfd);
 
 bfd_boolean bfd_cache_close (bfd *abfd);

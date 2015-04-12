@@ -126,10 +126,19 @@ insert (bfd *abfd)
   bfd_last_cache = abfd;
 }
 
-/* Remove a BFD from the cache.  */
+/*
+INTERNAL_FUNCTION
+	bfd_cache_snip
 
-static void
-snip (bfd *abfd)
+SYNOPSIS
+	void bfd_cache_snip (bfd *abfd);
+
+DESCRIPTION
+	Remove a BFD from the cache.
+*/
+
+void
+bfd_cache_snip (bfd *abfd)
 {
   abfd->lru_prev->lru_next = abfd->lru_next;
   abfd->lru_next->lru_prev = abfd->lru_prev;
@@ -156,7 +165,7 @@ bfd_cache_delete (bfd *abfd)
       bfd_set_error (bfd_error_system_call);
     }
 
-  snip (abfd);
+  bfd_cache_snip (abfd);
 
   abfd->iostream = NULL;
   --open_files;
@@ -231,7 +240,7 @@ bfd_cache_lookup_worker (bfd *abfd, enum cache_flag flag)
       /* Move the file to the start of the cache.  */
       if (abfd != bfd_last_cache)
 	{
-	  snip (abfd);
+	  bfd_cache_snip (abfd);
 	  insert (abfd);
 	}
       return (FILE *) abfd->iostream;
