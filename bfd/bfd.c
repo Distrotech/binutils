@@ -218,9 +218,13 @@ CODE_FRAGMENT
 .  {* Set if this is a plugin output file.  *}
 .  unsigned int lto_output : 1;
 .
-.  {* Set to dummy BFD created when claimed by a compiler plug-in
-.     library.  *}
-.  bfd *plugin_dummy_bfd;
+.  union {
+.    {* For input BFDs, set to dummy BFD created when claimed by a
+.       compiler plug-in library.  *}
+.    bfd *plugin_dummy_bfd;
+.    {* For output BFD, used by mmap.c for mapped size.  *}
+.    file_ptr mmap_size;
+.  } io;
 .
 .  {* Currently my_archive is tested before adding origin to
 .     anything. I believe that this can become always an add of
@@ -325,8 +329,12 @@ CODE_FRAGMENT
 .    }
 .  tdata;
 .
-.  {* Used by the application to hold private data.  *}
-.  void *usrdata;
+.  union {
+.    {* For input BFDs, used by the application to hold private data.  *}
+.    void *usrdata;
+.    {* For output BFD, used by mmap.c for file descriptor.  *}
+.    int mmap_fd;
+.  } u;
 .
 .  {* Where all the allocated stuff under this BFD goes.  This is a
 .     struct objalloc *, but we use void * to avoid requiring the inclusion

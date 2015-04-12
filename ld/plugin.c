@@ -1066,7 +1066,7 @@ plugin_object_p (bfd *ibfd)
   if (ibfd->plugin_format != bfd_plugin_uknown)
     {
       if (ibfd->plugin_format == bfd_plugin_yes)
-	return ibfd->plugin_dummy_bfd->xvec;
+	return ibfd->io.plugin_dummy_bfd->xvec;
       else
 	return NULL;
     }
@@ -1145,7 +1145,7 @@ plugin_object_p (bfd *ibfd)
   if (claimed)
     {
       ibfd->plugin_format = bfd_plugin_yes;
-      ibfd->plugin_dummy_bfd = abfd;
+      ibfd->io.plugin_dummy_bfd = abfd;
       bfd_make_readable (abfd);
       return abfd->xvec;
     }
@@ -1179,7 +1179,7 @@ plugin_maybe_claim (lang_input_statement_type *entry)
 {
   if (plugin_object_p (entry->the_bfd))
     {
-      bfd *abfd = entry->the_bfd->plugin_dummy_bfd;
+      bfd *abfd = entry->the_bfd->io.plugin_dummy_bfd;
 
       /* Discard the real file's BFD and substitute the dummy one.  */
 
