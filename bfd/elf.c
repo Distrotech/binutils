@@ -5339,7 +5339,6 @@ static bfd_boolean
 assign_file_positions_except_relocs (bfd *abfd,
 				     struct bfd_link_info *link_info)
 {
-  struct elf_obj_tdata *tdata = elf_tdata (abfd);
   Elf_Internal_Ehdr *i_ehdrp = elf_elfheader (abfd);
   const struct elf_backend_data *bed = get_elf_backend_data (abfd);
 
@@ -5379,8 +5378,6 @@ assign_file_positions_except_relocs (bfd *abfd,
     }
   else
     {
-      unsigned int alloc;
-
       /* Assign file positions for the loaded sections based on the
 	 assignment of sections to segments.  */
       if (!assign_file_positions_for_load_sections (abfd, link_info))
@@ -5416,12 +5413,6 @@ assign_file_positions_except_relocs (bfd *abfd,
 	  if (p_vaddr)
 	    i_ehdrp->e_type = ET_EXEC;
 	}
-
-      /* Write out the program headers.  */
-      alloc = elf_program_header_size (abfd) / bed->s->sizeof_phdr;
-      if (bfd_seek (abfd, (bfd_signed_vma) bed->s->sizeof_ehdr, SEEK_SET) != 0
-	  || bed->s->write_out_phdrs (abfd, tdata->phdr, alloc) != 0)
-	return FALSE;
     }
 
   return TRUE;
@@ -5571,6 +5562,18 @@ _bfd_elf_write_object_contents (bfd *abfd)
 
   _bfd_elf_assign_file_positions_for_relocs (abfd);
 
+  /* Write out the program headers.  */
+  t = elf_tdata (abfd);
+  if ((abfd->flags & (EXEC_P | DYNAMIC)) != 0
+      || bfd_get_format (abfd) == bfd_core)
+    {
+      unsigned int alloc
+	= elf_program_header_size (abfd) / bed->s->sizeof_phdr;
+      if (bfd_seek (abfd, (bfd_signed_vma) bed->s->sizeof_ehdr, SEEK_SET) != 0
+	  || bed->s->write_out_phdrs (abfd, t->phdr, alloc) != 0)
+	return FALSE;
+    }
+
   /* After writing the headers, we need to write the sections too...  */
   num_sec = elf_numsections (abfd);
   for (count = 1; count < num_sec; count++)
@@ -5588,7 +5591,6 @@ _bfd_elf_write_object_contents (bfd *abfd)
     }
 
   /* Write out the section header names.  */
-  t = elf_tdata (abfd);
   if (elf_shstrtab (abfd) != NULL
       && (bfd_seek (abfd, t->shstrtab_hdr.sh_offset, SEEK_SET) != 0
 	  || !_bfd_elf_strtab_emit (abfd, elf_shstrtab (abfd))))
