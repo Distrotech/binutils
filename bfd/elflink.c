@@ -10883,6 +10883,8 @@ bfd_elf_final_link (bfd *abfd, struct bfd_link_info *info)
       esdo->rela.count = 0;
     }
 
+  abfd->output_has_begun = TRUE;
+
   /* We have now assigned file positions for all the sections except
      .symtab, .strtab, and non-loaded reloc sections.  We start the
      .symtab section at the current file position, and write directly
