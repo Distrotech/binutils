@@ -3734,6 +3734,8 @@ _bfd_elf_compute_section_file_positions (bfd *abfd,
 
       elf_next_file_pos (abfd) = off;
 
+      bfd_mmap_resize (abfd, off);
+
       /* Now that we know where the .strtab section goes, write it
 	 out.  */
       if (bfd_seek (abfd, hdr->sh_offset, SEEK_SET) != 0
@@ -5538,6 +5540,8 @@ _bfd_elf_assign_file_positions_for_relocs (bfd *abfd)
   i_ehdrp->e_shoff = off;
   off += i_ehdrp->e_shnum * i_ehdrp->e_shentsize;
   elf_next_file_pos (abfd) = off;
+
+  bfd_mmap_resize (abfd, off);
 }
 
 bfd_boolean
