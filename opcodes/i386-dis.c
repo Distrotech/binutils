@@ -926,7 +926,9 @@ enum
   PREFIX_0FBD,
   PREFIX_0FC2,
   PREFIX_0FC3,
-  PREFIX_0FC7_REG_6,
+  PREFIX_MOD_0_0FC7_REG_6,
+  PREFIX_MOD_3_0FC7_REG_6,
+  PREFIX_MOD_3_0FC7_REG_7,
   PREFIX_0FD0,
   PREFIX_0FD6,
   PREFIX_0FE6,
@@ -4039,11 +4041,25 @@ static const struct dis386 prefix_table[][4] = {
     { "movntiS", { Ma, Gv }, PREFIX_MANDATORY },
   },
 
-  /* PREFIX_0FC7_REG_6 */
+  /* PREFIX_MOD_0_0FC7_REG_6 */
   {
     { "vmptrld",{ Mq }, 0 },
     { "vmxon",	{ Mq }, 0 },
     { "vmclear",{ Mq }, 0 },
+  },
+
+  /* PREFIX_MOD_3_0FC7_REG_6 */
+  {
+    { "rdrand",	{ Ev }, 0 },
+    { Bad_Opcode },
+    { "rdrand",	{ Ev }, 0 }
+  },
+
+  /* PREFIX_MOD_3_0FC7_REG_7 */
+  {
+    { "rdseed",	{ Ev }, 0 },
+    { Bad_Opcode },
+    { "rdseed",	{ Ev }, 0 },
   },
 
   /* PREFIX_0FD0 */
@@ -11800,13 +11816,13 @@ static const struct dis386 mod_table[][2] = {
   },
   {
     /* MOD_0FC7_REG_6 */
-    { PREFIX_TABLE (PREFIX_0FC7_REG_6) },
-    { "rdrand",		{ Ev }, 0 },
+    { PREFIX_TABLE (PREFIX_MOD_0_0FC7_REG_6) },
+    { PREFIX_TABLE (PREFIX_MOD_3_0FC7_REG_6) }
   },
   {
     /* MOD_0FC7_REG_7 */
     { "vmptrst",	{ Mq }, 0 },
-    { "rdseed",		{ Ev }, 0 },
+    { PREFIX_TABLE (PREFIX_MOD_3_0FC7_REG_7) }
   },
   {
     /* MOD_0FD7 */
