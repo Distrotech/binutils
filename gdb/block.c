@@ -1,6 +1,6 @@
 /* Block-related functions for the GNU debugger, GDB.
 
-   Copyright (C) 2003-2014 Free Software Foundation, Inc.
+   Copyright (C) 2003-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -25,6 +25,7 @@
 #include "cp-support.h"
 #include "addrmap.h"
 #include "gdbtypes.h"
+#include "objfiles.h"
 
 /* This is used by struct block to store namespace-related info for
    C++ files, namely using declarations and the current namespace in
@@ -33,11 +34,36 @@
 struct block_namespace_info
 {
   const char *scope;
-  struct using_direct *using;
+  struct using_direct *using_decl;
 };
 
 static void block_initialize_namespace (struct block *block,
 					struct obstack *obstack);
+
+/* See block.h.  */
+
+struct objfile *
+block_objfile (const struct block *block)
+{
+  const struct global_block *global_block;
+
+  if (BLOCK_FUNCTION (block) != NULL)
+    return symbol_objfile (BLOCK_FUNCTION (block));
+
+  global_block = (struct global_block *) block_global_block (block);
+  return COMPUNIT_OBJFILE (global_block->compunit_symtab);
+}
+
+/* See block.  */
+
+struct gdbarch *
+block_gdbarch (const struct block *block)
+{
+  if (BLOCK_FUNCTION (block) != NULL)
+    return symbol_arch (BLOCK_FUNCTION (block));
+
+  return get_objfile_arch (block_objfile (block));
+}
 
 /* Return Nonzero if block a is lexically nested within block b,
    or if a and b have the same pc range.
@@ -300,7 +326,7 @@ block_using (const struct block *block)
   if (block == NULL || BLOCK_NAMESPACE (block) == NULL)
     return NULL;
   else
-    return BLOCK_NAMESPACE (block)->using;
+    return BLOCK_NAMESPACE (block)->using_decl;
 }
 
 /* Set BLOCK's using member to USING; if needed, allocate memory via
@@ -309,12 +335,12 @@ block_using (const struct block *block)
 
 void
 block_set_using (struct block *block,
-		 struct using_direct *using,
+		 struct using_direct *using_decl,
 		 struct obstack *obstack)
 {
   block_initialize_namespace (block, obstack);
 
-  BLOCK_NAMESPACE (block)->using = using;
+  BLOCK_NAMESPACE (block)->using_decl = using_decl;
 }
 
 /* If BLOCK_NAMESPACE (block) is NULL, allocate it via OBSTACK and
@@ -328,7 +354,7 @@ block_initialize_namespace (struct block *block, struct obstack *obstack)
       BLOCK_NAMESPACE (block)
 	= obstack_alloc (obstack, sizeof (struct block_namespace_info));
       BLOCK_NAMESPACE (block)->scope = NULL;
-      BLOCK_NAMESPACE (block)->using = NULL;
+      BLOCK_NAMESPACE (block)->using_decl = NULL;
     }
 }
 

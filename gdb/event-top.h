@@ -1,6 +1,6 @@
 /* Definitions used by event-top.c, for GDB, the GNU debugger.
 
-   Copyright (C) 1999-2014 Free Software Foundation, Inc.
+   Copyright (C) 1999-2015 Free Software Foundation, Inc.
 
    Written by Elena Zannoni <ezannoni@cygnus.com> of Cygnus Solutions.
 
@@ -27,7 +27,7 @@ struct cmd_list_element;
 /* Exported functions from event-top.c.
    FIXME: these should really go into top.h.  */
 
-extern void display_gdb_prompt (char *new_prompt);
+extern void display_gdb_prompt (const char *new_prompt);
 void gdb_setup_readline (void);
 void gdb_disable_readline (void);
 extern void async_init_signals (void);

@@ -1,5 +1,5 @@
 /* GDB routines for manipulating the minimal symbol tables.
-   Copyright (C) 1992-2014 Free Software Foundation, Inc.
+   Copyright (C) 1992-2015 Free Software Foundation, Inc.
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
    This file is part of GDB.
@@ -203,6 +203,14 @@ lookup_minimal_symbol (const char *name, const char *sfile,
 	     and the second over the demangled hash table.  */
         int pass;
 
+	if (symbol_lookup_debug)
+	  {
+	    fprintf_unfiltered (gdb_stdlog,
+				"lookup_minimal_symbol (%s, %s, %s)\n",
+				name, sfile != NULL ? sfile : "NULL",
+				objfile_debug_name (objfile));
+	  }
+
         for (pass = 1; pass <= 2 && found_symbol.minsym == NULL; pass++)
 	    {
             /* Select hash list according to pass.  */
@@ -282,13 +290,42 @@ lookup_minimal_symbol (const char *name, const char *sfile,
 
   /* External symbols are best.  */
   if (found_symbol.minsym != NULL)
-    return found_symbol;
+    {
+      if (symbol_lookup_debug)
+	{
+	  fprintf_unfiltered (gdb_stdlog,
+			      "lookup_minimal_symbol (...) = %s"
+			      " (external)\n",
+			      host_address_to_string (found_symbol.minsym));
+	}
+      return found_symbol;
+    }
 
   /* File-local symbols are next best.  */
   if (found_file_symbol.minsym != NULL)
-    return found_file_symbol;
+    {
+      if (symbol_lookup_debug)
+	{
+	  fprintf_unfiltered (gdb_stdlog,
+			      "lookup_minimal_symbol (...) = %s"
+			      " (file-local)\n",
+			      host_address_to_string
+			        (found_file_symbol.minsym));
+	}
+      return found_file_symbol;
+    }
 
   /* Symbols for shared library trampolines are next best.  */
+  if (symbol_lookup_debug)
+    {
+      fprintf_unfiltered (gdb_stdlog,
+			  "lookup_minimal_symbol (...) = %s%s\n",
+			  trampoline_symbol.minsym != NULL
+			  ? host_address_to_string (trampoline_symbol.minsym)
+			  : "NULL",
+			  trampoline_symbol.minsym != NULL
+			  ? " (trampoline)" : "");
+    }
   return trampoline_symbol;
 }
 
@@ -513,7 +550,7 @@ lookup_minimal_symbol_by_pc_section_1 (CORE_ADDR pc_in,
 {
   int lo;
   int hi;
-  int new;
+  int newobj;
   struct objfile *objfile;
   struct minimal_symbol *msymbol;
   struct minimal_symbol *best_symbol = NULL;
@@ -580,15 +617,15 @@ lookup_minimal_symbol_by_pc_section_1 (CORE_ADDR pc_in,
 		{
 		  /* pc is still strictly less than highest address.  */
 		  /* Note "new" will always be >= lo.  */
-		  new = (lo + hi) / 2;
-		  if ((MSYMBOL_VALUE_RAW_ADDRESS (&msymbol[new]) >= pc)
-		      || (lo == new))
+		  newobj = (lo + hi) / 2;
+		  if ((MSYMBOL_VALUE_RAW_ADDRESS (&msymbol[newobj]) >= pc)
+		      || (lo == newobj))
 		    {
-		      hi = new;
+		      hi = newobj;
 		    }
 		  else
 		    {
-		      lo = new;
+		      lo = newobj;
 		    }
 		}
 
@@ -938,7 +975,7 @@ prim_record_minimal_symbol_full (const char *name, int name_len, int copy_name,
 				 struct objfile *objfile)
 {
   struct obj_section *obj_section;
-  struct msym_bunch *new;
+  struct msym_bunch *newobj;
   struct minimal_symbol *msymbol;
 
   /* Don't put gcc_compiled, __gnu_compiled_cplus, and friends into
@@ -959,15 +996,15 @@ prim_record_minimal_symbol_full (const char *name, int name_len, int copy_name,
       --name_len;
     }
 
-  if (ms_type == mst_file_text && strncmp (name, "__gnu_compiled", 14) == 0)
+  if (ms_type == mst_file_text && startswith (name, "__gnu_compiled"))
     return (NULL);
 
   if (msym_bunch_index == BUNCH_SIZE)
     {
-      new = XCNEW (struct msym_bunch);
+      newobj = XCNEW (struct msym_bunch);
       msym_bunch_index = 0;
-      new->next = msym_bunch;
-      msym_bunch = new;
+      newobj->next = msym_bunch;
+      msym_bunch = newobj;
     }
   msymbol = &msym_bunch->contents[msym_bunch_index];
   MSYMBOL_SET_LANGUAGE (msymbol, language_auto,

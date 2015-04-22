@@ -1,6 +1,6 @@
 // options.c -- handle command line options for gold
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2015 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -1200,13 +1200,6 @@ General_options::finalize()
   // in the path, as appropriate.
   this->add_sysroot();
 
-  // --dynamic-list overrides -Bsymbolic and -Bsymbolic-functions.
-  if (this->have_dynamic_list())
-    {
-      this->set_Bsymbolic(false);
-      this->set_Bsymbolic_functions(false);
-    }
-
   // Now that we've normalized the options, check for contradictory ones.
   if (this->shared() && this->is_static())
     gold_fatal(_("-shared and -static are incompatible"));
@@ -1263,6 +1256,8 @@ General_options::finalize()
 		     "--emit-relocs"));
       if (this->has_plugins())
 	gold_fatal(_("incremental linking is not compatible with --plugin"));
+      if (this->relro())
+	gold_fatal(_("incremental linking is not compatible with -z relro"));
       if (this->gc_sections())
 	{
 	  gold_warning(_("ignoring --gc-sections for an incremental link"));

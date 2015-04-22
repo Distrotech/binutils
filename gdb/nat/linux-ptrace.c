@@ -1,5 +1,5 @@
 /* Linux-specific ptrace manipulation routines.
-   Copyright (C) 2012-2014 Free Software Foundation, Inc.
+   Copyright (C) 2012-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -43,22 +43,48 @@ linux_ptrace_attach_fail_reason (pid_t pid, struct buffer *buffer)
 {
   pid_t tracerpid;
 
-  tracerpid = linux_proc_get_tracerpid (pid);
+  tracerpid = linux_proc_get_tracerpid_nowarn (pid);
   if (tracerpid > 0)
     buffer_xml_printf (buffer, _("process %d is already traced "
 				 "by process %d"),
 		       (int) pid, (int) tracerpid);
 
-  if (linux_proc_pid_is_zombie (pid))
+  if (linux_proc_pid_is_zombie_nowarn (pid))
     buffer_xml_printf (buffer, _("process %d is a zombie "
 				 "- the process has already terminated"),
 		       (int) pid);
 }
 
+/* See linux-ptrace.h.  */
+
+char *
+linux_ptrace_attach_fail_reason_string (ptid_t ptid, int err)
+{
+  static char *reason_string;
+  struct buffer buffer;
+  char *warnings;
+  long lwpid = ptid_get_lwp (ptid);
+
+  xfree (reason_string);
+
+  buffer_init (&buffer);
+  linux_ptrace_attach_fail_reason (lwpid, &buffer);
+  buffer_grow_str0 (&buffer, "");
+  warnings = buffer_finish (&buffer);
+  if (warnings[0] != '\0')
+    reason_string = xstrprintf ("%s (%d), %s",
+				safe_strerror (err), err, warnings);
+  else
+    reason_string = xstrprintf ("%s (%d)",
+				safe_strerror (err), err);
+  xfree (warnings);
+  return reason_string;
+}
+
 #if defined __i386__ || defined __x86_64__
 
 /* Address of the 'ret' instruction in asm code block below.  */
-extern void (linux_ptrace_test_ret_to_nx_instr) (void);
+EXTERN_C void linux_ptrace_test_ret_to_nx_instr (void);
 
 #include <sys/reg.h>
 #include <sys/mman.h>
@@ -85,7 +111,7 @@ linux_ptrace_test_ret_to_nx (void)
   if (return_address == MAP_FAILED)
     {
       warning (_("linux_ptrace_test_ret_to_nx: Cannot mmap: %s"),
-	       strerror (errno));
+	       safe_strerror (errno));
       return;
     }
 
@@ -97,7 +123,7 @@ linux_ptrace_test_ret_to_nx (void)
     {
     case -1:
       warning (_("linux_ptrace_test_ret_to_nx: Cannot fork: %s"),
-	       strerror (errno));
+	       safe_strerror (errno));
       return;
 
     case 0:
@@ -105,7 +131,7 @@ linux_ptrace_test_ret_to_nx (void)
 		  (PTRACE_TYPE_ARG4) NULL);
       if (l != 0)
 	warning (_("linux_ptrace_test_ret_to_nx: Cannot PTRACE_TRACEME: %s"),
-		 strerror (errno));
+		 safe_strerror (errno));
       else
 	{
 #if defined __i386__
@@ -135,7 +161,7 @@ linux_ptrace_test_ret_to_nx (void)
   if (got_pid != child)
     {
       warning (_("linux_ptrace_test_ret_to_nx: waitpid returned %ld: %s"),
-	       (long) got_pid, strerror (errno));
+	       (long) got_pid, safe_strerror (errno));
       return;
     }
 
@@ -179,7 +205,7 @@ linux_ptrace_test_ret_to_nx (void)
   if (errno != 0)
     {
       warning (_("linux_ptrace_test_ret_to_nx: Cannot PTRACE_PEEKUSER: %s"),
-	       strerror (errno));
+	       safe_strerror (errno));
       return;
     }
   pc = (void *) (uintptr_t) l;
@@ -194,7 +220,7 @@ linux_ptrace_test_ret_to_nx (void)
     {
       warning (_("linux_ptrace_test_ret_to_nx: "
 		 "PTRACE_KILL waitpid returned %ld: %s"),
-	       (long) got_pid, strerror (errno));
+	       (long) got_pid, safe_strerror (errno));
       return;
     }
   if (!WIFSIGNALED (kill_status))
@@ -307,6 +333,7 @@ linux_child_function (gdb_byte *child_stack)
 
 static void linux_test_for_tracesysgood (int child_pid);
 static void linux_test_for_tracefork (int child_pid);
+static void linux_test_for_exitkill (int child_pid);
 
 /* Determine ptrace features available on this target.  */
 
@@ -337,6 +364,8 @@ linux_check_ptrace_features (void)
   linux_test_for_tracesysgood (child_pid);
 
   linux_test_for_tracefork (child_pid);
+
+  linux_test_for_exitkill (child_pid);
 
   /* Clean things up and kill any pending children.  */
   do
@@ -449,19 +478,44 @@ linux_test_for_tracefork (int child_pid)
 	     "(%d, status 0x%x)"), ret, status);
 }
 
-/* Enable reporting of all currently supported ptrace events.  */
+/* Determine if PTRACE_O_EXITKILL can be used.  */
+
+static void
+linux_test_for_exitkill (int child_pid)
+{
+  int ret;
+
+  ret = ptrace (PTRACE_SETOPTIONS, child_pid, (PTRACE_TYPE_ARG3) 0,
+		(PTRACE_TYPE_ARG4) PTRACE_O_EXITKILL);
+
+  if (ret == 0)
+    current_ptrace_options |= PTRACE_O_EXITKILL;
+}
+
+/* Enable reporting of all currently supported ptrace events.
+   ATTACHED should be nonzero if we have attached to the inferior.  */
 
 void
-linux_enable_event_reporting (pid_t pid)
+linux_enable_event_reporting (pid_t pid, int attached)
 {
+  int ptrace_options;
+
   /* Check if we have initialized the ptrace features for this
      target.  If not, do it now.  */
   if (current_ptrace_options == -1)
     linux_check_ptrace_features ();
 
+  ptrace_options = current_ptrace_options;
+  if (attached)
+    {
+      /* When attached to our inferior, we do not want the inferior
+	 to die with us if we terminate unexpectedly.  */
+      ptrace_options &= ~PTRACE_O_EXITKILL;
+    }
+
   /* Set the options.  */
   ptrace (PTRACE_SETOPTIONS, pid, (PTRACE_TYPE_ARG3) 0,
-	  (PTRACE_TYPE_ARG4) (uintptr_t) current_ptrace_options);
+	  (PTRACE_TYPE_ARG4) (uintptr_t) ptrace_options);
 }
 
 /* Disable reporting of all currently supported ptrace events.  */
@@ -480,7 +534,8 @@ linux_disable_event_reporting (pid_t pid)
 static int
 ptrace_supports_feature (int ptrace_options)
 {
-  gdb_assert (current_ptrace_options >= 0);
+  if (current_ptrace_options == -1)
+    linux_check_ptrace_features ();
 
   return ((current_ptrace_options & ptrace_options) == ptrace_options);
 }
@@ -565,4 +620,17 @@ int
 linux_is_extended_waitstatus (int wstat)
 {
   return (linux_ptrace_get_extended_event (wstat) != 0);
+}
+
+/* Return true if the event in LP may be caused by breakpoint.  */
+
+int
+linux_wstatus_maybe_breakpoint (int wstat)
+{
+  return (WIFSTOPPED (wstat)
+	  && (WSTOPSIG (wstat) == SIGTRAP
+	      /* SIGILL and SIGSEGV are also treated as traps in case a
+		 breakpoint is inserted at the current PC.  */
+	      || WSTOPSIG (wstat) == SIGILL
+	      || WSTOPSIG (wstat) == SIGSEGV));
 }

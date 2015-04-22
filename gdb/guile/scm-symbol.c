@@ -1,6 +1,6 @@
 /* Scheme interface to symbols.
 
-   Copyright (C) 2008-2014 Free Software Foundation, Inc.
+   Copyright (C) 2008-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -50,6 +50,13 @@ static SCM domain_keyword;
 static SCM frame_keyword;
 
 static const struct objfile_data *syscm_objfile_data_key;
+static struct gdbarch_data *syscm_gdbarch_data_key;
+
+struct syscm_gdbarch_data
+{
+  /* Hash table to implement eqable gdbarch symbols.  */
+  htab_t htab;
+};
 
 /* Administrivia for symbol smobs.  */
 
@@ -75,20 +82,44 @@ syscm_eq_symbol_smob (const void *ap, const void *bp)
 	  && a->symbol != NULL);
 }
 
+static void *
+syscm_init_arch_symbols (struct gdbarch *gdbarch)
+{
+  struct syscm_gdbarch_data *data
+    = GDBARCH_OBSTACK_ZALLOC (gdbarch, struct syscm_gdbarch_data);
+
+  data->htab = gdbscm_create_eqable_gsmob_ptr_map (syscm_hash_symbol_smob,
+						   syscm_eq_symbol_smob);
+  return data;
+}
+
 /* Return the struct symbol pointer -> SCM mapping table.
    It is created if necessary.  */
 
 static htab_t
-syscm_objfile_symbol_map (struct symbol *symbol)
+syscm_get_symbol_map (struct symbol *symbol)
 {
-  struct objfile *objfile = SYMBOL_OBJFILE (symbol);
-  htab_t htab = objfile_data (objfile, syscm_objfile_data_key);
+  htab_t htab;
 
-  if (htab == NULL)
+  if (SYMBOL_OBJFILE_OWNED (symbol))
     {
-      htab = gdbscm_create_eqable_gsmob_ptr_map (syscm_hash_symbol_smob,
-						 syscm_eq_symbol_smob);
-      set_objfile_data (objfile, syscm_objfile_data_key, htab);
+      struct objfile *objfile = symbol_objfile (symbol);
+
+      htab = objfile_data (objfile, syscm_objfile_data_key);
+      if (htab == NULL)
+	{
+	  htab = gdbscm_create_eqable_gsmob_ptr_map (syscm_hash_symbol_smob,
+						     syscm_eq_symbol_smob);
+	  set_objfile_data (objfile, syscm_objfile_data_key, htab);
+	}
+    }
+  else
+    {
+      struct gdbarch *gdbarch = symbol_arch (symbol);
+      struct syscm_gdbarch_data *data = gdbarch_data (gdbarch,
+						      syscm_gdbarch_data_key);
+
+      htab = data->htab;
     }
 
   return htab;
@@ -103,7 +134,7 @@ syscm_free_symbol_smob (SCM self)
 
   if (s_smob->symbol != NULL)
     {
-      htab_t htab = syscm_objfile_symbol_map (s_smob->symbol);
+      htab_t htab = syscm_get_symbol_map (s_smob->symbol);
 
       gdbscm_clear_eqable_gsmob_ptr_slot (htab, &s_smob->base);
     }
@@ -181,7 +212,7 @@ syscm_scm_from_symbol (struct symbol *symbol)
 
   /* If we've already created a gsmob for this symbol, return it.
      This makes symbols eq?-able.  */
-  htab = syscm_objfile_symbol_map (symbol);
+  htab = syscm_get_symbol_map (symbol);
   s_smob_for_lookup.symbol = symbol;
   slot = gdbscm_find_eqable_gsmob_ptr_slot (htab, &s_smob_for_lookup.base);
   if (*slot != NULL)
@@ -319,8 +350,9 @@ gdbscm_symbol_type (SCM self)
   return tyscm_scm_from_type (SYMBOL_TYPE (symbol));
 }
 
-/* (symbol-symtab <gdb:symbol>) -> <gdb:symtab>
-   Return the symbol table of SELF.  */
+/* (symbol-symtab <gdb:symbol>) -> <gdb:symtab> | #f
+   Return the symbol table of SELF.
+   If SELF does not have a symtab (it is arch-owned) return #f.  */
 
 static SCM
 gdbscm_symbol_symtab (SCM self)
@@ -329,7 +361,9 @@ gdbscm_symbol_symtab (SCM self)
     = syscm_get_valid_symbol_smob_arg_unsafe (self, SCM_ARG1, FUNC_NAME);
   const struct symbol *symbol = s_smob->symbol;
 
-  return stscm_scm_from_symtab (SYMBOL_SYMTAB (symbol));
+  if (!SYMBOL_OBJFILE_OWNED (symbol))
+    return SCM_BOOL_F;
+  return stscm_scm_from_symtab (symbol_symtab (symbol));
 }
 
 /* (symbol-name <gdb:symbol>) -> string */
@@ -400,11 +434,11 @@ gdbscm_symbol_constant_p (SCM self)
   symbol_smob *s_smob
     = syscm_get_valid_symbol_smob_arg_unsafe (self, SCM_ARG1, FUNC_NAME);
   const struct symbol *symbol = s_smob->symbol;
-  enum address_class class;
+  enum address_class theclass;
 
-  class = SYMBOL_CLASS (symbol);
+  theclass = SYMBOL_CLASS (symbol);
 
-  return scm_from_bool (class == LOC_CONST || class == LOC_CONST_BYTES);
+  return scm_from_bool (theclass == LOC_CONST || theclass == LOC_CONST_BYTES);
 }
 
 /* (symbol-function? <gdb:symbol>) -> boolean */
@@ -415,11 +449,11 @@ gdbscm_symbol_function_p (SCM self)
   symbol_smob *s_smob
     = syscm_get_valid_symbol_smob_arg_unsafe (self, SCM_ARG1, FUNC_NAME);
   const struct symbol *symbol = s_smob->symbol;
-  enum address_class class;
+  enum address_class theclass;
 
-  class = SYMBOL_CLASS (symbol);
+  theclass = SYMBOL_CLASS (symbol);
 
-  return scm_from_bool (class == LOC_BLOCK);
+  return scm_from_bool (theclass == LOC_BLOCK);
 }
 
 /* (symbol-variable? <gdb:symbol>) -> boolean */
@@ -430,14 +464,14 @@ gdbscm_symbol_variable_p (SCM self)
   symbol_smob *s_smob
     = syscm_get_valid_symbol_smob_arg_unsafe (self, SCM_ARG1, FUNC_NAME);
   const struct symbol *symbol = s_smob->symbol;
-  enum address_class class;
+  enum address_class theclass;
 
-  class = SYMBOL_CLASS (symbol);
+  theclass = SYMBOL_CLASS (symbol);
 
   return scm_from_bool (!SYMBOL_IS_ARGUMENT (symbol)
-			&& (class == LOC_LOCAL || class == LOC_REGISTER
-			    || class == LOC_STATIC || class == LOC_COMPUTED
-			    || class == LOC_OPTIMIZED_OUT));
+			&& (theclass == LOC_LOCAL || theclass == LOC_REGISTER
+			    || theclass == LOC_STATIC || theclass == LOC_COMPUTED
+			    || theclass == LOC_OPTIMIZED_OUT));
 }
 
 /* (symbol-needs-frame? <gdb:symbol>) -> boolean
@@ -449,14 +483,17 @@ gdbscm_symbol_needs_frame_p (SCM self)
   symbol_smob *s_smob
     = syscm_get_valid_symbol_smob_arg_unsafe (self, SCM_ARG1, FUNC_NAME);
   struct symbol *symbol = s_smob->symbol;
-  volatile struct gdb_exception except;
   int result = 0;
 
-  TRY_CATCH (except, RETURN_MASK_ALL)
+  TRY
     {
       result = symbol_read_needs_frame (symbol);
     }
-  GDBSCM_HANDLE_GDB_EXCEPTION (except);
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDBSCM_HANDLE_GDB_EXCEPTION (except);
+    }
+  END_CATCH
 
   return scm_from_bool (result);
 }
@@ -489,7 +526,6 @@ gdbscm_symbol_value (SCM self, SCM rest)
   frame_smob *f_smob = NULL;
   struct frame_info *frame_info = NULL;
   struct value *value = NULL;
-  volatile struct gdb_exception except;
 
   gdbscm_parse_function_args (FUNC_NAME, SCM_ARG2, keywords, "#O",
 			      rest, &frame_pos, &frame_scm);
@@ -502,7 +538,7 @@ gdbscm_symbol_value (SCM self, SCM rest)
 				 _("cannot get the value of a typedef"));
     }
 
-  TRY_CATCH (except, RETURN_MASK_ALL)
+  TRY
     {
       if (f_smob != NULL)
 	{
@@ -516,7 +552,11 @@ gdbscm_symbol_value (SCM self, SCM rest)
 
       value = read_var_value (symbol, frame_info);
     }
-  GDBSCM_HANDLE_GDB_EXCEPTION (except);
+  CATCH (except, RETURN_MASK_ALL)
+    {
+      GDBSCM_HANDLE_GDB_EXCEPTION (except);
+    }
+  END_CATCH
 
   return vlscm_scm_from_value (value);
 }
@@ -537,8 +577,8 @@ gdbscm_lookup_symbol (SCM name_scm, SCM rest)
   int block_arg_pos = -1, domain_arg_pos = -1;
   struct field_of_this_result is_a_field_of_this;
   struct symbol *symbol = NULL;
-  volatile struct gdb_exception except;
   struct cleanup *cleanups;
+  struct gdb_exception except = exception_none;
 
   gdbscm_parse_function_args (FUNC_NAME, SCM_ARG1, keywords, "s#Oi",
 			      name_scm, &name, rest,
@@ -563,18 +603,28 @@ gdbscm_lookup_symbol (SCM name_scm, SCM rest)
     {
       struct frame_info *selected_frame;
 
-      TRY_CATCH (except, RETURN_MASK_ALL)
+      TRY
 	{
 	  selected_frame = get_selected_frame (_("no frame selected"));
 	  block = get_frame_block (selected_frame, NULL);
 	}
-      GDBSCM_HANDLE_GDB_EXCEPTION_WITH_CLEANUPS (except, cleanups);
+      CATCH (except, RETURN_MASK_ALL)
+	{
+	  GDBSCM_HANDLE_GDB_EXCEPTION_WITH_CLEANUPS (except, cleanups);
+	}
+      END_CATCH
     }
 
-  TRY_CATCH (except, RETURN_MASK_ALL)
+  TRY
     {
       symbol = lookup_symbol (name, block, domain, &is_a_field_of_this);
     }
+  CATCH (ex, RETURN_MASK_ALL)
+    {
+      except = ex;
+    }
+  END_CATCH
+
   do_cleanups (cleanups);
   GDBSCM_HANDLE_GDB_EXCEPTION (except);
 
@@ -596,8 +646,8 @@ gdbscm_lookup_global_symbol (SCM name_scm, SCM rest)
   int domain_arg_pos = -1;
   int domain = VAR_DOMAIN;
   struct symbol *symbol = NULL;
-  volatile struct gdb_exception except;
   struct cleanup *cleanups;
+  struct gdb_exception except = exception_none;
 
   gdbscm_parse_function_args (FUNC_NAME, SCM_ARG1, keywords, "s#i",
 			      name_scm, &name, rest,
@@ -605,10 +655,16 @@ gdbscm_lookup_global_symbol (SCM name_scm, SCM rest)
 
   cleanups = make_cleanup (xfree, name);
 
-  TRY_CATCH (except, RETURN_MASK_ALL)
+  TRY
     {
       symbol = lookup_global_symbol (name, NULL, domain);
     }
+  CATCH (ex, RETURN_MASK_ALL)
+    {
+      except = ex;
+    }
+  END_CATCH
+
   do_cleanups (cleanups);
   GDBSCM_HANDLE_GDB_EXCEPTION (except);
 
@@ -761,4 +817,8 @@ gdbscm_initialize_symbols (void)
      invalidate symbols when an object file is about to be deleted.  */
   syscm_objfile_data_key
     = register_objfile_data_with_cleanup (NULL, syscm_del_objfile_symbols);
+
+  /* Arch-specific symbol data.  */
+  syscm_gdbarch_data_key
+    = gdbarch_data_register_post_init (syscm_init_arch_symbols);
 }

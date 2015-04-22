@@ -1,6 +1,6 @@
 /* Read ELF (Executable and Linking Format) object files for GDB.
 
-   Copyright (C) 1991-2014 Free Software Foundation, Inc.
+   Copyright (C) 1991-2015 Free Software Foundation, Inc.
 
    Written by Fred Fish at Cygnus Support.
 
@@ -49,8 +49,8 @@
 extern void _initialize_elfread (void);
 
 /* Forward declarations.  */
-static const struct sym_fns elf_sym_fns_gdb_index;
-static const struct sym_fns elf_sym_fns_lazy_psyms;
+extern const struct sym_fns elf_sym_fns_gdb_index;
+extern const struct sym_fns elf_sym_fns_lazy_psyms;
 
 /* The struct elfinfo is available only during ELF symbol table and
    psymtab reading.  It is destroyed at the completion of psymtab-reading.
@@ -322,7 +322,7 @@ elf_symtab_read (struct objfile *objfile, int type,
 	     for that section is ".plt".  So, if there is a ".plt"
 	     section, and yet the section name of our symbol does not
 	     start with ".plt", we ignore that symbol.  */
-	  if (strncmp (sect->name, ".plt", 4) != 0
+	  if (!startswith (sect->name, ".plt")
 	      && bfd_get_section_by_name (abfd, ".plt") != NULL)
 	    continue;
 
@@ -1144,8 +1144,10 @@ elf_read_minimal_symbols (struct objfile *objfile, int symfile_flags,
 
   if (storage_needed > 0)
     {
-      symbol_table = (asymbol **) xmalloc (storage_needed);
-      make_cleanup (xfree, symbol_table);
+      /* Memory gets permanently referenced from ABFD after
+	 bfd_canonicalize_symtab so it must not get freed before ABFD gets.  */
+
+      symbol_table = bfd_alloc (abfd, storage_needed);
       symcount = bfd_canonicalize_symtab (objfile->obfd, symbol_table);
 
       if (symcount < 0)
@@ -1235,10 +1237,6 @@ elf_read_minimal_symbols (struct objfile *objfile, int symfile_flags,
 /* Scan and build partial symbols for a symbol file.
    We have been initialized by a call to elf_symfile_init, which
    currently does nothing.
-
-   SECTION_OFFSETS is a set of offsets to apply to relocate the symbols
-   in each section.  We simplify it down to a single offset for all
-   symbols.  FIXME.
 
    This function only does the minimum work necessary for letting the
    user "name" things symbolically; it does not read the entire symtab.
@@ -1418,14 +1416,7 @@ elf_symfile_finish (struct objfile *objfile)
   dwarf2_free_objfile (objfile);
 }
 
-/* ELF specific initialization routine for reading symbols.
-
-   It is passed a pointer to a struct sym_fns which contains, among other
-   things, the BFD for the file whose symbols are being read, and a slot for
-   a pointer to "private data" which we can fill with goodies.
-
-   For now at least, we have nothing in particular to do, so this function is
-   just a stub.  */
+/* ELF specific initialization routine for reading symbols.  */
 
 static void
 elf_symfile_init (struct objfile *objfile)
@@ -1577,7 +1568,7 @@ static const struct sym_fns elf_sym_fns =
 /* The same as elf_sym_fns, but not registered and lazily reads
    psymbols.  */
 
-static const struct sym_fns elf_sym_fns_lazy_psyms =
+const struct sym_fns elf_sym_fns_lazy_psyms =
 {
   elf_new_init,			/* init anything gbl to entire symtab */
   elf_symfile_init,		/* read initial info, setup for sym_read() */
@@ -1594,7 +1585,7 @@ static const struct sym_fns elf_sym_fns_lazy_psyms =
 
 /* The same as elf_sym_fns, but not registered and uses the
    DWARF-specific GNU index rather than psymtab.  */
-static const struct sym_fns elf_sym_fns_gdb_index =
+const struct sym_fns elf_sym_fns_gdb_index =
 {
   elf_new_init,			/* init anything gbl to entire symab */
   elf_symfile_init,		/* read initial info, setup for sym_red() */

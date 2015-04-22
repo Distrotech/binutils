@@ -1,6 +1,6 @@
 /* Load module for 'compile' command.
 
-   Copyright (C) 2014 Free Software Foundation, Inc.
+   Copyright (C) 2014-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -67,7 +67,7 @@ setup_sections (bfd *abfd, asection *sect, void *data_voidp)
       if ((bfd_get_section_flags (abfd, sect) & SEC_ALLOC) == 0)
 	return;
 
-      // Make the memory always readable.
+      /* Make the memory always readable.  */
       prot = GDB_MMAP_PROT_READ;
       if ((bfd_get_section_flags (abfd, sect) & SEC_READONLY) == 0)
 	prot |= GDB_MMAP_PROT_WRITE;
@@ -223,6 +223,9 @@ link_callbacks_unattached_reloc (struct bfd_link_info *link_info,
 }
 
 /* Helper for link_callbacks callbacks vector.  */
+
+static void link_callbacks_einfo (const char *fmt, ...)
+  ATTRIBUTE_PRINTF (1, 2);
 
 static void
 link_callbacks_einfo (const char *fmt, ...)

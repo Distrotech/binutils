@@ -1,7 +1,7 @@
 /* GNU/Linux/AArch64 specific low level interface, for the remote server for
    GDB.
 
-   Copyright (C) 2009-2014 Free Software Foundation, Inc.
+   Copyright (C) 2009-2015 Free Software Foundation, Inc.
    Contributed by ARM Ltd.
 
    This file is part of GDB.
@@ -46,8 +46,10 @@ extern const struct target_desc *tdesc_aarch64;
 #define AARCH64_PC_REGNO   32
 #define AARCH64_CPSR_REGNO 33
 #define AARCH64_V0_REGNO   34
+#define AARCH64_FPSR_REGNO (AARCH64_V0_REGNO + AARCH64_V_REGS_NUM)
+#define AARCH64_FPCR_REGNO (AARCH64_V0_REGNO + AARCH64_V_REGS_NUM + 1)
 
-#define AARCH64_NUM_REGS (AARCH64_V0_REGNO + AARCH64_V_REGS_NUM)
+#define AARCH64_NUM_REGS (AARCH64_V0_REGNO + AARCH64_V_REGS_NUM + 2)
 
 static int
 aarch64_regmap [] =
@@ -255,6 +257,8 @@ aarch64_fill_fpregset (struct regcache *regcache, void *buf)
 
   for (i = 0; i < AARCH64_V_REGS_NUM; i++)
     collect_register (regcache, AARCH64_V0_REGNO + i, &regset->vregs[i]);
+  collect_register (regcache, AARCH64_FPSR_REGNO, &regset->fpsr);
+  collect_register (regcache, AARCH64_FPCR_REGNO, &regset->fpcr);
 }
 
 static void
@@ -265,6 +269,8 @@ aarch64_store_fpregset (struct regcache *regcache, const void *buf)
 
   for (i = 0; i < AARCH64_V_REGS_NUM; i++)
     supply_register (regcache, AARCH64_V0_REGNO + i, &regset->vregs[i]);
+  supply_register (regcache, AARCH64_FPSR_REGNO, &regset->fpsr);
+  supply_register (regcache, AARCH64_FPCR_REGNO, &regset->fpcr);
 }
 
 /* Enable miscellaneous debugging output.  The name is historical - it
@@ -715,7 +721,7 @@ aarch64_get_debug_reg_state ()
   struct process_info *proc;
 
   proc = current_process ();
-  return &proc->private->arch_private->debug_reg_state;
+  return &proc->priv->arch_private->debug_reg_state;
 }
 
 /* Record the insertion of one breakpoint/watchpoint, as represented
@@ -984,7 +990,7 @@ aarch64_insert_point (enum raw_bkpt_type type, CORE_ADDR addr,
     ret =
       aarch64_handle_breakpoint (targ_type, addr, len, 1 /* is_insert */);
 
-  if (show_debug_regs > 1)
+  if (show_debug_regs)
     aarch64_show_debug_reg_state (aarch64_get_debug_reg_state (),
 				  "insert_point", addr, len, targ_type);
 
@@ -1021,7 +1027,7 @@ aarch64_remove_point (enum raw_bkpt_type type, CORE_ADDR addr,
     ret =
       aarch64_handle_breakpoint (targ_type, addr, len, 0 /* is_insert */);
 
-  if (show_debug_regs > 1)
+  if (show_debug_regs)
     aarch64_show_debug_reg_state (aarch64_get_debug_reg_state (),
 				  "remove_point", addr, len, targ_type);
 
@@ -1115,8 +1121,8 @@ aarch64_linux_new_process (void)
 
 /* Called when a new thread is detected.  */
 
-static struct arch_lwp_info *
-aarch64_linux_new_thread (void)
+static void
+aarch64_linux_new_thread (struct lwp_info *lwp)
 {
   struct arch_lwp_info *info = xcalloc (1, sizeof (*info));
 
@@ -1126,7 +1132,7 @@ aarch64_linux_new_thread (void)
   DR_MARK_ALL_CHANGED (info->dr_changed_bp, aarch64_num_bp_regs);
   DR_MARK_ALL_CHANGED (info->dr_changed_wp, aarch64_num_wp_regs);
 
-  return info;
+  lwp->arch_private = info;
 }
 
 /* Called when resuming a thread.
@@ -1145,7 +1151,7 @@ aarch64_linux_prepare_to_resume (struct lwp_info *lwp)
       int tid = ptid_get_lwp (ptid);
       struct process_info *proc = find_process_pid (ptid_get_pid (ptid));
       struct aarch64_debug_reg_state *state
-	= &proc->private->arch_private->debug_reg_state;
+	= &proc->priv->arch_private->debug_reg_state;
 
       if (show_debug_regs)
 	fprintf (stderr, "prepare_to_resume thread %ld\n", lwpid_of (thread));

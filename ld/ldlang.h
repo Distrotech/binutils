@@ -1,5 +1,5 @@
 /* ldlang.h - linker command language support
-   Copyright (C) 1991-2014 Free Software Foundation, Inc.
+   Copyright (C) 1991-2015 Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils.
 
@@ -55,8 +55,10 @@ typedef struct memory_region_struct
 {
   lang_memory_region_name name_list;
   struct memory_region_struct *next;
+  union etree_union *origin_exp;
   bfd_vma origin;
   bfd_size_type length;
+  union etree_union *length_exp;
   bfd_vma current;
   union lang_statement_union *last_os;
   flagword flags;
@@ -281,6 +283,9 @@ struct lang_input_statement_flags
 
   /* Set if the file was claimed from an archive.  */
   unsigned int claim_archive : 1;
+
+  /* Set if added by the lto plugin add_input_file callback.  */
+  unsigned int lto_output : 1;
 #endif /* ENABLE_PLUGINS */
 
   /* Head of list of pushed flags.  */
@@ -468,17 +473,6 @@ struct unique_sections
 {
   struct unique_sections *next;
   const char *name;
-};
-
-/* This structure records symbols for which we need to keep track of
-   definedness for use in the DEFINED () test.  */
-
-struct lang_definedness_hash_entry
-{
-  struct bfd_hash_entry root;
-  unsigned int by_object : 1;
-  unsigned int by_script : 1;
-  unsigned int iteration : 1;
 };
 
 /* Used by place_orphan to keep track of orphan sections and statements.  */
@@ -683,10 +677,6 @@ extern void lang_add_unique
   (const char *);
 extern const char *lang_get_output_target
   (void);
-extern struct lang_definedness_hash_entry *lang_symbol_defined (const char *);
-extern void lang_update_definedness
-  (const char *, struct bfd_link_hash_entry *);
-
 extern void add_excluded_libs (const char *);
 extern bfd_boolean load_symbols
   (lang_input_statement_type *, lang_statement_list_type *);

@@ -1,5 +1,5 @@
 /* bfdlink.h -- header file for BFD link routines
-   Copyright (C) 1993-2014 Free Software Foundation, Inc.
+   Copyright (C) 1993-2015 Free Software Foundation, Inc.
    Written by Steve Chamberlain and Ian Lance Taylor, Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -91,7 +91,13 @@ struct bfd_link_hash_entry
   /* Type of this entry.  */
   ENUM_BITFIELD (bfd_link_hash_type) type : 8;
 
+  /* Symbol is referenced in a normal object file, as distict from a LTO
+     IR object file.  */
   unsigned int non_ir_ref : 1;
+
+  /* Symbol is a built-in define.  These will be overridden by PROVIDE
+     in a linker script.  */
+  unsigned int linker_def : 1;
 
   /* A union of information depending upon the type.  */
   union
@@ -295,9 +301,6 @@ struct bfd_link_info
   /* TRUE if the LTO plugin is active.  */
   unsigned int lto_plugin_active: 1;
 
-  /* TRUE if we are loading LTO outputs.  */
-  unsigned int loading_lto_outputs: 1;
-
   /* TRUE if global symbols in discarded sections should be stripped.  */
   unsigned int strip_discarded: 1;
 
@@ -431,6 +434,9 @@ struct bfd_link_info
   /* Separator between archive and filename in linker script filespecs.  */
   char path_separator;
 
+  /* Compress DWARF debug sections.  */
+  enum compressed_debug_section_type compress_debug;
+
   /* Default stack size.  Zero means default (often zero itself), -1
      means explicitly zero-sized.  */
   bfd_signed_vma stacksize;
@@ -516,6 +522,11 @@ struct bfd_link_info
      time the relaxation pass is restarted due to a previous
      relaxation returning true in *AGAIN.  */
   int relax_trip;
+
+  /* > 0 to treat protected data defined in the shared library as
+     reference external.  0 to treat it as internal.  -1 to let
+     backend to decide.  */
+  int extern_protected_data;
 
   /* Non-zero if auto-import thunks for DATA items in pei386 DLLs
      should be generated/linked against.  Set to 1 if this feature

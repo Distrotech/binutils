@@ -1,5 +1,5 @@
 /* GNU/Linux/ARM specific low level interface, for the remote server for GDB.
-   Copyright (C) 1995-2014 Free Software Foundation, Inc.
+   Copyright (C) 1995-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -590,12 +590,12 @@ arm_insert_point (enum raw_bkpt_type type, CORE_ADDR addr,
   if (watch)
     {
       count = arm_linux_get_hw_watchpoint_count ();
-      pts = proc->private->arch_private->wpts;
+      pts = proc->priv->arch_private->wpts;
     }
   else
     {
       count = arm_linux_get_hw_breakpoint_count ();
-      pts = proc->private->arch_private->bpts;
+      pts = proc->priv->arch_private->bpts;
     }
 
   for (i = 0; i < count; i++)
@@ -630,12 +630,12 @@ arm_remove_point (enum raw_bkpt_type type, CORE_ADDR addr,
   if (watch)
     {
       count = arm_linux_get_hw_watchpoint_count ();
-      pts = proc->private->arch_private->wpts;
+      pts = proc->priv->arch_private->wpts;
     }
   else
     {
       count = arm_linux_get_hw_breakpoint_count ();
-      pts = proc->private->arch_private->bpts;
+      pts = proc->priv->arch_private->bpts;
     }
 
   for (i = 0; i < count; i++)
@@ -703,8 +703,8 @@ arm_new_process (void)
 }
 
 /* Called when a new thread is detected.  */
-static struct arch_lwp_info *
-arm_new_thread (void)
+static void
+arm_new_thread (struct lwp_info *lwp)
 {
   struct arch_lwp_info *info = xcalloc (1, sizeof (*info));
   int i;
@@ -714,7 +714,7 @@ arm_new_thread (void)
   for (i = 0; i < MAX_WPTS; i++)
     info->wpts_changed[i] = 1;
 
-  return info;
+  lwp->arch_private = info;
 }
 
 /* Called when resuming a thread.
@@ -725,7 +725,7 @@ arm_prepare_to_resume (struct lwp_info *lwp)
   struct thread_info *thread = get_lwp_thread (lwp);
   int pid = lwpid_of (thread);
   struct process_info *proc = find_process_pid (pid_of (thread));
-  struct arch_process_info *proc_info = proc->private->arch_private;
+  struct arch_process_info *proc_info = proc->priv->arch_private;
   struct arch_lwp_info *lwp_info = lwp->arch_private;
   int i;
 

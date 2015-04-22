@@ -1,5 +1,5 @@
 /* Generic BFD support for file formats.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2015 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -402,7 +402,7 @@ bfd_check_format_matches (bfd *abfd, bfd_format format, char ***matching)
   /* We still have more than one equally good match, and at least some
      of the targets support match priority.  Choose the first of the
      best matches.  */
-  if (match_count > 1 && best_count != match_count)
+  if (matching_vector && match_count > 1 && best_count != match_count)
     {
       int i;
 

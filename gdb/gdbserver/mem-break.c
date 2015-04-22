@@ -1,5 +1,5 @@
 /* Memory breakpoint operations for the remote server for GDB.
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
 
@@ -1603,6 +1603,40 @@ breakpoint_inserted_here (CORE_ADDR addr)
   for (bp = proc->raw_breakpoints; bp != NULL; bp = bp->next)
     if ((bp->raw_type == raw_bkpt_type_sw
 	 || bp->raw_type == raw_bkpt_type_hw)
+	&& bp->pc == addr
+	&& bp->inserted)
+      return 1;
+
+  return 0;
+}
+
+/* See mem-break.h.  */
+
+int
+software_breakpoint_inserted_here (CORE_ADDR addr)
+{
+  struct process_info *proc = current_process ();
+  struct raw_breakpoint *bp;
+
+  for (bp = proc->raw_breakpoints; bp != NULL; bp = bp->next)
+    if (bp->raw_type == raw_bkpt_type_sw
+	&& bp->pc == addr
+	&& bp->inserted)
+      return 1;
+
+  return 0;
+}
+
+/* See mem-break.h.  */
+
+int
+hardware_breakpoint_inserted_here (CORE_ADDR addr)
+{
+  struct process_info *proc = current_process ();
+  struct raw_breakpoint *bp;
+
+  for (bp = proc->raw_breakpoints; bp != NULL; bp = bp->next)
+    if (bp->raw_type == raw_bkpt_type_hw
 	&& bp->pc == addr
 	&& bp->inserted)
       return 1;

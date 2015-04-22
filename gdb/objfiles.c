@@ -1,6 +1,6 @@
 /* GDB routines for manipulating objfiles.
 
-   Copyright (C) 1992-2014 Free Software Foundation, Inc.
+   Copyright (C) 1992-2015 Free Software Foundation, Inc.
 
    Contributed by Cygnus Support, using pieces from other GDB modules.
 
@@ -1492,7 +1492,7 @@ default_iterate_over_objfiles_in_search_order
     }
 }
 
-/* Return canonical name for OBJFILE.  */
+/* See objfiles.h.  */
 
 const char *
 objfile_name (const struct objfile *objfile)
@@ -1501,6 +1501,25 @@ objfile_name (const struct objfile *objfile)
     return bfd_get_filename (objfile->obfd);
 
   return objfile->original_name;
+}
+
+/* See objfiles.h.  */
+
+const char *
+objfile_filename (const struct objfile *objfile)
+{
+  if (objfile->obfd != NULL)
+    return bfd_get_filename (objfile->obfd);
+
+  return NULL;
+}
+
+/* See objfiles.h.  */
+
+const char *
+objfile_debug_name (const struct objfile *objfile)
+{
+  return lbasename (objfile->original_name);
 }
 
 /* Provide a prototype to silence -Wmissing-prototypes.  */

@@ -1,5 +1,5 @@
 /* Target operations for the remote server for GDB.
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
 
@@ -26,9 +26,9 @@
 #include "target/wait.h"
 #include "target/waitstatus.h"
 #include "mem-break.h"
+#include "btrace-common.h"
 
 struct emit_ops;
-struct btrace_target_info;
 struct buffer;
 struct process_info;
 
@@ -207,6 +207,21 @@ struct target_ops
   int (*remove_point) (enum raw_bkpt_type type, CORE_ADDR addr,
 		       int size, struct raw_breakpoint *bp);
 
+  /* Returns 1 if the target stopped because it executed a software
+     breakpoint instruction, 0 otherwise.  */
+  int (*stopped_by_sw_breakpoint) (void);
+
+  /* Returns true if the target knows whether a trap was caused by a
+     SW breakpoint triggering.  */
+  int (*supports_stopped_by_sw_breakpoint) (void);
+
+  /* Returns 1 if the target stopped for a hardware breakpoint.  */
+  int (*stopped_by_hw_breakpoint) (void);
+
+  /* Returns true if the target knows whether a trap was caused by a
+     HW breakpoint triggering.  */
+  int (*supports_stopped_by_hw_breakpoint) (void);
+
   /* Returns 1 if target was stopped due to a watchpoint hit, 0 otherwise.  */
 
   int (*stopped_by_watchpoint) (void);
@@ -304,9 +319,6 @@ struct target_ops
      the pause call.  */
   void (*unpause_all) (int unfreeze);
 
-  /* Cancel all pending breakpoints hits in all threads.  */
-  void (*cancel_breakpoints) (void);
-
   /* Stabilize all threads.  That is, force them out of jump pads.  */
   void (*stabilize_threads) (void);
 
@@ -358,11 +370,12 @@ struct target_ops
   int (*supports_agent) (void);
 
   /* Check whether the target supports branch tracing.  */
-  int (*supports_btrace) (struct target_ops *);
+  int (*supports_btrace) (struct target_ops *, enum btrace_format);
 
-  /* Enable branch tracing for @ptid and allocate a branch trace target
-     information struct for reading and for disabling branch trace.  */
-  struct btrace_target_info *(*enable_btrace) (ptid_t ptid);
+  /* Enable branch tracing for PTID based on CONF and allocate a branch trace
+     target information struct for reading and for disabling branch trace.  */
+  struct btrace_target_info *(*enable_btrace)
+    (ptid_t ptid, const struct btrace_config *conf);
 
   /* Disable branch tracing.
      Returns zero on success, non-zero otherwise.  */
@@ -374,8 +387,21 @@ struct target_ops
      otherwise.  */
   int (*read_btrace) (struct btrace_target_info *, struct buffer *, int type);
 
+  /* Read the branch trace configuration into BUFFER.
+     Return 0 on success; print an error message into BUFFER and return -1
+     otherwise.  */
+  int (*read_btrace_conf) (const struct btrace_target_info *, struct buffer *);
+
   /* Return true if target supports range stepping.  */
   int (*supports_range_stepping) (void);
+
+  /* Return the full absolute name of the executable file that was
+     run to create the process PID.  If the executable file cannot
+     be determined, NULL is returned.  Otherwise, a pointer to a
+     character string containing the pathname is returned.  This
+     string should be copied into a buffer by the client if the string
+     will not be immediately used, or if it must persist.  */
+  char *(*pid_to_exec_file) (int pid);
 };
 
 extern struct target_ops *the_target;
@@ -453,13 +479,6 @@ int kill_inferior (int);
 	(*the_target->unpause_all) (unfreeze);	\
     } while (0)
 
-#define cancel_breakpoints()			\
-  do						\
-    {						\
-      if (the_target->cancel_breakpoints)     	\
-	(*the_target->cancel_breakpoints) ();  	\
-    } while (0)
-
 #define stabilize_threads()			\
   do						\
     {						\
@@ -499,12 +518,12 @@ int kill_inferior (int);
   (the_target->supports_agent ? \
    (*the_target->supports_agent) () : 0)
 
-#define target_supports_btrace()			\
+#define target_supports_btrace(format)			\
   (the_target->supports_btrace				\
-   ? (*the_target->supports_btrace) (the_target) : 0)
+   ? (*the_target->supports_btrace) (the_target, format) : 0)
 
-#define target_enable_btrace(ptid) \
-  (*the_target->enable_btrace) (ptid)
+#define target_enable_btrace(ptid, conf) \
+  (*the_target->enable_btrace) (ptid, conf)
 
 #define target_disable_btrace(tinfo) \
   (*the_target->disable_btrace) (tinfo)
@@ -512,9 +531,28 @@ int kill_inferior (int);
 #define target_read_btrace(tinfo, buffer, type)	\
   (*the_target->read_btrace) (tinfo, buffer, type)
 
+#define target_read_btrace_conf(tinfo, buffer)	\
+  (*the_target->read_btrace_conf) (tinfo, buffer)
+
 #define target_supports_range_stepping() \
   (the_target->supports_range_stepping ? \
    (*the_target->supports_range_stepping) () : 0)
+
+#define target_supports_stopped_by_sw_breakpoint() \
+  (the_target->supports_stopped_by_sw_breakpoint ? \
+   (*the_target->supports_stopped_by_sw_breakpoint) () : 0)
+
+#define target_stopped_by_sw_breakpoint() \
+  (the_target->stopped_by_sw_breakpoint ? \
+   (*the_target->stopped_by_sw_breakpoint) () : 0)
+
+#define target_supports_stopped_by_hw_breakpoint() \
+  (the_target->supports_stopped_by_hw_breakpoint ? \
+   (*the_target->supports_stopped_by_hw_breakpoint) () : 0)
+
+#define target_stopped_by_hw_breakpoint() \
+  (the_target->stopped_by_hw_breakpoint ? \
+   (*the_target->stopped_by_hw_breakpoint) () : 0)
 
 /* Start non-stop mode, returns 0 on success, -1 on failure.   */
 

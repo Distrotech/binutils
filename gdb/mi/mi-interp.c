@@ -1,6 +1,6 @@
 /* MI Interpreter Definitions and Commands for GDB, the GNU debugger.
 
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -371,7 +371,7 @@ static void
 mi_new_thread (struct thread_info *t)
 {
   struct mi_interp *mi = top_level_interpreter_data ();
-  struct inferior *inf = find_inferior_pid (ptid_get_pid (t->ptid));
+  struct inferior *inf = find_inferior_ptid (t->ptid);
 
   gdb_assert (inf);
 
@@ -391,7 +391,7 @@ mi_thread_exit (struct thread_info *t, int silent)
   if (silent)
     return;
 
-  inf = find_inferior_pid (ptid_get_pid (t->ptid));
+  inf = find_inferior_ptid (t->ptid);
 
   mi = top_level_interpreter_data ();
   old_chain = make_cleanup_restore_target_terminal ();
@@ -808,7 +808,6 @@ mi_breakpoint_created (struct breakpoint *b)
 {
   struct mi_interp *mi = top_level_interpreter_data ();
   struct ui_out *mi_uiout = interp_ui_out (top_level_interpreter ());
-  volatile struct gdb_exception e;
 
   if (mi_suppress_notification.breakpoint)
     return;
@@ -827,8 +826,15 @@ mi_breakpoint_created (struct breakpoint *b)
      breakpoint_created notifications.  So, we use
      ui_out_redirect.  */
   ui_out_redirect (mi_uiout, mi->event_channel);
-  TRY_CATCH (e, RETURN_MASK_ERROR)
-    gdb_breakpoint_query (mi_uiout, b->number, NULL);
+  TRY
+    {
+      gdb_breakpoint_query (mi_uiout, b->number, NULL);
+    }
+  CATCH (e, RETURN_MASK_ERROR)
+    {
+    }
+  END_CATCH
+
   ui_out_redirect (mi_uiout, NULL);
 
   gdb_flush (mi->event_channel);
@@ -862,7 +868,6 @@ mi_breakpoint_modified (struct breakpoint *b)
 {
   struct mi_interp *mi = top_level_interpreter_data ();
   struct ui_out *mi_uiout = interp_ui_out (top_level_interpreter ());
-  volatile struct gdb_exception e;
 
   if (mi_suppress_notification.breakpoint)
     return;
@@ -881,8 +886,15 @@ mi_breakpoint_modified (struct breakpoint *b)
      breakpoint_created notifications.  So, we use
      ui_out_redirect.  */
   ui_out_redirect (mi_uiout, mi->event_channel);
-  TRY_CATCH (e, RETURN_MASK_ERROR)
-    gdb_breakpoint_query (mi_uiout, b->number, NULL);
+  TRY
+    {
+      gdb_breakpoint_query (mi_uiout, b->number, NULL);
+    }
+  CATCH (e, RETURN_MASK_ERROR)
+    {
+    }
+  END_CATCH
+
   ui_out_redirect (mi_uiout, NULL);
 
   gdb_flush (mi->event_channel);

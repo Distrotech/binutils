@@ -1,6 +1,6 @@
 # configure.tgt
 #
-#   Copyright (C) 2013-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2013-2015 Free Software Foundation, Inc.
 #
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,6 +49,8 @@ aarch64_be-*-elf)	targ_emul=aarch64elfb
 			targ_extra_emuls="aarch64elf aarch64elf32 aarch64elf32b armelfb armelf" ;;
 aarch64-*-elf)		targ_emul=aarch64elf
 			targ_extra_emuls="aarch64elf32 aarch64elf32b aarch64elfb armelf armelfb" ;;
+aarch64-*-freebsd*)	targ_emul=aarch64fbsd
+			targ_extra_emuls="aarch64fbsdb aarch64elf" ;;
 aarch64_be-*-linux*)	targ_emul=aarch64linuxb
 			targ_extra_libpath="aarch64linux aarch64linux32 aarch64linux32b armelfb_linux_eabi armelf_linux_eabi"
 			targ_extra_emuls="aarch64elfb aarch64elf aarch64elf32 aarch64elf32b armelfb armelf $targ_extra_libpath" ;;
@@ -198,6 +200,9 @@ h8300-*-hms* | h8300-*-coff* | h8300-*-rtemscoff*)
 h8300-*-elf* | h8300-*-rtems*)
 			targ_emul=h8300elf;
 			targ_extra_emuls="h8300helf h8300self h8300hnelf h8300snelf h8300sxelf h8300sxnelf" ;;
+h8300-*-linux*)
+			targ_emul=h8300elf_linux;
+			targ_extra_emuls="h8300helf_linux h8300self_linux h8300sxelf_linux" ;;
 h8500-*-hms* | h8500-*-coff* | h8500-*-rtems*)
 			targ_emul=h8500
 			targ_extra_emuls="h8500s h8500b h8500m h8500c"
@@ -225,6 +230,7 @@ i[3-7]86-*-rtems*)	targ_emul=elf_i386 ;;
 i[3-7]86-*-aros*)	targ_emul=elf_i386 ;;
 i[3-7]86-*-rdos*)	targ_emul=elf_i386 ;;
 x86_64-*-rdos*)		targ_emul=elf64rdos ;;
+x86_64-*-cloudabi*)	targ_emul=elf_x86_64_cloudabi ;;
 i[3-7]86-*-bsd)		targ_emul=i386bsd ;;
 i[3-7]86-*-bsd386)	targ_emul=i386bsd ;;
 i[3-7]86-*-bsdi*)	targ_emul=i386bsd ;;
@@ -744,6 +750,8 @@ tilegxbe-*-*)		targ_emul=elf64tilegx_be
 			targ_extra_emuls="elf64tilegx elf32tilegx elf32tilegx_be"
 			targ_extra_libpath=$targ_extra_emuls ;;
 tilepro-*-*)		targ_emul=elf32tilepro ;;
+ft32-*-*)		targ_emul=elf32ft32
+			;;
 v850*-*-*)		targ_emul=v850_rh850
 			targ_extra_emuls=v850
 			;;

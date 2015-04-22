@@ -1,6 +1,6 @@
 /* TUI data manipulation routines.
 
-   Copyright (C) 1998-2014 Free Software Foundation, Inc.
+   Copyright (C) 1998-2015 Free Software Foundation, Inc.
 
    Contributed by Hewlett-Packard Company.
 
@@ -319,7 +319,7 @@ tui_set_current_layout_to (enum tui_layout_type new_layout)
 struct tui_win_info *
 tui_next_win (struct tui_win_info *cur_win)
 {
-  enum tui_win_type type = cur_win->generic.type;
+  int type = cur_win->generic.type;
   struct tui_win_info *next_win = (struct tui_win_info *) NULL;
 
   if (cur_win->generic.type == CMD_WIN)
@@ -349,7 +349,7 @@ tui_next_win (struct tui_win_info *cur_win)
 struct tui_win_info *
 tui_prev_win (struct tui_win_info *cur_win)
 {
-  enum tui_win_type type = cur_win->generic.type;
+  int type = cur_win->generic.type;
   struct tui_win_info *prev = (struct tui_win_info *) NULL;
 
   if (cur_win->generic.type == SRC_WIN)
@@ -391,7 +391,7 @@ tui_partial_win_by_name (char *name)
               char *cur_name = tui_win_name (&tui_win_list[i]->generic);
 
               if (strlen (name) <= strlen (cur_name)
-		  && strncmp (name, cur_name, strlen (name)) == 0)
+		  && startswith (cur_name, name))
                 win_info = tui_win_list[i];
             }
 	  i++;

@@ -1,5 +1,5 @@
 /* rl78-parse.y  Renesas RL78 parser
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Copyright (C) 2011-2015 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -259,7 +259,7 @@ statement :
 	  { B2 (0x61, 0x09|$1); O1 ($8); }
 
 	| addsubw AX ',' opt_es '[' HL ']'
-	  { B4 (0x61, 0x09|$1, 0, 0); }
+	  { B3 (0x61, 0x09|$1, 0); }
 
 	| addsubw SP ',' '#' EXPR
 	  { B1 ($1 ? 0x20 : 0x10); O1 ($5);

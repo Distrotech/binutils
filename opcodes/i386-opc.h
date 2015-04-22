@@ -1,5 +1,5 @@
 /* Declarations for Intel 80386 opcode table
-   Copyright (C) 2007-2014 Free Software Foundation, Inc.
+   Copyright (C) 2007-2015 Free Software Foundation, Inc.
 
    This file is part of the GNU opcodes library.
 
@@ -192,6 +192,8 @@ enum
   CpuAVX512IFMA,
   /* Intel AVX-512 VBMI Instructions support required.  */
   CpuAVX512VBMI,
+  /* Clzero instruction required */ 
+  CpuCLZERO,
   /* 64bit support required  */
   Cpu64,
   /* Not supported in the 64bit mode  */
@@ -295,6 +297,7 @@ typedef union i386_cpu_flags
       unsigned int cpupcommit:1;
       unsigned int cpuavx512ifma:1;
       unsigned int cpuavx512vbmi:1;
+      unsigned int cpuclzero:1;
       unsigned int cpu64:1;
       unsigned int cpuno64:1;
 #ifdef CpuUnused

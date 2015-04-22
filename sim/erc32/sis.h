@@ -23,8 +23,16 @@
 #include "ansidecl.h"
 #include "gdb/callback.h"
 #include "gdb/remote-sim.h"
+#include <sim-config.h>
+#include <stdint.h>
 
-#include "end.h"
+#if WITH_HOST_BYTE_ORDER == BIG_ENDIAN
+#define HOST_BIG_ENDIAN
+#define EBT 0
+#else
+#define HOST_LITTLE_ENDIAN
+#define EBT 3
+#endif
 
 #define I_ACC_EXC 1
 
@@ -51,16 +59,13 @@ typedef unsigned int uint32;	/* 32-bit unsigned int */
 typedef float   float32;	/* 32-bit float */
 typedef double  float64;	/* 64-bit float */
 
-/* FIXME: what about host compilers that don't support 64-bit ints? */
-typedef unsigned long long uint64; /* 64-bit unsigned int */
-typedef long long int64;	   /* 64-bit signed int */
-
-#define UINT64_MAX 18446744073709551615ULL
+typedef uint64_t uint64; /* 64-bit unsigned int */
+typedef int64_t int64;	   /* 64-bit signed int */
 
 struct pstate {
 
     float64         fd[16];	/* FPU registers */
-#ifdef HOST_LITTLE_ENDIAN_FLOAT
+#ifdef HOST_LITTLE_ENDIAN
     float32         fs[32];
     float32        *fdp;
 #else
@@ -110,14 +115,14 @@ struct pstate {
     float32         freq;	/* Simulated processor frequency */
 
 
-    uint64          tottime;
+    double          tottime;
     uint64          ninst;
     uint64          fholdt;
     uint64          holdt;
     uint64          icntt;
     uint64          finst;
     uint64          simstart;
-    uint64          starttime;
+    double          starttime;
     uint64          tlimit;	/* Simulation time limit */
     uint64          pwdtime;	/* Cycles in power-down mode */
     uint64          nstore;	/* Number of load instructions */
@@ -166,6 +171,7 @@ extern void	sim_halt (void);
 extern void	exit_sim (void);
 extern void	init_stdio (void);
 extern void	restore_stdio (void);
+extern int	memory_iread (uint32 addr, uint32 *data, int32 *ws);
 extern int	memory_read (int32 asi, uint32 addr, uint32 *data,
 			     int32 sz, int32 *ws);
 extern int	memory_write (int32 asi, uint32 addr, uint32 *data,
@@ -176,10 +182,11 @@ extern int	sis_memory_read (uint32 addr, char *data,
 				 uint32 length);
 
 /* func.c */
+extern struct pstate  sregs;
 extern void	set_regi (struct pstate *sregs, int32 reg,
 			  uint32 rval);
 extern void	get_regi (struct pstate *sregs, int32 reg, char *buf);
-extern int	exec_cmd (struct pstate *sregs, char *cmd);
+extern int	exec_cmd (struct pstate *sregs, const char *cmd);
 extern void	reset_stat (struct pstate  *sregs);
 extern void	show_stat (struct pstate  *sregs);
 extern void	init_bpt (struct pstate  *sregs);
@@ -197,7 +204,8 @@ extern int	check_bpt (struct pstate *sregs);
 extern void	reset_all (void);
 extern void	sys_reset (void);
 extern void	sys_halt (void);
-extern int	bfd_load (char *fname);
+extern int	bfd_load (const char *fname);
+extern double	get_time (void);
 
 /* exec.c */
 extern int	dispatch_instruction (struct pstate *sregs);

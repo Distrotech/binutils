@@ -1,6 +1,6 @@
 /* TUI data manipulation routines.
 
-   Copyright (C) 1998-2014 Free Software Foundation, Inc.
+   Copyright (C) 1998-2015 Free Software Foundation, Inc.
 
    Contributed by Hewlett-Packard Company.
 
@@ -75,7 +75,7 @@ struct tui_gen_win_info
 
 /* Strings to display in the TUI status line.  */
 #define PROC_PREFIX             "In: "
-#define LINE_PREFIX             "Line: "
+#define LINE_PREFIX             "L"
 #define PC_PREFIX               "PC: "
 #define SINGLE_KEY              "(SingleKey)"
 
@@ -85,7 +85,7 @@ struct tui_gen_win_info
 				   numbers.  */
 #define MIN_PROC_WIDTH    12
 #define MAX_TARGET_WIDTH  10
-#define MAX_PID_WIDTH     14
+#define MAX_PID_WIDTH     19
 
 #define TUI_FLOAT_REGS_NAME                  "$FREGS"
 #define TUI_FLOAT_REGS_NAME_LOWER            "$fregs"
@@ -145,10 +145,16 @@ enum tui_register_display_type
   TUI_GENERAL_AND_SPECIAL_REGS
 };
 
+enum tui_line_or_address_kind
+{
+  LOA_LINE,
+  LOA_ADDRESS
+};
+
 /* Structure describing source line or line address.  */
 struct tui_line_or_address
 {
-  enum { LOA_LINE, LOA_ADDRESS } loa;
+  enum tui_line_or_address_kind loa;
   union
     {
       int line_no;

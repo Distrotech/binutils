@@ -1,6 +1,6 @@
 /* Do various things to symbol tables (other than lookup), for GDB.
 
-   Copyright (C) 1986-2014 Free Software Foundation, Inc.
+   Copyright (C) 1986-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -466,8 +466,12 @@ print_symbol (void *args)
   struct symbol *symbol = ((struct print_symbol_args *) args)->symbol;
   int depth = ((struct print_symbol_args *) args)->depth;
   struct ui_file *outfile = ((struct print_symbol_args *) args)->outfile;
-  struct obj_section *section = SYMBOL_OBJ_SECTION (SYMBOL_OBJFILE (symbol),
-						    symbol);
+  struct obj_section *section;
+
+  if (SYMBOL_OBJFILE_OWNED (symbol))
+    section = SYMBOL_OBJ_SECTION (symbol_objfile (symbol), symbol);
+  else
+    section = NULL;
 
   print_spaces (depth, outfile);
   if (SYMBOL_DOMAIN (symbol) == LABEL_DOMAIN)
@@ -922,7 +926,7 @@ maintenance_expand_symtabs (char *args, int from_tty)
 	{
 	  objfile->sf->qf->expand_symtabs_matching
 	    (objfile, maintenance_expand_file_matcher,
-	     maintenance_expand_name_matcher, ALL_DOMAIN, regexp);
+	     maintenance_expand_name_matcher, NULL, ALL_DOMAIN, regexp);
 	}
     }
 

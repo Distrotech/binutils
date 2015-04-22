@@ -1,5 +1,5 @@
 /* Disassembler code for Renesas RL78.
-   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Copyright (C) 2011-2015 Free Software Foundation, Inc.
    Contributed by Red Hat.
    Written by DJ Delorie.
 
@@ -284,7 +284,7 @@ print_insn_rl78 (bfd_vma addr, disassemble_info * dis)
 		    PR (PS, "[%s", register_names[oper->reg]);
 		    if (oper->reg2 != RL78_Reg_None)
 		      PR (PS, "+%s", register_names[oper->reg2]);
-		    if (oper->addend)
+		    if (oper->addend || do_addr)
 		      PR (PS, "+%d", oper->addend);
 		    PC (']');
 		    break;

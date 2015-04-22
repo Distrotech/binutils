@@ -1,6 +1,6 @@
 /* Dump-to-file commands, for GDB, the GNU debugger.
 
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
 
    Contributed by Red Hat.
 
@@ -575,7 +575,7 @@ restore_command (char *args_in, int from_tty)
       char *binary_string = "binary";
 
       /* Look for optional "binary" flag.  */
-      if (strncmp (args, binary_string, strlen (binary_string)) == 0)
+      if (startswith (args, binary_string))
 	{
 	  binary_flag = 1;
 	  args += strlen (binary_string);

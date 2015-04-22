@@ -1,5 +1,5 @@
 /* Memory breakpoint interfaces for the remote server for GDB.
-   Copyright (C) 2002-2014 Free Software Foundation, Inc.
+   Copyright (C) 2002-2015 Free Software Foundation, Inc.
 
    Contributed by MontaVista Software.
 
@@ -89,6 +89,16 @@ int breakpoint_here (CORE_ADDR addr);
    breakpoint set at ADDR.  */
 
 int breakpoint_inserted_here (CORE_ADDR addr);
+
+/* Returns TRUE if there's any inserted software breakpoint at
+   ADDR.  */
+
+int software_breakpoint_inserted_here (CORE_ADDR addr);
+
+/* Returns TRUE if there's any inserted hardware (code) breakpoint at
+   ADDR.  */
+
+int hardware_breakpoint_inserted_here (CORE_ADDR addr);
 
 /* Clear all breakpoint conditions and commands associated with a
    breakpoint.  */

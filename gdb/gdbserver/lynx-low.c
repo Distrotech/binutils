@@ -1,4 +1,4 @@
-/* Copyright (C) 2009-2014 Free Software Foundation, Inc.
+/* Copyright (C) 2009-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -218,8 +218,8 @@ lynx_add_process (int pid, int attached)
 
   proc = add_process (pid, attached);
   proc->tdesc = lynx_tdesc;
-  proc->private = xcalloc (1, sizeof (*proc->private));
-  proc->private->last_wait_event_ptid = null_ptid;
+  proc->priv = xcalloc (1, sizeof (*proc->priv));
+  proc->priv->last_wait_event_ptid = null_ptid;
 
   return proc;
 }
@@ -320,10 +320,11 @@ lynx_attach (unsigned long pid)
 static void
 lynx_resume (struct thread_resume *resume_info, size_t n)
 {
-  /* FIXME: Assume for now that n == 1.  */
   ptid_t ptid = resume_info[0].thread;
-  const int request = (resume_info[0].kind == resume_step
-                       ? PTRACE_SINGLESTEP : PTRACE_CONT);
+  const int request
+    = (resume_info[0].kind == resume_step
+       ? (n == 1 ? PTRACE_SINGLESTEP_ONE : PTRACE_SINGLESTEP)
+       : PTRACE_CONT);
   const int signal = resume_info[0].sig;
 
   /* If given a minus_one_ptid, then try using the current_process'
@@ -333,7 +334,7 @@ lynx_resume (struct thread_resume *resume_info, size_t n)
      unexpected signals (Eg SIG61) when we resume the inferior
      using a different thread.  */
   if (ptid_equal (ptid, minus_one_ptid))
-    ptid = current_process()->private->last_wait_event_ptid;
+    ptid = current_process()->priv->last_wait_event_ptid;
 
   /* The ptid might still be minus_one_ptid; this can happen between
      the moment we create the inferior or attach to a process, and
@@ -421,7 +422,7 @@ retry:
 
   ret = lynx_waitpid (pid, &wstat);
   new_ptid = lynx_ptid_build (ret, ((union wait *) &wstat)->w_tid);
-  find_process_pid (ret)->private->last_wait_event_ptid = new_ptid;
+  find_process_pid (ret)->priv->last_wait_event_ptid = new_ptid;
 
   /* If this is a new thread, then add it now.  The reason why we do
      this here instead of when handling new-thread events is because
@@ -551,8 +552,8 @@ static void
 lynx_mourn (struct process_info *proc)
 {
   /* Free our private data.  */
-  free (proc->private);
-  proc->private = NULL;
+  free (proc->priv);
+  proc->priv = NULL;
 
   clear_inferiors ();
 }
@@ -741,6 +742,10 @@ static struct target_ops lynx_target_ops = {
   NULL,  /* supports_z_point_type */
   NULL,  /* insert_point */
   NULL,  /* remove_point */
+  NULL,  /* stopped_by_sw_breakpoint */
+  NULL,  /* supports_stopped_by_sw_breakpoint */
+  NULL,  /* stopped_by_hw_breakpoint */
+  NULL,  /* supports_stopped_by_hw_breakpoint */
   NULL,  /* stopped_by_watchpoint */
   NULL,  /* stopped_data_address */
   NULL,  /* read_offsets */

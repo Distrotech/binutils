@@ -1,5 +1,5 @@
 /* Generic target-file-type support for the BFD library.
-   Copyright (C) 1990-2014 Free Software Foundation, Inc.
+   Copyright (C) 1990-2015 Free Software Foundation, Inc.
    Written by Cygnus Support.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -631,6 +631,7 @@ extern const bfd_target frv_elf32_vec;
 extern const bfd_target frv_elf32_fdpic_vec;
 extern const bfd_target h8300_coff_vec;
 extern const bfd_target h8300_elf32_vec;
+extern const bfd_target h8300_elf32_linux_vec;
 extern const bfd_target h8500_coff_vec;
 extern const bfd_target hppa_elf32_vec;
 extern const bfd_target hppa_elf32_linux_vec;
@@ -872,6 +873,7 @@ extern const bfd_target tilegx_elf64_le_vec;
 extern const bfd_target tilepro_elf32_vec;
 extern const bfd_target v800_elf32_vec;
 extern const bfd_target v850_elf32_vec;
+extern const bfd_target ft32_elf32_vec;
 extern const bfd_target vax_aout_1knbsd_vec;
 extern const bfd_target vax_aout_bsd_vec;
 extern const bfd_target vax_aout_nbsd_vec;
@@ -883,6 +885,7 @@ extern const bfd_target x86_64_coff_vec;
 extern const bfd_target x86_64_elf32_vec;
 extern const bfd_target x86_64_elf32_nacl_vec;
 extern const bfd_target x86_64_elf64_vec;
+extern const bfd_target x86_64_elf64_cloudabi_vec;
 extern const bfd_target x86_64_elf64_fbsd_vec;
 extern const bfd_target x86_64_elf64_nacl_vec;
 extern const bfd_target x86_64_elf64_sol2_vec;
@@ -1044,6 +1047,7 @@ static const bfd_target * const _bfd_target_vector[] =
 
 	&h8300_coff_vec,
 	&h8300_elf32_vec,
+	&h8300_elf32_linux_vec,
 	&h8500_coff_vec,
 
 	&hppa_elf32_vec,
@@ -1378,6 +1382,8 @@ static const bfd_target * const _bfd_target_vector[] =
 #endif
 	&tilepro_elf32_vec,
 
+	&ft32_elf32_vec,
+
 	&v800_elf32_vec,
 	&v850_elf32_vec,
 
@@ -1397,6 +1403,7 @@ static const bfd_target * const _bfd_target_vector[] =
 	&x86_64_elf32_vec,
 	&x86_64_elf32_nacl_vec,
 	&x86_64_elf64_vec,
+	&x86_64_elf64_cloudabi_vec,
 	&x86_64_elf64_fbsd_vec,
 	&x86_64_elf64_nacl_vec,
 	&x86_64_elf64_sol2_vec,

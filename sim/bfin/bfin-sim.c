@@ -1,6 +1,6 @@
 /* Simulator for Analog Devices Blackfin processors.
 
-   Copyright (C) 2005-2014 Free Software Foundation, Inc.
+   Copyright (C) 2005-2015 Free Software Foundation, Inc.
    Contributed by Analog Devices, Inc.
 
    This file is part of simulators.
@@ -4537,7 +4537,7 @@ decode_dsp32alu_0 (SIM_CPU *cpu, bu16 iw0, bu16 iw1)
   else if ((aop == 0 || aop == 1) && aopcde == 14 && x == 0 && s == 0)
     {
       bs40 src_acc = get_extended_acc (cpu, aop);
-      int v = 0;
+      bu32 v = 0;
 
       TRACE_INSN (cpu, "A%i = - A%i;", HL, aop);
 

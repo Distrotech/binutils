@@ -1,6 +1,6 @@
 /* General Compile and inject code
 
-   Copyright (C) 2014 Free Software Foundation, Inc.
+   Copyright (C) 2014-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -37,6 +37,7 @@
 #include "filestuff.h"
 #include "target.h"
 #include "osabi.h"
+#include "gdb_wait.h"
 
 
 
@@ -169,10 +170,14 @@ do_rmdir (void *arg)
 {
   const char *dir = arg;
   char *zap;
-  
-  gdb_assert (strncmp (dir, TMP_PREFIX, strlen (TMP_PREFIX)) == 0);
+  int wstat;
+
+  gdb_assert (startswith (dir, TMP_PREFIX));
   zap = concat ("rm -rf ", dir, (char *) NULL);
-  system (zap);
+  wstat = system (zap);
+  if (wstat == -1 || !WIFEXITED (wstat) || WEXITSTATUS (wstat) != 0)
+    warning (_("Could not remove temporary directory %s"), dir);
+  XDELETEVEC (zap);
 }
 
 /* Return the name of the temporary directory to use for .o files, and
@@ -191,7 +196,11 @@ get_compile_file_tempdir (void)
 
   strcpy (tname, TEMPLATE);
 #undef TEMPLATE
+#ifdef HAVE_MKDTEMP
   tempdir_name = mkdtemp (tname);
+#else
+  error (_("Command not supported on this host."));
+#endif
   if (tempdir_name == NULL)
     perror_with_name (_("Could not make temporary directory"));
 
@@ -304,7 +313,7 @@ get_selected_pc_producer_options (void)
   const char *cs;
 
   if (symtab == NULL || symtab->producer == NULL
-      || strncmp (symtab->producer, "GNU ", strlen ("GNU ")) != 0)
+      || !startswith (symtab->producer, "GNU "))
     return NULL;
 
   cs = symtab->producer;
@@ -313,6 +322,27 @@ get_selected_pc_producer_options (void)
   if (*cs != '-')
     return NULL;
   return cs;
+}
+
+/* Filter out unwanted options from *ARGCP and ARGV.  */
+
+static void
+filter_args (int *argcp, char **argv)
+{
+  char **destv;
+
+  for (destv = argv; *argv != NULL; argv++)
+    {
+      /* -fpreprocessed may get in commonly from ccache.  */
+      if (strcmp (*argv, "-fpreprocessed") == 0)
+	{
+	  xfree (*argv);
+	  (*argcp)--;
+	  continue;
+	}
+      *destv++ = *argv;
+    }
+  *destv = NULL;
 }
 
 /* Produce final vector of GCC compilation options.  First element is target
@@ -337,6 +367,7 @@ get_args (const struct compile_instance *compiler, struct gdbarch *gdbarch,
       char **argv_producer;
 
       build_argc_argv (cs_producer_options, &argc_producer, &argv_producer);
+      filter_args (&argc_producer, argv_producer);
       append_args (argcp, argvp, argc_producer, argv_producer);
       freeargv (argv_producer);
     }
@@ -452,7 +483,9 @@ compile_to_object (struct command_line *cmd, char *cmd_string,
 
   os_rx = osabi_triplet_regexp (gdbarch_osabi (gdbarch));
   arch_rx = gdbarch_gnu_triplet_regexp (gdbarch);
-  triplet_rx = concat (arch_rx, "-[^-]*-", os_rx, (char *) NULL);
+
+  /* Allow triplets with or without vendor set.  */
+  triplet_rx = concat (arch_rx, "(-[^-]*)?-", os_rx, (char *) NULL);
   make_cleanup (xfree, triplet_rx);
 
   /* Set compiler command-line arguments.  */
@@ -636,12 +669,13 @@ String quoting is parsed like in shell, for example:\n\
 
   /* Override flags possibly coming from DW_AT_producer.  */
   compile_args = xstrdup ("-O0 -gdwarf-4"
-  /* We use -fPIC Otherwise GDB would need to reserve space large enough for
+  /* We use -fPIE Otherwise GDB would need to reserve space large enough for
      any object file in the inferior in advance to get the final address when
      to link the object file to and additionally the default system linker
      script would need to be modified so that one can specify there the
-     absolute target address.  */
-			 " -fPIC"
+     absolute target address.
+     -fPIC is not used at is would require from GDB to generate .got.  */
+			 " -fPIE"
   /* We don't want warnings.  */
 			 " -w"
   /* Override CU's possible -fstack-protector-strong.  */

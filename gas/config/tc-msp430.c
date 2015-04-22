@@ -1,6 +1,6 @@
 /* tc-msp430.c -- Assembler code for the Texas Instruments MSP430
 
-  Copyright (C) 2002-2014 Free Software Foundation, Inc.
+  Copyright (C) 2002-2015 Free Software Foundation, Inc.
   Contributed by Dmitry Diky <diwil@mail.ru>
 
   This file is part of GAS, the GNU Assembler.
@@ -3174,9 +3174,9 @@ md_assemble (char * str)
   unsigned int i = 0;
 
   str = skip_space (str);	/* Skip leading spaces.  */
-  str = extract_cmd (str, cmd, sizeof (cmd));
+  str = extract_cmd (str, cmd, sizeof (cmd) - 1);
 
-  while (cmd[i] && i < sizeof (cmd))
+  while (cmd[i])
     {
       char a = TOLOWER (cmd[i]);
       cmd[i] = a;

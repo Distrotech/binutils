@@ -1,6 +1,6 @@
 /* Target-dependent code for Solaris.
 
-   Copyright (C) 2006-2014 Free Software Foundation, Inc.
+   Copyright (C) 2006-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -60,7 +60,7 @@ sol2_core_pid_to_str (struct gdbarch *gdbarch, ptid_t ptid)
   /* GDB didn't use to put a NT_PSTATUS note in Solaris cores.  If
      that's missing, then we're dealing with a fake PID corelow.c made
      up.  */
-  inf = find_inferior_pid (ptid_get_pid (ptid));
+  inf = find_inferior_ptid (ptid);
   if (inf == NULL || inf->fake_pid_p)
     {
       xsnprintf (buf, sizeof buf, "<core>");

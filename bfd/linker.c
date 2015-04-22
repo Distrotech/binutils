@@ -1,5 +1,5 @@
 /* linker.c -- BFD linker routines
-   Copyright (C) 1993-2014 Free Software Foundation, Inc.
+   Copyright (C) 1993-2015 Free Software Foundation, Inc.
    Written by Steve Chamberlain and Ian Lance Taylor, Cygnus Support
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -1560,6 +1560,7 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	      h->type = bfd_link_hash_defined;
 	    h->u.def.section = section;
 	    h->u.def.value = value;
+	    h->linker_def = 0;
 
 	    /* If we have been asked to, we act like collect2 and
 	       identify all functions that might be global
@@ -1659,6 +1660,7 @@ _bfd_generic_link_add_one_symbol (struct bfd_link_info *info,
 	    }
 	  else
 	    h->u.c.p->section = section;
+	  h->linker_def = 0;
 	  break;
 
 	case REF:
@@ -2134,7 +2136,7 @@ _bfd_generic_link_output_symbols (bfd *output_bfd,
 		  /* fall through */
 		case bfd_link_hash_defined:
 		  sym->flags |= BSF_GLOBAL;
-		  sym->flags &=~ BSF_CONSTRUCTOR;
+		  sym->flags &=~ (BSF_WEAK | BSF_CONSTRUCTOR);
 		  sym->value = h->root.u.def.value;
 		  sym->section = h->root.u.def.section;
 		  break;
@@ -2432,7 +2434,7 @@ _bfd_generic_reloc_link_order (bfd *abfd,
 
       size = bfd_get_reloc_size (r->howto);
       buf = (bfd_byte *) bfd_zmalloc (size);
-      if (buf == NULL)
+      if (buf == NULL && size != 0)
 	return FALSE;
       rstat = _bfd_relocate_contents (r->howto, abfd,
 				      (bfd_vma) link_order->u.reloc.p->addend,
@@ -2894,7 +2896,7 @@ _bfd_handle_already_linked (asection *sec,
 	 files over IR because the first pass may contain a
 	 mix of LTO and normal objects and we must keep the
 	 first match, be it IR or real.  */
-      if (info->loading_lto_outputs
+      if (sec->owner->lto_output
 	  && (l->sec->owner->flags & BFD_PLUGIN) != 0)
 	{
 	  l->sec = sec;

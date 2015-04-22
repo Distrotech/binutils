@@ -1,6 +1,6 @@
 // layout.h -- lay out output file sections for gold  -*- C++ -*-
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2015 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -634,6 +634,12 @@ class Layout
 		  const elfcpp::Shdr<size, big_endian>& shdr,
 		  unsigned int reloc_shndx, unsigned int reloc_type,
 		  off_t* offset);
+
+  // After processing all input files, we call this to make sure that
+  // the optimized .eh_frame sections have been added to the output
+  // section.
+  void
+  finalize_eh_frame_section();
 
   // Add .eh_frame information for a PLT.  The FDE must start with a
   // 4-byte PC-relative reference to the start of the PLT, followed by

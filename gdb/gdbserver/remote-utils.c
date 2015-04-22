@@ -1,5 +1,5 @@
 /* Remote utility routines for the remote server for GDB.
-   Copyright (C) 1986-2014 Free Software Foundation, Inc.
+   Copyright (C) 1986-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -23,6 +23,7 @@
 #include "tdesc.h"
 #include "dll.h"
 #include "rsp-low.h"
+#include <ctype.h>
 #if HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
@@ -530,7 +531,7 @@ hex_or_minus_one (char *buf, char **obuf)
 {
   ULONGEST ret;
 
-  if (strncmp (buf, "-1", 2) == 0)
+  if (startswith (buf, "-1"))
     {
       ret = (ULONGEST) -1;
       buf += 2;
@@ -741,10 +742,18 @@ input_interrupt (int unused)
 
       cc = read_prim (&c, 1);
 
-      if (cc != 1 || c != '\003' || current_thread == NULL)
+      if (cc == 0)
 	{
-	  fprintf (stderr, "input_interrupt, count = %d c = %d ('%c')\n",
-		   cc, c, c);
+	  fprintf (stderr, "client connection closed\n");
+	  return;
+	}
+      else if (cc != 1 || c != '\003' || current_thread == NULL)
+	{
+	  fprintf (stderr, "input_interrupt, count = %d c = %d ", cc, c);
+	  if (isprint (c))
+	    fprintf (stderr, "('%c')\n", c);
+	  else
+	    fprintf (stderr, "('\\x%02x')\n", c & 0xff);
 	  return;
 	}
 
@@ -1140,6 +1149,16 @@ prepare_resume_reply (char *buf, ptid_t ptid,
 	      *buf++ = tohex ((addr >> (i - 1) * 4) & 0xf);
 	    *buf++ = ';';
 	  }
+	else if (swbreak_feature && target_stopped_by_sw_breakpoint ())
+	  {
+	    sprintf (buf, "swbreak:;");
+	    buf += strlen (buf);
+	  }
+	else if (hwbreak_feature && target_stopped_by_hw_breakpoint ())
+	  {
+	    sprintf (buf, "hwbreak:;");
+	    buf += strlen (buf);
+	  }
 
 	while (*regp)
 	  {
@@ -1428,7 +1447,7 @@ look_up_one_symbol (const char *name, CORE_ADDR *addrp, int may_ask_gdb)
 	return -1;
     }
 
-  if (strncmp (own_buf, "qSymbol:", strlen ("qSymbol:")) != 0)
+  if (!startswith (own_buf, "qSymbol:"))
     {
       warning ("Malformed response to qSymbol, ignoring: %s\n", own_buf);
       return -1;
@@ -1537,7 +1556,7 @@ relocate_instruction (CORE_ADDR *to, CORE_ADDR oldloc)
       return -1;
     }
 
-  if (strncmp (own_buf, "qRelocInsn:", strlen ("qRelocInsn:")) != 0)
+  if (!startswith (own_buf, "qRelocInsn:"))
     {
       warning ("Malformed response to qRelocInsn, ignoring: %s\n",
 	       own_buf);

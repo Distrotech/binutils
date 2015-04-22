@@ -1,6 +1,6 @@
 // options.h -- handle command line options for gold  -*- C++ -*-
 
-// Copyright (C) 2006-2014 Free Software Foundation, Inc.
+// Copyright (C) 2006-2015 Free Software Foundation, Inc.
 // Written by Ian Lance Taylor <iant@google.com>.
 
 // This file is part of gold.
@@ -695,17 +695,10 @@ class General_options
 	      N_("Check segment addresses for overlaps (default)"),
 	      N_("Do not check segment addresses for overlaps"));
 
-#ifdef HAVE_ZLIB_H
   DEFINE_enum(compress_debug_sections, options::TWO_DASHES, '\0', "none",
 	      N_("Compress .debug_* sections in the output file"),
 	      ("[none,zlib]"),
 	      {"none", "zlib"});
-#else
-  DEFINE_enum(compress_debug_sections, options::TWO_DASHES, '\0', "none",
-	      N_("Compress .debug_* sections in the output file"),
-	      N_("[none]"),
-	      {"none"});
-#endif
 
   DEFINE_bool(copy_dt_needed_entries, options::TWO_DASHES, '\0', false,
 	      N_("Not supported"),
@@ -808,6 +801,10 @@ class General_options
   DEFINE_bool(fix_cortex_a8, options::TWO_DASHES, '\0', false,
 	      N_("(ARM only) Fix binaries for Cortex-A8 erratum."),
 	      N_("(ARM only) Do not fix binaries for Cortex-A8 erratum."));
+
+  DEFINE_bool(fix_cortex_a53, options::TWO_DASHES, '\0', false,
+	      N_("(AArch64 only) Scan and fix binaries for Cortex-A53 errata."),
+	      N_("(AArch64 only) Do not scan for Cortex-A53 errata."));
 
   DEFINE_bool(fix_arm1176, options::TWO_DASHES, '\0', true,
 	      N_("(ARM only) Fix binaries for ARM1176 erratum."),

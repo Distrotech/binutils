@@ -1,5 +1,5 @@
 /* IBM S/390-specific support for ELF 32 and 64 bit functions
-   Copyright (C) 2000-2014 Free Software Foundation, Inc.
+   Copyright (C) 2000-2015 Free Software Foundation, Inc.
    Contributed by Andreas Krebbel.
 
    This file is part of BFD, the Binary File Descriptor library.
@@ -241,4 +241,16 @@ elf_s390_add_symbol_hook (bfd *abfd,
     elf_tdata (info->output_bfd)->has_gnu_symbols = TRUE;
 
   return TRUE;
+}
+
+/* Whether to sort relocs output by ld -r or ld --emit-relocs, by
+   r_offset.  Don't do so for code sections.  We want to keep ordering
+   of GDCALL / PLT32DBL for TLS optimizations as is.  On the other
+   hand, elf-eh-frame.c processing requires .eh_frame relocs to be
+   sorted.  */
+
+static bfd_boolean
+elf_s390_elf_sort_relocs_p (asection *sec)
+{
+  return (sec->flags & SEC_CODE) == 0;
 }

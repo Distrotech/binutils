@@ -1,6 +1,6 @@
 // powerpc.cc -- powerpc target support for gold.
 
-// Copyright (C) 2008-2014 Free Software Foundation, Inc.
+// Copyright (C) 2008-2015 Free Software Foundation, Inc.
 // Written by David S. Miller <davem@davemloft.net>
 //        and David Edelsohn <edelsohn@gnu.org>
 
@@ -238,7 +238,7 @@ public:
       if (this->opd_ent_[i].gc_mark)
 	{
 	  unsigned int shndx = this->opd_ent_[i].shndx;
-	  symtab->gc()->worklist().push(Section_id(this, shndx));
+	  symtab->gc()->worklist().push_back(Section_id(this, shndx));
 	}
   }
 
@@ -1650,7 +1650,7 @@ public:
   addr16_ds(unsigned char* view, Address value, Overflow_check overflow)
   {
     Status stat = This::template rela<16,16>(view, 0, 0xfffc, value, overflow);
-    if (overflow != CHECK_NONE && (value & 3) != 0)
+    if ((value & 3) != 0)
       stat = STATUS_OVERFLOW;
     return stat;
   }
@@ -3178,8 +3178,6 @@ static const uint32_t addi_11_11	= 0x396b0000;
 static const uint32_t addi_12_12	= 0x398c0000;
 static const uint32_t addis_0_2		= 0x3c020000;
 static const uint32_t addis_0_13	= 0x3c0d0000;
-static const uint32_t addis_3_2		= 0x3c620000;
-static const uint32_t addis_3_13	= 0x3c6d0000;
 static const uint32_t addis_11_2	= 0x3d620000;
 static const uint32_t addis_11_11	= 0x3d6b0000;
 static const uint32_t addis_11_30	= 0x3d7e0000;
@@ -5671,8 +5669,8 @@ Target_powerpc<size, big_endian>::Scan::local(
 
 	if (!parameters->options().output_is_position_independent())
 	  {
-	    if ((size == 32 && is_ifunc)
-		|| (size == 64 && target->abiversion() >= 2))
+	    if (is_ifunc
+		&& (size == 32 || target->abiversion() >= 2))
 	      got->add_local_plt(object, r_sym, GOT_TYPE_STANDARD);
 	    else
 	      got->add_local(object, r_sym, GOT_TYPE_STANDARD);
@@ -6119,8 +6117,8 @@ Target_powerpc<size, big_endian>::Scan::global(
 	got = target->got_section(symtab, layout);
 	if (gsym->final_value_is_known())
 	  {
-	    if ((size == 32 && is_ifunc)
-		|| (size == 64 && target->abiversion() >= 2))
+	    if (is_ifunc
+		&& (size == 32 || target->abiversion() >= 2))
 	      got->add_global_plt(gsym, GOT_TYPE_STANDARD);
 	    else
 	      got->add_global(gsym, GOT_TYPE_STANDARD);
@@ -6436,7 +6434,8 @@ Target_powerpc<size, big_endian>::do_gc_mark_symbol(
 	  if (ppc_object->opd_valid())
 	    {
 	      unsigned int dst_indx = ppc_object->get_opd_ent(dst_off);
-	      symtab->gc()->worklist().push(Section_id(ppc_object, dst_indx));
+	      symtab->gc()->worklist().push_back(Section_id(ppc_object,
+                                                            dst_indx));
 	    }
 	  else
 	    ppc_object->add_gc_mark(dst_off);
@@ -6553,6 +6552,7 @@ class Global_symbol_visitor_opd
 	&& symobj->get_opd_discard(sym->value()))
       {
 	sym->set_undefined();
+	sym->set_visibility(elfcpp::STV_DEFAULT);
 	sym->set_is_defined_in_discarded_section();
 	sym->set_symtab_index(-1U);
       }
@@ -7008,9 +7008,12 @@ Target_powerpc<size, big_endian>::Relocate::relocate(
 	      || r_type == elfcpp::R_POWERPC_GOT_TLSGD16_LO)
 	    {
 	      Insn* iview = reinterpret_cast<Insn*>(view - 2 * big_endian);
-	      Insn insn = addis_3_13;
+	      Insn insn = elfcpp::Swap<32, big_endian>::readval(iview);
+	      insn &= (1 << 26) - (1 << 21); // extract rt
 	      if (size == 32)
-		insn = addis_3_2;
+		insn |= addis_0_2;
+	      else
+		insn |= addis_0_13;
 	      elfcpp::Swap<32, big_endian>::writeval(iview, insn);
 	      r_type = elfcpp::R_POWERPC_TPREL16_HA;
 	      value = psymval->value(object, rela.get_r_addend());
@@ -7043,9 +7046,12 @@ Target_powerpc<size, big_endian>::Relocate::relocate(
 	      || r_type == elfcpp::R_POWERPC_GOT_TLSLD16_LO)
 	    {
 	      Insn* iview = reinterpret_cast<Insn*>(view - 2 * big_endian);
-	      Insn insn = addis_3_13;
+	      Insn insn = elfcpp::Swap<32, big_endian>::readval(iview);
+	      insn &= (1 << 26) - (1 << 21); // extract rt
 	      if (size == 32)
-		insn = addis_3_2;
+		insn |= addis_0_2;
+	      else
+		insn |= addis_0_13;
 	      elfcpp::Swap<32, big_endian>::writeval(iview, insn);
 	      r_type = elfcpp::R_POWERPC_TPREL16_HA;
 	      value = dtp_offset;
@@ -7531,7 +7537,6 @@ Target_powerpc<size, big_endian>::Relocate::relocate(
       Insn* iview = reinterpret_cast<Insn*>(view - 2 * big_endian);
       Insn insn = elfcpp::Swap<32, big_endian>::readval(iview);
 
-      overflow = Reloc::CHECK_SIGNED;
       if ((insn & (0x3f << 26)) == 10u << 26 /* cmpli */)
 	overflow = Reloc::CHECK_BITFIELD;
       else if (overflow == Reloc::CHECK_LOW_INSN
@@ -7542,6 +7547,8 @@ Target_powerpc<size, big_endian>::Relocate::relocate(
 		  || (insn & (0x3f << 26)) == 25u << 26 /* oris */
 		  || (insn & (0x3f << 26)) == 27u << 26 /* xoris */))
 	overflow = Reloc::CHECK_UNSIGNED;
+      else
+	overflow = Reloc::CHECK_SIGNED;
     }
 
   typename Powerpc_relocate_functions<size, big_endian>::Status status
@@ -7591,8 +7598,11 @@ Target_powerpc<size, big_endian>::Relocate::relocate(
 
     case elfcpp::R_POWERPC_GOT_DTPREL16:
     case elfcpp::R_POWERPC_GOT_DTPREL16_LO:
+    case elfcpp::R_POWERPC_GOT_TPREL16:
+    case elfcpp::R_POWERPC_GOT_TPREL16_LO:
       if (size == 64)
 	{
+	  // On ppc64 these are all ds form
 	  status = Reloc::addr16_ds(view, value, overflow);
 	  break;
 	}
@@ -7605,7 +7615,6 @@ Target_powerpc<size, big_endian>::Relocate::relocate(
     case elfcpp::R_POWERPC_DTPREL16:
     case elfcpp::R_POWERPC_GOT_TLSGD16:
     case elfcpp::R_POWERPC_GOT_TLSLD16:
-    case elfcpp::R_POWERPC_GOT_TPREL16:
     case elfcpp::R_POWERPC_ADDR16_LO:
     case elfcpp::R_POWERPC_REL16_LO:
     case elfcpp::R_PPC64_TOC16_LO:
@@ -7615,7 +7624,6 @@ Target_powerpc<size, big_endian>::Relocate::relocate(
     case elfcpp::R_POWERPC_DTPREL16_LO:
     case elfcpp::R_POWERPC_GOT_TLSGD16_LO:
     case elfcpp::R_POWERPC_GOT_TLSLD16_LO:
-    case elfcpp::R_POWERPC_GOT_TPREL16_LO:
       status = Reloc::addr16(view, value, overflow);
       break;
 
@@ -7785,7 +7793,7 @@ Target_powerpc<size, big_endian>::Relocate::relocate(
   if (status != Powerpc_relocate_functions<size, big_endian>::STATUS_OK
       && (has_stub_value
 	  || !(gsym != NULL
-	       && gsym->is_weak_undefined()
+	       && gsym->is_undefined()
 	       && is_branch_reloc(r_type))))
     {
       gold_error_at_location(relinfo, relnum, rela.get_r_offset(),

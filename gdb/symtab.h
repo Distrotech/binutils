@@ -1,6 +1,6 @@
 /* Symbol table definitions for GDB.
 
-   Copyright (C) 1986-2014 Free Software Foundation, Inc.
+   Copyright (C) 1986-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -461,6 +461,10 @@ typedef enum domain_enum_tag
   COMMON_BLOCK_DOMAIN
 } domain_enum;
 
+/* The number of bits in a symbol used to represent the domain.  */
+
+#define SYMBOL_DOMAIN_BITS 4
+
 extern const char *domain_name (domain_enum);
 
 /* Searching domains, used for `search_symbols'.  Element numbers are
@@ -707,20 +711,34 @@ struct symbol
 
   struct type *type;
 
-  /* The symbol table containing this symbol.  This is the file
-     associated with LINE.  It can be NULL during symbols read-in but it is
-     never NULL during normal operation.  */
-  struct symtab *symtab;
+  /* The owner of this symbol.
+     Which one to use is defined by symbol.is_objfile_owned.  */
+
+  union
+  {
+    /* The symbol table containing this symbol.  This is the file associated
+       with LINE.  It can be NULL during symbols read-in but it is never NULL
+       during normal operation.  */
+    struct symtab *symtab;
+
+    /* For types defined by the architecture.  */
+    struct gdbarch *arch;
+  } owner;
 
   /* Domain code.  */
 
-  ENUM_BITFIELD(domain_enum_tag) domain : 6;
+  ENUM_BITFIELD(domain_enum_tag) domain : SYMBOL_DOMAIN_BITS;
 
   /* Address class.  This holds an index into the 'symbol_impls'
      table.  The actual enum address_class value is stored there,
      alongside any per-class ops vectors.  */
 
   unsigned int aclass_index : SYMBOL_ACLASS_BITS;
+
+  /* If non-zero then symbol is objfile-owned, use owner.symtab.
+     Otherwise symbol is arch-owned, use owner.arch.  */
+
+  unsigned int is_objfile_owned : 1;
 
   /* Whether this is an argument.  */
 
@@ -738,6 +756,7 @@ struct symbol
      SYMBOL_INLINED set) this is the line number of the function's call
      site.  Inlined function symbols are not definitions, and they are
      never found by symbol table lookup.
+     If this symbol is arch-owned, LINE shall be zero.
 
      FIXME: Should we really make the assumption that nobody will try
      to debug files longer than 64K lines?  What about machine
@@ -765,22 +784,24 @@ struct symbol
 
 extern const struct symbol_impl *symbol_impls;
 
+/* Note: There is no accessor macro for symbol.owner because it is
+   "private".  */
+
 #define SYMBOL_DOMAIN(symbol)	(symbol)->domain
 #define SYMBOL_IMPL(symbol)		(symbol_impls[(symbol)->aclass_index])
 #define SYMBOL_ACLASS_INDEX(symbol)	(symbol)->aclass_index
 #define SYMBOL_CLASS(symbol)		(SYMBOL_IMPL (symbol).aclass)
+#define SYMBOL_OBJFILE_OWNED(symbol)	((symbol)->is_objfile_owned)
 #define SYMBOL_IS_ARGUMENT(symbol)	(symbol)->is_argument
 #define SYMBOL_INLINED(symbol)		(symbol)->is_inlined
 #define SYMBOL_IS_CPLUS_TEMPLATE_FUNCTION(symbol) \
   (symbol)->is_cplus_template_function
 #define SYMBOL_TYPE(symbol)		(symbol)->type
 #define SYMBOL_LINE(symbol)		(symbol)->line
-#define SYMBOL_SYMTAB(symbol)		(symbol)->symtab
 #define SYMBOL_COMPUTED_OPS(symbol)	(SYMBOL_IMPL (symbol).ops_computed)
 #define SYMBOL_BLOCK_OPS(symbol)	(SYMBOL_IMPL (symbol).ops_block)
 #define SYMBOL_REGISTER_OPS(symbol)	(SYMBOL_IMPL (symbol).ops_register)
 #define SYMBOL_LOCATION_BATON(symbol)   (symbol)->aux_value
-#define SYMBOL_OBJFILE(symbol)		SYMTAB_OBJFILE (SYMBOL_SYMTAB (symbol))
 
 extern int register_symbol_computed_impl (enum address_class,
 					  const struct symbol_computed_ops *);
@@ -790,6 +811,28 @@ extern int register_symbol_block_impl (enum address_class aclass,
 
 extern int register_symbol_register_impl (enum address_class,
 					  const struct symbol_register_ops *);
+
+/* Return the OBJFILE of SYMBOL.
+   It is an error to call this if symbol.is_objfile_owned is false, which
+   only happens for architecture-provided types.  */
+
+extern struct objfile *symbol_objfile (const struct symbol *symbol);
+
+/* Return the ARCH of SYMBOL.  */
+
+extern struct gdbarch *symbol_arch (const struct symbol *symbol);
+
+/* Return the SYMTAB of SYMBOL.
+   It is an error to call this if symbol.is_objfile_owned is false, which
+   only happens for architecture-provided types.  */
+
+extern struct symtab *symbol_symtab (const struct symbol *symbol);
+
+/* Set the symtab of SYMBOL to SYMTAB.
+   It is an error to call this if symbol.is_objfile_owned is false, which
+   only happens for architecture-provided types.  */
+
+extern void symbol_set_symtab (struct symbol *symbol, struct symtab *symtab);
 
 /* An instance of this type is used to represent a C++ template
    function.  It includes a "struct symbol" as a kind of base class;
@@ -881,7 +924,8 @@ struct section_offsets
 
 struct symtab
 {
-  /* Unordered chain of all existing symtabs of this objfile.  */
+  /* Unordered chain of all filetabs in the compunit,  with the exception
+     that the "main" source file is the first entry in the list.  */
 
   struct symtab *next;
 
@@ -1166,9 +1210,11 @@ extern struct symbol *lookup_symbol (const char *, const struct block *,
    that can't think of anything better to do.
    This implements the C lookup rules.  */
 
-extern struct symbol *basic_lookup_symbol_nonlocal (const char *,
-						    const struct block *,
-						    const domain_enum);
+extern struct symbol *
+  basic_lookup_symbol_nonlocal (const struct language_defn *langdef,
+				const char *,
+				const struct block *,
+				const domain_enum);
 
 /* Some helper functions for languages that need to write their own
    lookup_symbol_nonlocal functions.  */
@@ -1371,7 +1417,7 @@ extern int find_line_pc_range (struct symtab_and_line, CORE_ADDR *,
 
 extern void resolve_sal_pc (struct symtab_and_line *);
 
-/* Symbol-reading stuff in symfile.c and solib.c.  */
+/* solib.c */
 
 extern void clear_solib (void);
 
@@ -1429,12 +1475,6 @@ extern struct symtab_and_line find_function_start_sal (struct symbol *sym,
 
 extern void skip_prologue_sal (struct symtab_and_line *);
 
-/* symfile.c */
-
-extern void clear_symtab_users (int add_flags);
-
-extern enum language deduce_language_from_filename (const char *);
-
 /* symtab.c */
 
 extern CORE_ADDR skip_prologue_using_sal (struct gdbarch *gdbarch,
@@ -1457,9 +1497,7 @@ struct symbol_search
 
   /* Information describing what was found.
 
-     If symtab and symbol are NOT NULL, then information was found
-     for this match.  */
-  struct symtab *symtab;
+     If symbol is NOT NULL, then information was found for this match.  */
   struct symbol *symbol;
 
   /* If msymbol is non-null, then a match was made on something for
@@ -1507,6 +1545,8 @@ struct objfile *lookup_objfile_from_block (const struct block *block);
 
 extern unsigned int symtab_create_debug;
 
+extern unsigned int symbol_lookup_debug;
+
 extern int basenames_may_differ;
 
 int compare_filenames_for_search (const char *filename,
@@ -1549,7 +1589,7 @@ struct cleanup *demangle_for_lookup (const char *name, enum language lang,
 
 struct symbol *allocate_symbol (struct objfile *);
 
-void initialize_symbol (struct symbol *);
+void initialize_objfile_symbol (struct symbol *);
 
 struct template_symbol *allocate_template_symbol (struct objfile *);
 

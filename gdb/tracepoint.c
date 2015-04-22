@@ -1,6 +1,6 @@
 /* Tracing functionality for remote targets in custom GDB protocol
 
-   Copyright (C) 1997-2014 Free Software Foundation, Inc.
+   Copyright (C) 1997-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -2739,7 +2739,7 @@ scope_info (char *args, int from_tty)
 	  if (symname == NULL || *symname == '\0')
 	    continue;		/* Probably botched, certainly useless.  */
 
-	  gdbarch = get_objfile_arch (SYMBOL_OBJFILE (sym));
+	  gdbarch = symbol_arch (sym);
 
 	  printf_filtered ("Symbol %s is ", symname);
 
@@ -3830,11 +3830,11 @@ parse_tracepoint_definition (char *line, struct uploaded_tp **utpp)
       end = hex2bin (p, (gdb_byte *) buf, strlen (p) / 2);
       buf[end] = '\0';
 
-      if (strncmp (srctype, "at:", strlen ("at:")) == 0)
+      if (startswith (srctype, "at:"))
 	utp->at_string = xstrdup (buf);
-      else if (strncmp (srctype, "cond:", strlen ("cond:")) == 0)
+      else if (startswith (srctype, "cond:"))
 	utp->cond_string = xstrdup (buf);
-      else if (strncmp (srctype, "cmd:", strlen ("cmd:")) == 0)
+      else if (startswith (srctype, "cmd:"))
 	VEC_safe_push (char_ptr, utp->cmd_strings, xstrdup (buf));
     }
   else if (piece == 'V')

@@ -1,7 +1,7 @@
 /* Private implementation details of interface between gdb and its
    extension languages.
 
-   Copyright (C) 2014 Free Software Foundation, Inc.
+   Copyright (C) 2014-2015 Free Software Foundation, Inc.
 
    This file is part of GDB.
 
@@ -102,6 +102,11 @@ struct extension_language_script_ops
      If there's an error while processing the script this function may,
      but is not required to, throw an error.  */
   objfile_script_sourcer_func *objfile_script_sourcer;
+
+  /* Execute a script attached to an objfile.
+     If there's an error while processing the script this function may,
+     but is not required to, throw an error.  */
+  objfile_script_executor_func *objfile_script_executor;
 
   /* Return non-zero if auto-loading scripts in this extension language
      is enabled.  */
