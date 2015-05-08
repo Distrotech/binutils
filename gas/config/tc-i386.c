@@ -369,6 +369,9 @@ struct _i386_insn
     /* Have BND prefix.  */
     const char *bnd_prefix;
 
+    /* Have RELAX prefix and RELAX prefix opcode.  */
+    unsigned int relax_prefix;
+
     /* Need VREX to support upper 16 registers.  */
     int need_vrex;
 
@@ -2052,7 +2055,8 @@ enum PREFIX_GROUP
   PREFIX_EXIST = 0,
   PREFIX_LOCK,
   PREFIX_REP,
-  PREFIX_OTHER
+  PREFIX_OTHER,
+  PREFIX_NONE
 };
 
 /* Returns
@@ -2084,6 +2088,11 @@ add_prefix (unsigned int prefix)
 	{
 	default:
 	  abort ();
+
+	case PSEUDO_RELAX_PREFIX_OPCODE:
+	  i.relax_prefix = RELAX_PREFIX_OPCODE;
+	  ret = PREFIX_NONE;
+	  break;
 
 	case CS_PREFIX_OPCODE:
 	case DS_PREFIX_OPCODE:
@@ -2117,15 +2126,18 @@ add_prefix (unsigned int prefix)
 	  q = DATA_PREFIX;
 	  break;
 	}
-      if (i.prefix[q] != 0)
+      if (ret != PREFIX_NONE && i.prefix[q] != 0)
 	ret = PREFIX_EXIST;
     }
 
   if (ret)
     {
-      if (!i.prefix[q])
-	++i.prefixes;
-      i.prefix[q] |= prefix;
+      if (ret != PREFIX_NONE)
+	{
+	  if (!i.prefix[q])
+	    ++i.prefixes;
+	  i.prefix[q] |= prefix;
+	}
     }
   else
     as_bad (_("same type of prefix used twice"));
@@ -2792,6 +2804,7 @@ static bfd_reloc_code_real_type
 reloc (unsigned int size,
        int pcrel,
        int sign,
+       int relax_prefix,
        bfd_reloc_code_real_type other)
 {
   if (other != NO_RELOC)
@@ -2870,7 +2883,11 @@ reloc (unsigned int size,
 	{
 	case 1: return BFD_RELOC_8_PCREL;
 	case 2: return BFD_RELOC_16_PCREL;
-	case 4: return BFD_RELOC_32_PCREL;
+	case 4: return (relax_prefix
+			? (object_64bit
+			   ? BFD_RELOC_X86_64_RELAX_PC32
+			   : BFD_RELOC_386_RELAX_PC32)
+			: BFD_RELOC_32_PCREL);
 	case 8: return BFD_RELOC_64_PCREL;
 	}
       as_bad (_("cannot do %u byte pc-relative relocation"), size);
@@ -3542,6 +3559,12 @@ md_assemble (char *line)
   /* Check BND prefix.  */
   if (i.bnd_prefix && !i.tm.opcode_modifier.bndprefixok)
     as_bad (_("expecting valid branch instruction after `bnd'"));
+
+  /* Check RELAX prefix.  */
+  if (i.relax_prefix
+      && i.tm.base_opcode != 0xe8
+      && i.tm.base_opcode != 0xeb)
+    as_bad (_("expecting valid call/jmp instruction after `relax'"));
 
   if (i.tm.cpu_flags.bitfield.cpumpx
       && flag_code == CODE_64BIT
@@ -6696,6 +6719,10 @@ output_branch (void)
       i.prefixes -= 1;
     }
 
+  /* Place RELAX prefix after BND prefix.  */
+  if (i.relax_prefix)
+    FRAG_APPEND_1_CHAR (i.relax_prefix);
+
   if (i.prefixes != 0 && !intel_syntax)
     as_warn (_("skipping prefixes on this instruction"));
 
@@ -6737,7 +6764,13 @@ output_branch (void)
 
   /* 1 possible extra opcode + 4 byte displacement go in var part.
      Pass reloc in fr_var.  */
-  frag_var (rs_machine_dependent, 5, i.reloc[0], subtype, sym, off, p);
+  frag_var (rs_machine_dependent, 5,
+	    ((i.reloc[0] != NO_RELOC || !i.relax_prefix)
+	     ? i.reloc[0]
+	     : (object_64bit
+		? BFD_RELOC_X86_64_RELAX_PC32
+		: BFD_RELOC_386_RELAX_PC32)),
+	    subtype, sym, off, p);
 }
 
 static void
@@ -6797,6 +6830,10 @@ output_jump (void)
       i.prefixes -= 1;
     }
 
+  /* Place RELAX prefix after BND prefix.  */
+  if (i.relax_prefix)
+    FRAG_APPEND_1_CHAR (i.relax_prefix);
+
   if (i.prefixes != 0 && !intel_syntax)
     as_warn (_("skipping prefixes on this instruction"));
 
@@ -6813,7 +6850,9 @@ output_jump (void)
     }
 
   fixP = fix_new_exp (frag_now, p - frag_now->fr_literal, size,
-		      i.op[0].disps, 1, reloc (size, 1, 1, i.reloc[0]));
+		      i.op[0].disps, 1, reloc (size, 1, 1,
+					       i.relax_prefix,
+					       i.reloc[0]));
 
   /* All jumps handled here are signed, but don't use a signed limit
      check for 32 and 16 bit jumps as we want to allow wrap around at
@@ -6829,6 +6868,8 @@ output_interseg_jump (void)
   int size;
   int prefix;
   int code16;
+
+  gas_assert (!i.relax_prefix);
 
   code16 = 0;
   if (flag_code == CODE_16BIT)
@@ -6879,7 +6920,7 @@ output_interseg_jump (void)
     }
   else
     fix_new_exp (frag_now, p - frag_now->fr_literal, size,
-		 i.op[1].imms, 0, reloc (size, 0, 0, i.reloc[1]));
+		 i.op[1].imms, 0, reloc (size, 0, 0, 0, i.reloc[1]));
   if (i.op[0].imms->X_op != O_constant)
     as_bad (_("can't handle non absolute segment in `%s'"),
 	    i.tm.name);
@@ -7158,7 +7199,8 @@ output_disp (fragS *insn_start_frag, offsetT insn_start_off)
 		}
 
 	      p = frag_more (size);
-	      reloc_type = reloc (size, pcrel, sign, i.reloc[n]);
+	      reloc_type = reloc (size, pcrel, sign, i.relax_prefix,
+				  i.reloc[n]);
 	      if (GOT_symbol
 		  && GOT_symbol == i.op[n].disps->X_add_symbol
 		  && (((reloc_type == BFD_RELOC_32
@@ -7249,7 +7291,7 @@ output_imm (fragS *insn_start_frag, offsetT insn_start_off)
 		sign = 0;
 
 	      p = frag_more (size);
-	      reloc_type = reloc (size, 0, sign, i.reloc[n]);
+	      reloc_type = reloc (size, 0, sign, 0, i.reloc[n]);
 
 	      /*   This is tough to explain.  We end up with this one if we
 	       * have operands that look like
@@ -7342,7 +7384,7 @@ void
 x86_cons_fix_new (fragS *frag, unsigned int off, unsigned int len,
 		  expressionS *exp, bfd_reloc_code_real_type r)
 {
-  r = reloc (len, 0, cons_sign, r);
+  r = reloc (len, 0, cons_sign, 0, r);
 
 #ifdef TE_PE
   if (exp->X_op == O_secrel)
@@ -8065,7 +8107,7 @@ i386_displacement (char *disp_start, char *disp_end)
     {
       /* For PC-relative branches, the width of the displacement
 	 is dependent upon data size, not address size.  */
-      override = (i.prefix[DATA_PREFIX] != 0);
+      override = i.prefix[DATA_PREFIX] != 0 && !i.relax_prefix;
       if (flag_code == CODE_64BIT)
 	{
 	  if (override || i.suffix == WORD_MNEM_SUFFIX)
@@ -9139,7 +9181,9 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       && (fixP->fx_r_type == BFD_RELOC_32_PCREL
 	  || fixP->fx_r_type == BFD_RELOC_64_PCREL
 	  || fixP->fx_r_type == BFD_RELOC_16_PCREL
-	  || fixP->fx_r_type == BFD_RELOC_8_PCREL)
+	  || fixP->fx_r_type == BFD_RELOC_8_PCREL
+	  || fixP->fx_r_type == BFD_RELOC_386_RELAX_PC32
+	  || fixP->fx_r_type == BFD_RELOC_X86_64_RELAX_PC32)
       && !use_rela_relocations)
     {
       /* This is a hack.  There should be a better way to handle this.
@@ -10417,7 +10461,11 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 	      break;
 	    case 1: code = BFD_RELOC_8_PCREL;  break;
 	    case 2: code = BFD_RELOC_16_PCREL; break;
-	    case 4: code = BFD_RELOC_32_PCREL; break;
+	    case 4:
+	      code = ((fixp->fx_r_type == BFD_RELOC_386_RELAX_PC32
+		       || fixp->fx_r_type == BFD_RELOC_X86_64_RELAX_PC32)
+		      ? fixp-> fx_r_type : BFD_RELOC_32_PCREL);
+	      break;
 #ifdef BFD64
 	    case 8: code = BFD_RELOC_64_PCREL; break;
 #endif
