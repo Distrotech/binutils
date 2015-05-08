@@ -146,10 +146,19 @@ static reloc_howto_type elf_howto_table[]=
   HOWTO(R_386_IRELATIVE, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
 	bfd_elf_generic_reloc, "R_386_IRELATIVE",
 	TRUE, 0xffffffff, 0xffffffff, FALSE),
+  HOWTO(R_386_GOTPLT32, 0, 2, 32, FALSE, 0, complain_overflow_bitfield,
+	bfd_elf_generic_reloc, "R_386_GOTPLT32",
+	TRUE, 0xffffffff, 0xffffffff, FALSE),
+  HOWTO(R_386_RELAX_PC32, 0, 2, 32, TRUE, 0, complain_overflow_bitfield,
+	bfd_elf_generic_reloc, "R_386_RELAX_PC32",
+	TRUE, 0xffffffff, 0xffffffff, TRUE),
+  HOWTO(R_386_RELAX_PLT32, 0, 2, 32, TRUE, 0, complain_overflow_bitfield,
+	bfd_elf_generic_reloc, "R_386_RELAX_PLT32",
+	TRUE, 0xffffffff, 0xffffffff, TRUE),
 
   /* Another gap.  */
-#define R_386_irelative (R_386_IRELATIVE + 1 - R_386_tls_offset)
-#define R_386_vt_offset (R_386_GNU_VTINHERIT - R_386_irelative)
+#define R_386_relax_plt32 (R_386_RELAX_PLT32 + 1 - R_386_tls_offset)
+#define R_386_vt_offset (R_386_GNU_VTINHERIT - R_386_relax_plt32)
 
 /* GNU extension to record C++ vtable hierarchy.  */
   HOWTO (R_386_GNU_VTINHERIT,	/* type */
@@ -332,6 +341,18 @@ elf_i386_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
       TRACE ("BFD_RELOC_386_IRELATIVE");
       return &elf_howto_table[R_386_IRELATIVE - R_386_tls_offset];
 
+    case BFD_RELOC_386_GOTPLT32:
+      TRACE ("BFD_RELOC_386_GOTPLT32");
+      return &elf_howto_table[R_386_GOTPLT32 - R_386_tls_offset];
+
+    case BFD_RELOC_386_RELAX_PC32:
+      TRACE ("BFD_RELOC_386_RELAX_PC32");
+      return &elf_howto_table[R_386_RELAX_PC32 - R_386_tls_offset];
+
+    case BFD_RELOC_386_RELAX_PLT32:
+      TRACE ("BFD_RELOC_386_RELAX_PLT32");
+      return &elf_howto_table[R_386_RELAX_PLT32 - R_386_tls_offset];
+
     case BFD_RELOC_VTABLE_INHERIT:
       TRACE ("BFD_RELOC_VTABLE_INHERIT");
       return &elf_howto_table[R_386_GNU_VTINHERIT - R_386_vt_offset];
@@ -371,9 +392,9 @@ elf_i386_rtype_to_howto (bfd *abfd, unsigned r_type)
       && ((indx = r_type - R_386_ext_offset) - R_386_standard
 	  >= R_386_ext - R_386_standard)
       && ((indx = r_type - R_386_tls_offset) - R_386_ext
-	  >= R_386_irelative - R_386_ext)
-      && ((indx = r_type - R_386_vt_offset) - R_386_irelative
-	  >= R_386_vt - R_386_irelative))
+	  >= R_386_relax_plt32 - R_386_ext)
+      && ((indx = r_type - R_386_vt_offset) - R_386_relax_plt32
+	  >= R_386_vt - R_386_relax_plt32))
     {
       (*_bfd_error_handler) (_("%B: invalid relocation type %d"),
 			     abfd, (int) r_type);
@@ -1565,6 +1586,8 @@ elf_i386_check_relocs (bfd *abfd,
 	    case R_386_32:
 	    case R_386_PC32:
 	    case R_386_PLT32:
+	    case R_386_RELAX_PC32:
+	    case R_386_RELAX_PLT32:
 	    case R_386_GOT32:
 	      if (htab->elf.dynobj == NULL)
 		htab->elf.dynobj = abfd;
@@ -1591,6 +1614,7 @@ elf_i386_check_relocs (bfd *abfd,
 	  goto create_got;
 
 	case R_386_PLT32:
+	case R_386_RELAX_PLT32:
 	  /* This symbol requires a procedure linkage table entry.  We
 	     actually build the entry in adjust_dynamic_symbol,
 	     because this might be a case of linking PIC code which is
@@ -1741,6 +1765,7 @@ elf_i386_check_relocs (bfd *abfd,
 
 	case R_386_32:
 	case R_386_PC32:
+	case R_386_RELAX_PC32:
 	  if (h != NULL && info->executable)
 	    {
 	      /* If this reloc is in a read-only section, we might
@@ -1754,7 +1779,7 @@ elf_i386_check_relocs (bfd *abfd,
 	      /* We may need a .plt entry if the function this reloc
 		 refers to is in a shared lib.  */
 	      h->plt.refcount += 1;
-	      if (r_type != R_386_PC32)
+	      if (r_type != R_386_PC32 && r_type != R_386_RELAX_PC32)
 		h->pointer_equality_needed = 1;
 	    }
 
@@ -1783,7 +1808,7 @@ do_size:
 	     symbol.  */
 	  if ((info->shared
 	       && (sec->flags & SEC_ALLOC) != 0
-	       && (r_type != R_386_PC32
+	       && ((r_type != R_386_RELAX_PC32 && r_type != R_386_PC32)
 		   || (h != NULL
 		       && (! SYMBOLIC_BIND (info, h)
 			   || h->root.type == bfd_link_hash_defweak
@@ -1857,7 +1882,9 @@ do_size:
 
 	      p->count += 1;
 	      /* Count size relocation as PC-relative relocation.  */
-	      if (r_type == R_386_PC32 || size_reloc)
+	      if (r_type == R_386_PC32
+		  || r_type == R_386_RELAX_PC32
+		  || size_reloc)
 		p->pc_count += 1;
 	    }
 	  break;
@@ -2060,6 +2087,7 @@ elf_i386_gc_sweep_hook (bfd *abfd,
 
 	case R_386_32:
 	case R_386_PC32:
+	case R_386_RELAX_PC32:
 	case R_386_SIZE32:
 	  if (info->shared
 	      && (h == NULL || h->type != STT_GNU_IFUNC))
@@ -2067,6 +2095,7 @@ elf_i386_gc_sweep_hook (bfd *abfd,
 	  /* Fall through */
 
 	case R_386_PLT32:
+	case R_386_RELAX_PLT32:
 	  if (h != NULL)
 	    {
 	      if (h->plt.refcount > 0)
@@ -3347,7 +3376,7 @@ elf_i386_relocate_section (bfd *output_bfd,
 	  && ((indx = r_type - R_386_ext_offset) - R_386_standard
 	      >= R_386_ext - R_386_standard)
 	  && ((indx = r_type - R_386_tls_offset) - R_386_ext
-	      >= R_386_irelative - R_386_ext))
+	      >= R_386_relax_plt32 - R_386_ext))
 	{
 	  (*_bfd_error_handler)
 	    (_("%B: unrecognized relocation (0x%x) in section `%A'"),
@@ -3569,6 +3598,8 @@ elf_i386_relocate_section (bfd *output_bfd,
 	      /* FALLTHROUGH */
 	    case R_386_PC32:
 	    case R_386_PLT32:
+	    case R_386_RELAX_PC32:
+	    case R_386_RELAX_PLT32:
 	      goto do_relocation;
 
 	    case R_386_GOT32:
@@ -3804,6 +3835,7 @@ elf_i386_relocate_section (bfd *output_bfd,
 	  break;
 
 	case R_386_PLT32:
+	case R_386_RELAX_PLT32:
 	  /* Relocation is to the entry for this symbol in the
 	     procedure linkage table.  */
 
@@ -3847,6 +3879,7 @@ elf_i386_relocate_section (bfd *output_bfd,
 
 	case R_386_32:
 	case R_386_PC32:
+	case R_386_RELAX_PC32:
 	  if ((input_section->flags & SEC_ALLOC) == 0
 	      || is_vxworks_tls)
 	    break;
@@ -3855,7 +3888,9 @@ elf_i386_relocate_section (bfd *output_bfd,
 	       && (h == NULL
 		   || ELF_ST_VISIBILITY (h->other) == STV_DEFAULT
 		   || h->root.type != bfd_link_hash_undefweak)
-	       && ((r_type != R_386_PC32 && r_type != R_386_SIZE32)
+	       && ((r_type != R_386_PC32
+		    && r_type != R_386_RELAX_PC32
+		    && r_type != R_386_SIZE32)
 		   || !SYMBOL_CALLS_LOCAL (info, h)))
 	      || (ELIMINATE_COPY_RELOCS
 		  && !info->shared
@@ -3893,6 +3928,7 @@ elf_i386_relocate_section (bfd *output_bfd,
 	      else if (h != NULL
 		       && h->dynindx != -1
 		       && (r_type == R_386_PC32
+			   || r_type == R_386_RELAX_PC32
 			   || !info->shared
 			   || !SYMBOLIC_BIND (info, h)
 			   || !h->def_regular))

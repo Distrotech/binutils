@@ -66,6 +66,9 @@ START_RELOC_NUMBERS (elf_i386_reloc_type)
      RELOC_NUMBER (R_386_TLS_DESC_CALL,40)
      RELOC_NUMBER (R_386_TLS_DESC,     41)
      RELOC_NUMBER (R_386_IRELATIVE,    42) /* Adjust indirectly by program base */
+     RELOC_NUMBER (R_386_GOTPLT32,     43) /* 32 bit GOT/GOTPLT entry */
+     RELOC_NUMBER (R_386_RELAX_PC32,   44) /* Relaxable PC relative 32 bit signed */
+     RELOC_NUMBER (R_386_RELAX_PLT32,  45) /* Relaxable 32 bit PLT address */
 
      /* Used by Intel.  */
      RELOC_NUMBER (R_386_USED_BY_INTEL_200, 200)
