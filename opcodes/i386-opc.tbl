@@ -3062,6 +3062,9 @@ stac, 0, 0xf01, 0xcb, 2, CpuSMAP, No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_ldS
 // BND prefix
 bnd, 0, 0xf2, None, 1, CpuMPX, No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_ldSuf|IsPrefix, { 0 }
 
+// Pseudo RELAX prefix
+relax, 0, -1, None, 1, 0, No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_ldSuf|IsPrefix, { 0 }
+
 // MPX instructions.
 bndmk, 2, 0xf30f1b, None, 2, CpuMPX, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_ldSuf, { Anysize|BaseIndex|Disp8|Disp32|Disp32S, RegBND }
 bndmov, 2, 0x660f1a, None, 2, CpuMPX, Modrm|IgnoreSize|No_bSuf|No_wSuf|No_lSuf|No_sSuf|No_qSuf|No_ldSuf|NoAVX, { Xmmword|Unspecified|BaseIndex|Disp8|Disp32|Disp32S|RegBND, RegBND }
