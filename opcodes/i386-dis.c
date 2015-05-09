@@ -1632,6 +1632,8 @@ enum
   X86_64_CE,
   X86_64_D4,
   X86_64_D5,
+  X86_64_E8,
+  X86_64_E9,
   X86_64_EA,
   X86_64_0F01_REG_0,
   X86_64_0F01_REG_1,
@@ -2697,8 +2699,8 @@ static const struct dis386 dis386[] = {
   { "outB",		{ Ib, AL }, 0 },
   { "outG",		{ Ib, zAX }, 0 },
   /* e8 */
-  { "callT",		{ Jv, BND }, 0 },
-  { "jmpT",		{ Jv, BND }, 0 },
+  { X86_64_TABLE (X86_64_E8) },
+  { X86_64_TABLE (X86_64_E9) },
   { X86_64_TABLE (X86_64_EA) },
   { "jmp",		{ Jb, BND }, 0 },
   { "inB",		{ AL, indirDX }, 0 },
@@ -6832,6 +6834,18 @@ static const struct dis386 x86_64_table[][2] = {
   /* X86_64_D5 */
   {
     { "aad", { Ib }, 0 },
+  },
+
+  /* X86_64_E8 */
+  {
+    { "callP",		{ Jv, BND }, 0 },
+    { "callq",		{ Jv, BND }, 0 }
+  },
+
+  /* X86_64_E9 */
+  {
+    { "jmpP",		{ Jv, BND }, 0 },
+    { "jmpq",		{ Jv, BND }, 0 }
   },
 
   /* X86_64_EA */
@@ -15693,8 +15707,7 @@ OP_J (int bytemode, int sizeflag)
 	disp -= 0x100;
       break;
     case v_mode:
-      USED_REX (REX_W);
-      if ((sizeflag & DFLAG) || (rex & REX_W))
+      if (address_mode == mode_64bit || (sizeflag & DFLAG))
 	disp = get32s ();
       else
 	{
@@ -15710,7 +15723,7 @@ OP_J (int bytemode, int sizeflag)
 	    segment = ((start_pc + codep - start_codep)
 		       & ~((bfd_vma) 0xffff));
 	}
-      if (!(rex & REX_W))
+      if (address_mode != mode_64bit)
 	used_prefixes |= (prefixes & PREFIX_DATA);
       break;
     default:

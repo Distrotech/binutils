@@ -12,6 +12,11 @@
 	call	0x100040
 	jmp	0x100040
 
+	.byte 0x66
+	call	foo
+	.byte 0x66
+	jmp	foo
+
 	.intel_syntax noprefix
 	call	rax
 	callq	rax
