@@ -29,6 +29,7 @@
 #include "objalloc.h"
 #include "hashtab.h"
 #include "dwarf2.h"
+#include "opcode/i386.h"
 
 /* 386 uses REL relocations instead of RELA.  */
 #define USE_REL	1
@@ -1469,6 +1470,7 @@ elf_i386_tls_transition (struct bfd_link_info *info, bfd *abfd,
 /* Rename some of the generic section flags to better document how they
    are used here.  */
 #define need_convert_mov_to_lea sec_flg0
+#define need_convert_relax_call sec_flg1
 
 /* Look through the relocs for a section during the first phase, and
    calculate needed space in the global offset table, procedure linkage
@@ -1628,7 +1630,12 @@ elf_i386_check_relocs (bfd *abfd,
 	  goto do_size;
 
 	case R_386_RELAX_GOT32:
+	  sec->need_convert_relax_call = 1;
 	  goto do_got;
+
+	case R_386_RELAX_PC32:
+	  sec->need_convert_relax_call = 1;
+	  goto do_rest;
 
 	case R_386_TLS_IE_32:
 	case R_386_TLS_IE:
@@ -1764,7 +1771,7 @@ do_got:
 
 	case R_386_32:
 	case R_386_PC32:
-	case R_386_RELAX_PC32:
+do_rest:
 	  if (h != NULL && info->executable)
 	    {
 	      /* If this reloc is in a read-only section, we might
@@ -2695,11 +2702,19 @@ elf_i386_readonly_dynrelocs (struct elf_link_hash_entry *h, void *inf)
    mov foo@GOT(%reg), %reg
    to
    lea foo@GOTOFF(%reg), %reg
-   with the local symbol, foo.  */
+   with the local symbol, foo, convert
+   relax call/jmp foo
+   to
+   call/jmp *foo@GOTRELAX
+   for non-PIC with the undefined function, foo, and convert
+   call/jmp *foo@GOTRELAX(%reg)
+   to
+   relax call/jmp foo
+   with the locally defined function, foo.  */
 
 static bfd_boolean
-elf_i386_convert_mov_to_lea (bfd *abfd, asection *sec,
-			     struct bfd_link_info *link_info)
+elf_i386_convert_mov_and_branch (bfd *abfd, asection *sec,
+				 struct bfd_link_info *link_info)
 {
   Elf_Internal_Shdr *symtab_hdr;
   Elf_Internal_Rela *internal_relocs;
@@ -2716,7 +2731,8 @@ elf_i386_convert_mov_to_lea (bfd *abfd, asection *sec,
 
   /* Nothing to do if there is no need or no output.  */
   if ((sec->flags & (SEC_CODE | SEC_RELOC)) != (SEC_CODE | SEC_RELOC)
-      || sec->need_convert_mov_to_lea == 0
+      || (sec->need_convert_mov_to_lea == 0
+	  && sec->need_convert_relax_call == 0)
       || bfd_is_abs_section (sec->output_section))
     return TRUE;
 
@@ -2751,10 +2767,14 @@ elf_i386_convert_mov_to_lea (bfd *abfd, asection *sec,
       unsigned int indx;
       struct elf_link_hash_entry *h;
 
-      if (r_type != R_386_GOT32)
+      if (r_type != R_386_GOT32
+	  && (r_symndx < symtab_hdr->sh_info
+	      || (r_type != R_386_RELAX_PC32
+		  && r_type != R_386_RELAX_GOT32)))
 	continue;
 
-      /* Get the symbol referred to by the reloc.  */
+      /* Try to convert R_386_GOT32.  Get the symbol referred to by
+	 the reloc.  */
       if (r_symndx < symtab_hdr->sh_info)
 	{
 	  Elf_Internal_Sym *isym;
@@ -2786,21 +2806,146 @@ elf_i386_convert_mov_to_lea (bfd *abfd, asection *sec,
 	     || h->root.type == bfd_link_hash_warning)
 	h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
-      /* STT_GNU_IFUNC must keep R_386_GOT32 relocation.  We also avoid
-	 optimizing _DYNAMIC since ld.so may use its link-time address.  */
-      if (h->def_regular
-	  && h->type != STT_GNU_IFUNC
-	  && h != htab->elf.hdynamic
-	  && SYMBOL_REFERENCES_LOCAL (link_info, h)
-	  && irel->r_offset >= 2
-	  && bfd_get_8 (abfd, contents + irel->r_offset - 2) == 0x8b)
+      if (r_type == R_386_GOT32)
 	{
-	  bfd_put_8 (abfd, 0x8d, contents + irel->r_offset - 2);
-	  irel->r_info = ELF32_R_INFO (r_symndx, R_386_GOTOFF);
-	  if (h->got.refcount > 0)
-	    h->got.refcount -= 1;
-	  changed_contents = TRUE;
-	  changed_relocs = TRUE;
+	  /* STT_GNU_IFUNC must keep R_386_GOT32 relocation.  We also
+	     avoid optimizing _DYNAMIC since ld.so may use its link-time
+	     address.  */
+	  if (h->def_regular
+	      && h->type != STT_GNU_IFUNC
+	      && h != htab->elf.hdynamic
+	      && SYMBOL_REFERENCES_LOCAL (link_info, h)
+	      && irel->r_offset >= 2
+	      && bfd_get_8 (abfd, contents + irel->r_offset - 2) == 0x8b)
+	    {
+	      bfd_put_8 (abfd, 0x8d, contents + irel->r_offset - 2);
+	      irel->r_info = ELF32_R_INFO (r_symndx, R_386_GOTOFF);
+	      if (h->got.refcount > 0)
+		h->got.refcount -= 1;
+	      changed_contents = TRUE;
+	      changed_relocs = TRUE;
+	    }
+	}
+      else if (r_type == R_386_RELAX_PC32)
+	{
+	  /* We have "relax call/jmp foo".  */
+	  if (!h->def_regular)
+	    {
+	      /* The function is undefined.  */
+	      if (link_info->shared)
+		/* For PIC, we can't convert to R_386_RELAX_GOT32 since
+		   we don't know what the GOT base is.  Convert
+		   R_386_RELAX_PC32 to R_386_PC32.  */
+		r_type = R_386_PC32;
+	      else
+		{
+		  /* For non-PIC, convert R_386_RELAX_PC32 to
+		     R_386_RELAX_GOT32.  */
+		  unsigned int val;
+		  BFD_ASSERT (irel->r_offset >= 2
+			      && (bfd_get_8 (abfd,
+					     contents + irel->r_offset - 2)
+				  == RELAX_PREFIX_OPCODE));
+		  val = bfd_get_8 (abfd, contents + irel->r_offset - 1);
+		  switch (val)
+		    {
+		    default:
+		      abort ();
+		    case 0xe8:
+		      /* Convert to "call *foo@GOTRELAX".  */
+		      val = 0x15;
+		      break;
+		    case 0xe9:
+		      /* Convert to "jmp *foo@GOTRELAX".  */
+		      val = 0x25;
+		      break;
+		    }
+		  bfd_put_8 (abfd, 0xff, contents + irel->r_offset - 2);
+		  bfd_put_8 (abfd, val, contents + irel->r_offset - 1);
+		  /* When converting from PC-relative relocation, we
+		     need to adjust addend by 4.  */
+		  val = bfd_get_32 (abfd, contents + irel->r_offset);
+		  val += 4;
+		  bfd_put_32 (abfd, val, contents + irel->r_offset);
+		  r_type = R_386_RELAX_GOT32;
+		  changed_contents = TRUE;
+		}
+	      irel->r_info = ELF32_R_INFO (r_symndx, r_type);
+	      changed_relocs = TRUE;
+	    }
+	}
+      else if (r_type == R_386_RELAX_GOT32)
+	{
+	  /* We have "call/jmp *foo@GOTRELAX[(%reg)]".  */
+	  unsigned int val;
+	  BFD_ASSERT (irel->r_offset >= 2
+		      && (bfd_get_8 (abfd,
+				     contents + irel->r_offset - 2)
+			  == 0xff));
+	  val = bfd_get_8 (abfd, contents + irel->r_offset - 1);
+	  if (h->def_regular)
+	    {
+	      /* The function is defined.  But STT_GNU_IFUNC must keep
+		 R_X86_64_RELAX_GOT32 relocation.  */
+	      if (h->type != STT_GNU_IFUNC)
+		{
+		  /* Convert R_386_RELAX_GOT32 to R_386_RELAX_PC32.  */
+		  if (val == 0x15 || (val >= 0x90 && val <= 0x97))
+		    /* Convert to "relax call foo".  */
+		    val = 0xe8;
+		  else if (val == 0x25 && (val >= 0xa0 && val <= 0xa7))
+		    /* Convert to "relax jmp foo".  */
+		    val = 0xe9;
+		  else
+		    abort ();
+		  bfd_put_8 (abfd, RELAX_PREFIX_OPCODE,
+			     contents + irel->r_offset - 2);
+		  bfd_put_8 (abfd, val, contents + irel->r_offset - 1);
+		  /* When converting to PC-relative relocation, we
+		     need to adjust addend by 4.  */
+		  val = bfd_get_32 (abfd, contents + irel->r_offset);
+		  val -= 4;
+		  bfd_put_32 (abfd, val, contents + irel->r_offset);
+		  irel->r_info = ELF32_R_INFO (r_symndx,
+					       R_386_RELAX_PC32);
+		  changed_contents = TRUE;
+		  changed_relocs = TRUE;
+		}
+	    }
+	  else
+	    {
+	      /* The function is undefined.  */
+	      if (link_info->shared)
+		{
+		  /* For PIC, we leave "call/jmp *foo@GOTRELAX(%reg)"
+		     alone and disallow "call/jmp *foo@GOTRELAX" since
+		     we don't know what the GOT base is.  */
+		  if (val == 0x15 || val == 0x25)
+		    {
+		      (*_bfd_error_handler)
+			 (_("%B: direct GOT relocation R_386_RELAX_GOT32 against `%s' can not be used when making a shared object"),
+			  abfd, h->root.root.string);
+		      goto error_return;
+		    }
+		}
+	      else if (val != 0x15 && val != 0x25)
+		{
+		  /* For non-PIC, convert "call/jmp *foo@GOTRELAX(%reg)"
+		     to "call/jmp *foo@GOTRELAX" since we don't know if
+		     REG is the GOT base.  No need to convert
+		     "call/jmp *foo@GOTRELAX".  */
+		  if (val >= 0x90 && val <= 0x97)
+		    /* Convert to "call *foo@GOTRELAX".  */
+		    val = 0x15;
+		  else if (val >= 0xa0 && val <= 0xa7)
+		    /* Convert to "jmp *foo@GOTRELAX".  */
+		    val = 0x25;
+		  else
+		    abort ();
+		  bfd_put_8 (abfd, val, contents + irel->r_offset - 1);
+		  changed_contents = TRUE;
+		}
+	    }
 	}
     }
 
@@ -2886,7 +3031,7 @@ elf_i386_size_dynamic_sections (bfd *output_bfd, struct bfd_link_info *info)
 	{
 	  struct elf_dyn_relocs *p;
 
-	  if (!elf_i386_convert_mov_to_lea (ibfd, s, info))
+	  if (!elf_i386_convert_mov_and_branch (ibfd, s, info))
 	    return FALSE;
 
 	  for (p = ((struct elf_dyn_relocs *)
@@ -3691,24 +3836,29 @@ elf_i386_relocate_section (bfd *output_bfd,
       switch (r_type)
 	{
 	case R_386_RELAX_GOT32:
-	  /* Resolve "call/jmp *GOTPCRELAX(%reg)".  */
+	  /* Resolve "call/jmp *GOTPCRELAX[(%reg)]".  */
 	  if (h == NULL
 	      || (h->plt.offset == (bfd_vma) -1
 		  && h->got.offset == (bfd_vma) -1)
 	      || htab->elf.sgotplt == NULL)
 	    abort ();
 
+	  offplt = (htab->elf.sgotplt->output_section->vma
+		     + htab->elf.sgotplt->output_offset);
+
 	  /* It is relative to .got.plt section.  */
 	  if (h->got.offset != (bfd_vma) -1)
 	    /* Use GOT entry.  */
 	    relocation = (htab->elf.sgot->output_section->vma
 			  + htab->elf.sgot->output_offset
-			  + h->got.offset
-			  - htab->elf.sgotplt->output_section->vma
-			  - htab->elf.sgotplt->output_offset);
+			  + h->got.offset - offplt);
 	  else
 	    /* Use GOTPLT entry.  */
 	    relocation = (h->plt.offset / plt_entry_size - 1 + 3) * 4;
+
+	  /* If not PIC, add the .got.plt section address.  */
+	  if (!info->shared)
+	    relocation += offplt;
 
 	  unresolved_reloc = FALSE;
 	  break;
