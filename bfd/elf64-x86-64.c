@@ -170,18 +170,21 @@ static reloc_howto_type x86_64_elf_howto_table[] =
   HOWTO(R_X86_64_RELATIVE64, 0, 4, 64, FALSE, 0, complain_overflow_bitfield,
 	bfd_elf_generic_reloc, "R_X86_64_RELATIVE64", FALSE, MINUS_ONE,
 	MINUS_ONE, FALSE),
-  HOWTO(R_X86_64_PC32_BND, 0, 2, 32, TRUE, 0, complain_overflow_signed,
-	bfd_elf_generic_reloc, "R_X86_64_PC32_BND", FALSE, 0xffffffff, 0xffffffff,
+  HOWTO(R_X86_64_RELAX_PC32, 0, 2, 32, TRUE, 0, complain_overflow_signed,
+	bfd_elf_generic_reloc, "R_X86_64_RELAX_PC32", FALSE, 0xffffffff, 0xffffffff,
 	TRUE),
   HOWTO(R_X86_64_PLT32_BND, 0, 2, 32, TRUE, 0, complain_overflow_signed,
 	bfd_elf_generic_reloc, "R_X86_64_PLT32_BND", FALSE, 0xffffffff, 0xffffffff,
 	TRUE),
+  HOWTO(R_X86_64_RELAX_GOTPCREL, 0, 2, 32, TRUE, 0, complain_overflow_signed,
+	bfd_elf_generic_reloc, "R_X86_64_RELAX_GOTPCREL", FALSE, 0xffffffff,
+	0xffffffff, TRUE),
 
   /* We have a gap in the reloc numbers here.
      R_X86_64_standard counts the number up to this point, and
      R_X86_64_vt_offset is the value to subtract from a reloc type of
      R_X86_64_GNU_VT* to form an index into this table.  */
-#define R_X86_64_standard (R_X86_64_PLT32_BND + 1)
+#define R_X86_64_standard (R_X86_64_RELAX_GOTPCREL + 1)
 #define R_X86_64_vt_offset (R_X86_64_GNU_VTINHERIT - R_X86_64_standard)
 
 /* GNU extension to record C++ vtable hierarchy.  */
@@ -203,7 +206,7 @@ static reloc_howto_type x86_64_elf_howto_table[] =
   (   ((TYPE) == R_X86_64_PC8)		\
    || ((TYPE) == R_X86_64_PC16)		\
    || ((TYPE) == R_X86_64_PC32)		\
-   || ((TYPE) == R_X86_64_PC32_BND)	\
+   || ((TYPE) == R_X86_64_RELAX_PC32)	\
    || ((TYPE) == R_X86_64_PC64))
 
 /* Map BFD relocs to the x86_64 elf relocs.  */
@@ -253,8 +256,9 @@ static const struct elf_reloc_map x86_64_reloc_map[] =
   { BFD_RELOC_X86_64_TLSDESC_CALL, R_X86_64_TLSDESC_CALL, },
   { BFD_RELOC_X86_64_TLSDESC,	R_X86_64_TLSDESC, },
   { BFD_RELOC_X86_64_IRELATIVE,	R_X86_64_IRELATIVE, },
-  { BFD_RELOC_X86_64_PC32_BND,	R_X86_64_PC32_BND,},
-  { BFD_RELOC_X86_64_PLT32_BND,	R_X86_64_PLT32_BND,},
+  { BFD_RELOC_X86_64_RELAX_PC32, R_X86_64_RELAX_PC32, },
+  { BFD_RELOC_X86_64_PLT32_BND,	R_X86_64_PLT32_BND, },
+  { BFD_RELOC_X86_64_RELAX_GOTPCREL, R_X86_64_RELAX_GOTPCREL, },
   { BFD_RELOC_VTABLE_INHERIT,	R_X86_64_GNU_VTINHERIT, },
   { BFD_RELOC_VTABLE_ENTRY,	R_X86_64_GNU_VTENTRY, },
 };
@@ -1664,7 +1668,7 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	    default:
 	      break;
 
-	    case R_X86_64_PC32_BND:
+	    case R_X86_64_RELAX_PC32:
 	    case R_X86_64_PLT32_BND:
 	    case R_X86_64_PC32:
 	    case R_X86_64_PLT32:
@@ -1712,6 +1716,7 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	    case R_X86_64_32S:
 	    case R_X86_64_PC64:
 	    case R_X86_64_GOTPCREL:
+	    case R_X86_64_RELAX_GOTPCREL:
 	    case R_X86_64_GOTPCREL64:
 	      if (htab->elf.dynobj == NULL)
 		htab->elf.dynobj = abfd;
@@ -1761,6 +1766,7 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	case R_X86_64_GOT32:
 	case R_X86_64_GOTPCREL:
+	case R_X86_64_RELAX_GOTPCREL:
 	case R_X86_64_TLSGD:
 	case R_X86_64_GOT64:
 	case R_X86_64_GOTPCREL64:
@@ -1926,7 +1932,7 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_X86_64_PC8:
 	case R_X86_64_PC16:
 	case R_X86_64_PC32:
-	case R_X86_64_PC32_BND:
+	case R_X86_64_RELAX_PC32:
 	case R_X86_64_PC64:
 	case R_X86_64_64:
 pointer:
@@ -1944,7 +1950,7 @@ pointer:
 		 refers to is in a shared lib.  */
 	      h->plt.refcount += 1;
 	      if (r_type != R_X86_64_PC32
-		  && r_type != R_X86_64_PC32_BND
+		  && r_type != R_X86_64_RELAX_PC32
 		  && r_type != R_X86_64_PC64)
 		h->pointer_equality_needed = 1;
 	    }
@@ -2264,7 +2270,7 @@ elf_x86_64_gc_sweep_hook (bfd *abfd, struct bfd_link_info *info,
 	case R_X86_64_PC8:
 	case R_X86_64_PC16:
 	case R_X86_64_PC32:
-	case R_X86_64_PC32_BND:
+	case R_X86_64_RELAX_PC32:
 	case R_X86_64_PC64:
 	case R_X86_64_SIZE32:
 	case R_X86_64_SIZE64:
@@ -3772,13 +3778,14 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 		}
 	      /* FALLTHROUGH */
 	    case R_X86_64_PC32:
-	    case R_X86_64_PC32_BND:
+	    case R_X86_64_RELAX_PC32:
 	    case R_X86_64_PC64:
 	    case R_X86_64_PLT32:
 	    case R_X86_64_PLT32_BND:
 	      goto do_relocation;
 
 	    case R_X86_64_GOTPCREL:
+	    case R_X86_64_RELAX_GOTPCREL:
 	    case R_X86_64_GOTPCREL64:
 	      base_got = htab->elf.sgot;
 	      off = h->got.offset;
@@ -3847,6 +3854,7 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 	  /* Relocation is to the entry for this symbol in the global
 	     offset table.  */
 	case R_X86_64_GOTPCREL:
+	case R_X86_64_RELAX_GOTPCREL:
 	case R_X86_64_GOTPCREL64:
 	  /* Use global offset table entry as symbol value.  */
 	case R_X86_64_GOTPLT64:
@@ -3952,7 +3960,9 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 
 	  relocation = base_got->output_section->vma
 		       + base_got->output_offset + off;
-	  if (r_type != R_X86_64_GOTPCREL && r_type != R_X86_64_GOTPCREL64)
+	  if (r_type != R_X86_64_GOTPCREL
+	      && r_type != R_X86_64_RELAX_GOTPCREL
+	      && r_type != R_X86_64_GOTPCREL64)
 	    relocation -= htab->elf.sgotplt->output_section->vma
 			  - htab->elf.sgotplt->output_offset;
 
@@ -4111,7 +4121,7 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 	case R_X86_64_PC8:
 	case R_X86_64_PC16:
 	case R_X86_64_PC32:
-	case R_X86_64_PC32_BND:
+	case R_X86_64_RELAX_PC32:
 	  /* Don't complain about -fPIC if the symbol is undefined when
 	     building executable.  */
 	  if (info->shared
@@ -4124,7 +4134,7 @@ elf_x86_64_relocate_section (bfd *output_bfd,
 	      bfd_boolean fail = FALSE;
 	      bfd_boolean branch
 		= ((r_type == R_X86_64_PC32
-		    || r_type == R_X86_64_PC32_BND)
+		    || r_type == R_X86_64_RELAX_PC32)
 		   && is_32bit_relative_branch (contents, rel->r_offset));
 
 	      if (SYMBOL_REFERENCES_LOCAL (info, h))

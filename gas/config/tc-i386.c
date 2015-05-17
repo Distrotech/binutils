@@ -2929,6 +2929,7 @@ tc_i386_fix_adjustable (fixS *fixP ATTRIBUTE_UNUSED)
       || fixP->fx_r_type == BFD_RELOC_386_GOTOFF
       || fixP->fx_r_type == BFD_RELOC_386_PLT32
       || fixP->fx_r_type == BFD_RELOC_386_GOT32
+      || fixP->fx_r_type == BFD_RELOC_386_RELAX_GOT32
       || fixP->fx_r_type == BFD_RELOC_386_TLS_GD
       || fixP->fx_r_type == BFD_RELOC_386_TLS_LDM
       || fixP->fx_r_type == BFD_RELOC_386_TLS_LDO_32
@@ -2942,6 +2943,7 @@ tc_i386_fix_adjustable (fixS *fixP ATTRIBUTE_UNUSED)
       || fixP->fx_r_type == BFD_RELOC_X86_64_PLT32
       || fixP->fx_r_type == BFD_RELOC_X86_64_GOT32
       || fixP->fx_r_type == BFD_RELOC_X86_64_GOTPCREL
+      || fixP->fx_r_type == BFD_RELOC_X86_64_RELAX_GOTPCREL
       || fixP->fx_r_type == BFD_RELOC_X86_64_TLSGD
       || fixP->fx_r_type == BFD_RELOC_X86_64_TLSLD
       || fixP->fx_r_type == BFD_RELOC_X86_64_DTPOFF32
@@ -7410,6 +7412,9 @@ lex_got (enum bfd_reloc_code_real *rel,
     { STRING_COMMA_LEN ("GOTOFF"),   { BFD_RELOC_386_GOTOFF,
 				       BFD_RELOC_X86_64_GOTOFF64 },
       OPERAND_TYPE_IMM64_DISP64 },
+    { STRING_COMMA_LEN ("GOTRELAX"), { BFD_RELOC_386_RELAX_GOT32,
+				       BFD_RELOC_X86_64_RELAX_GOTPCREL },
+      OPERAND_TYPE_DISP32 },
     { STRING_COMMA_LEN ("GOTPCREL"), { _dummy_first_bfd_reloc_code_real,
 				       BFD_RELOC_X86_64_GOTPCREL },
       OPERAND_TYPE_IMM32_32S_DISP32 },
@@ -8179,6 +8184,7 @@ i386_finalize_displacement (segT exp_seg ATTRIBUTE_UNUSED, expressionS *exp,
      to be relative to the beginning of the section.  */
   if (i.reloc[this_operand] == BFD_RELOC_386_GOTOFF
       || i.reloc[this_operand] == BFD_RELOC_X86_64_GOTPCREL
+      || i.reloc[this_operand] == BFD_RELOC_X86_64_RELAX_GOTPCREL
       || i.reloc[this_operand] == BFD_RELOC_X86_64_GOTOFF64)
     {
       if (exp->X_op != O_symbol)
@@ -8192,6 +8198,8 @@ i386_finalize_displacement (segT exp_seg ATTRIBUTE_UNUSED, expressionS *exp,
       exp->X_op_symbol = GOT_symbol;
       if (i.reloc[this_operand] == BFD_RELOC_X86_64_GOTPCREL)
 	i.reloc[this_operand] = BFD_RELOC_32_PCREL;
+      else if (i.reloc[this_operand] == BFD_RELOC_X86_64_RELAX_GOTPCREL)
+	i.reloc[this_operand] = BFD_RELOC_X86_64_RELAX_PC32;
       else if (i.reloc[this_operand] == BFD_RELOC_X86_64_GOTOFF64)
 	i.reloc[this_operand] = BFD_RELOC_64;
       else
@@ -10301,6 +10309,12 @@ i386_validate_fix (fixS *fixp)
 	    abort ();
 	  fixp->fx_r_type = BFD_RELOC_X86_64_GOTPCREL;
 	}
+      else if (fixp->fx_r_type == BFD_RELOC_X86_64_RELAX_PC32)
+	{
+	  if (!object_64bit)
+	    abort ();
+	  fixp->fx_r_type = BFD_RELOC_X86_64_RELAX_GOTPCREL;
+	}
       else
 	{
 	  if (!object_64bit)
@@ -10343,8 +10357,10 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
     case BFD_RELOC_X86_64_PLT32:
     case BFD_RELOC_X86_64_GOT32:
     case BFD_RELOC_X86_64_GOTPCREL:
+    case BFD_RELOC_X86_64_RELAX_GOTPCREL:
     case BFD_RELOC_386_PLT32:
     case BFD_RELOC_386_GOT32:
+    case BFD_RELOC_386_RELAX_GOT32:
     case BFD_RELOC_386_GOTOFF:
     case BFD_RELOC_386_GOTPC:
     case BFD_RELOC_386_TLS_GD:
@@ -10496,6 +10512,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 	  case BFD_RELOC_X86_64_PLT32:
 	  case BFD_RELOC_X86_64_GOT32:
 	  case BFD_RELOC_X86_64_GOTPCREL:
+	  case BFD_RELOC_X86_64_RELAX_GOTPCREL:
 	  case BFD_RELOC_X86_64_TLSGD:
 	  case BFD_RELOC_X86_64_TLSLD:
 	  case BFD_RELOC_X86_64_GOTTPOFF:
