@@ -22,6 +22,10 @@
 
 2015-07-24  H.J. Lu  <hongjiu.lu@intel.com>
 
+	* config/default.exp (PLT_CFLAGS): New.
+
+2015-07-24  H.J. Lu  <hongjiu.lu@intel.com>
+
 	* ld-elf/compress.exp (build_tests): Replace -g with -ggdb3.
 	* ld-elf/zlibbegin.rS: Also expect "GC".
 	* ld-elf/zlibnormal.rS: Likewise.
