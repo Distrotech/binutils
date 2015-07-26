@@ -203,6 +203,8 @@ struct elf_link_hash_entry
   /* Symbol is defined by a shared library with non-default visibility
      in a read/write section.  */
   unsigned int protected_def : 1;
+  /* Symbol is non-default versioned.  */
+  unsigned int nondeflt_version : 1;
 
   /* String table index in .dynstr if this is a dynamic symbol.  */
   unsigned long dynstr_index;
