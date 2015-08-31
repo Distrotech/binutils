@@ -767,6 +767,9 @@ struct elf_x86_64_link_hash_entry
   /* TRUE if symbol has at least one BND relocation.  */
   unsigned int has_bnd_reloc : 1;
 
+  /* Reference count of C/C++ pointer relocations.  */
+  bfd_signed_vma pointer_refcount;
+
   /* Information about the GOT PLT entry. Filled when there are both
      GOT and PLT relocations against the same function.  */
   union gotplt_union plt_got;
@@ -906,6 +909,7 @@ elf_x86_64_link_hash_newfunc (struct bfd_hash_entry *entry,
       eh->tls_type = GOT_UNKNOWN;
       eh->needs_copy = 0;
       eh->has_bnd_reloc = 0;
+      eh->pointer_refcount = 0;
       eh->plt_bnd.offset = (bfd_vma) -1;
       eh->plt_got.offset = (bfd_vma) -1;
       eh->tlsdesc_got = (bfd_vma) -1;
@@ -973,6 +977,7 @@ elf_x86_64_get_local_sym_hash (struct elf_x86_64_link_hash_table *htab,
   if (ret)
     {
       memset (ret, 0, sizeof (*ret));
+      ret->pointer_refcount = 0;
       ret->elf.indx = sec->id;
       ret->elf.dynstr_index = htab->r_sym (rel->r_info);
       ret->elf.dynindx = -1;
@@ -1173,7 +1178,15 @@ elf_x86_64_copy_indirect_symbol (struct bfd_link_info *info,
       dir->pointer_equality_needed |= ind->pointer_equality_needed;
     }
   else
-    _bfd_elf_link_hash_copy_indirect (info, dir, ind);
+    {
+      if (eind->pointer_refcount > 0)
+	{
+	  edir->pointer_refcount += eind->pointer_refcount;
+	  eind->pointer_refcount = 0;
+	}
+
+      _bfd_elf_link_hash_copy_indirect (info, dir, ind);
+    }
 }
 
 static bfd_boolean
@@ -1947,10 +1960,15 @@ pointer:
 	      /* We may need a .plt entry if the function this reloc
 		 refers to is in a shared lib.  */
 	      h->plt.refcount += 1;
-	      if (r_type != R_X86_64_PC32
-		  && r_type != R_X86_64_PC32_BND
-		  && r_type != R_X86_64_PC64)
-		h->pointer_equality_needed = 1;
+	      if (r_type == R_X86_64_32
+		  || r_type == R_X86_64_32S
+		  || r_type == R_X86_64_64)
+		{
+		  struct elf_x86_64_link_hash_entry *eh
+		    = (struct elf_x86_64_link_hash_entry *) h;
+		  eh->pointer_refcount += 1;
+		  h->pointer_equality_needed = 1;
+		}
 	    }
 
 	  size_reloc = FALSE;
@@ -2177,6 +2195,7 @@ elf_x86_64_gc_sweep_hook (bfd *abfd, struct bfd_link_info *info,
       unsigned long r_symndx;
       unsigned int r_type;
       struct elf_link_hash_entry *h = NULL;
+      bfd_boolean pointer_reloc;
 
       r_symndx = htab->r_sym (rel->r_info);
       if (r_symndx >= symtab_hdr->sh_info)
@@ -2228,6 +2247,7 @@ elf_x86_64_gc_sweep_hook (bfd *abfd, struct bfd_link_info *info,
 				       rel, relend, h, r_symndx))
 	return FALSE;
 
+      pointer_reloc = FALSE;
       switch (r_type)
 	{
 	case R_X86_64_TLSLD:
@@ -2261,11 +2281,12 @@ elf_x86_64_gc_sweep_hook (bfd *abfd, struct bfd_link_info *info,
 	    }
 	  break;
 
-	case R_X86_64_8:
-	case R_X86_64_16:
 	case R_X86_64_32:
 	case R_X86_64_64:
 	case R_X86_64_32S:
+	  pointer_reloc = TRUE;
+	case R_X86_64_8:
+	case R_X86_64_16:
 	case R_X86_64_PC8:
 	case R_X86_64_PC16:
 	case R_X86_64_PC32:
@@ -2285,6 +2306,13 @@ elf_x86_64_gc_sweep_hook (bfd *abfd, struct bfd_link_info *info,
 	    {
 	      if (h->plt.refcount > 0)
 		h->plt.refcount -= 1;
+	      if (pointer_reloc)
+		{
+		  struct elf_x86_64_link_hash_entry *eh
+		    = (struct elf_x86_64_link_hash_entry *) h;
+		  if (eh->pointer_refcount > 0)
+		    eh->pointer_refcount -= 1;
+		}
 	    }
 	  break;
 
@@ -2543,9 +2571,12 @@ elf_x86_64_allocate_dynrelocs (struct elf_link_hash_entry *h, void * inf)
 	return FALSE;
     }
   else if (htab->elf.dynamic_sections_created
-	   && (h->plt.refcount > 0 || eh->plt_got.refcount > 0))
+	   && (h->plt.refcount > eh->pointer_refcount
+	       || eh->plt_got.refcount > 0))
     {
       bfd_boolean use_plt_got;
+
+      eh->pointer_refcount = 0;
 
       if ((info->flags & DF_BIND_NOW) && !h->pointer_equality_needed)
 	{
@@ -2793,7 +2824,7 @@ elf_x86_64_allocate_dynrelocs (struct elf_link_hash_entry *h, void * inf)
 	 symbols which turn out to need copy relocs or are not
 	 dynamic.  */
 
-      if (!h->non_got_ref
+      if ((!h->non_got_ref || eh->pointer_refcount > 0)
 	  && ((h->def_dynamic
 	       && !h->def_regular)
 	      || (htab->elf.dynamic_sections_created
@@ -4365,7 +4396,7 @@ direct:
 		  && !bfd_link_pic (info)
 		  && h != NULL
 		  && h->dynindx != -1
-		  && !h->non_got_ref
+		  && (!h->non_got_ref || eh->pointer_refcount > 0)
 		  && ((h->def_dynamic
 		       && !h->def_regular)
 		      || h->root.type == bfd_link_hash_undefweak
