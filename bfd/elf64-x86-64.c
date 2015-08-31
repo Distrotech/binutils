@@ -4396,7 +4396,9 @@ direct:
 		  && !bfd_link_pic (info)
 		  && h != NULL
 		  && h->dynindx != -1
-		  && (!h->non_got_ref || eh->pointer_refcount > 0)
+		  && (!h->non_got_ref
+		      || (eh->dyn_relocs != NULL
+			  && eh->pointer_refcount > 0))
 		  && ((h->def_dynamic
 		       && !h->def_regular)
 		      || h->root.type == bfd_link_hash_undefweak
