@@ -46,6 +46,11 @@ struct disas_insn {
   unsigned int is_speculative:1;
 };
 
+/* A vector of disas_insn.  */
+
+typedef struct disas_insn disas_insn_t;
+DEF_VEC_O (disas_insn_t);
+
 /* Return a filled in disassemble_info object for use by gdb.  */
 
 extern struct disassemble_info gdb_disassemble_info (struct gdbarch *gdbarch,
@@ -54,6 +59,11 @@ extern struct disassemble_info gdb_disassemble_info (struct gdbarch *gdbarch,
 extern void gdb_disassembly (struct gdbarch *gdbarch, struct ui_out *uiout,
 			     char *file_string, int flags, int how_many,
 			     CORE_ADDR low, CORE_ADDR high);
+
+/* Print disassembled instructions in INSNS in vector order.  */
+
+extern void gdb_disassembly_vec (struct gdbarch *gdbarch, struct ui_out *uiout,
+				 int flags, VEC (disas_insn_t) *insns);
 
 /* Print the instruction at address MEMADDR in debugged memory,
    on STREAM.  Returns the length of the instruction, in bytes,

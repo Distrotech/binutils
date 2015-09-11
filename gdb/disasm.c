@@ -472,28 +472,24 @@ do_mixed_source_and_assembly_deprecated
 static void
 do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
 			      struct disassemble_info *di,
-			      struct symtab *main_symtab,
-			      CORE_ADDR low, CORE_ADDR high,
-			      int how_many, int flags, struct ui_file *stb)
+			      VEC (disas_insn_t) *insns, int flags,
+			      struct ui_file *stb)
 {
   int newlines = 0;
-  const struct linetable_entry *le, *first_le;
   struct symtab_and_line sal;
-  int i, nlines;
+  int i;
   int out_of_order = 0;
   int next_line = 0;
-  int num_displayed = 0;
   enum print_source_lines_flags psl_flags = 0;
   struct cleanup *cleanups;
   struct cleanup *ui_out_chain;
   struct cleanup *ui_out_tuple_chain;
   struct cleanup *ui_out_list_chain;
-  CORE_ADDR pc;
   struct symtab *last_symtab;
   int last_line;
   htab_t dis_line_table;
-
-  gdb_assert (main_symtab != NULL && SYMTAB_LINETABLE (main_symtab) != NULL);
+  struct disas_insn *insn;
+  unsigned int ix;
 
   /* First pass: collect the list of all source files and lines.
      We do this so that we can only print lines containing code once.
@@ -504,34 +500,12 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
   dis_line_table = allocate_dis_line_table ();
   cleanups = make_cleanup_htab_delete (dis_line_table);
 
-  pc = low;
-
-  /* The prologue may be empty, but there may still be a line number entry
-     for the opening brace which is distinct from the first line of code.
-     If the prologue has been eliminated find_pc_line may return the source
-     line after the opening brace.  We still want to print this opening brace.
-     first_le is used to implement this.  */
-
-  nlines = SYMTAB_LINETABLE (main_symtab)->nitems;
-  le = SYMTAB_LINETABLE (main_symtab)->item;
-  first_le = NULL;
-
-  /* Skip all the preceding functions.  */
-  for (i = 0; i < nlines && le[i].pc < low; i++)
-    continue;
-
-  if (i < nlines && le[i].pc < high)
-    first_le = &le[i];
-
-  /* Add lines for every pc value.  */
-  while (pc < high)
+  /* Add lines for every PC value.  */
+  for (ix = 0; VEC_iterate (disas_insn_t, insns, ix, insn); ++ix)
     {
       struct symtab_and_line sal;
-      int length;
 
-      sal = find_pc_line (pc, 0);
-      length = gdb_insn_length (gdbarch, pc);
-      pc += length;
+      sal = find_pc_line (insn->addr, 0);
 
       if (sal.symtab != NULL)
 	maybe_add_dis_line_entry (dis_line_table, sal.symtab, sal.line);
@@ -571,33 +545,47 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
 
   last_symtab = NULL;
   last_line = 0;
-  pc = low;
 
-  while (pc < high)
+  for (ix = 0; VEC_iterate (disas_insn_t, insns, ix, insn); ++ix)
     {
       struct linetable_entry *le = NULL;
       struct symtab_and_line sal;
-      CORE_ADDR end_pc;
       int start_preceding_line_to_display = 0;
       int end_preceding_line_to_display = 0;
       int new_source_line = 0;
-      struct disas_insn insn;
 
-      sal = find_pc_line (pc, 0);
+      sal = find_pc_line (insn->addr, 0);
 
       if (sal.symtab != last_symtab)
 	{
 	  /* New source file.  */
 	  new_source_line = 1;
 
-	  /* If this is the first line of output, check for any preceding
-	     lines.  */
-	  if (last_line == 0
-	      && first_le != NULL
-	      && first_le->line < sal.line)
+	  /* The prologue may be empty, but there may still be a line number
+	     entry for the opening brace which is distinct from the first line
+	     of code.  If the prologue has been eliminated find_pc_line may
+	     return the source line after the opening brace.  We still want to
+	     print this opening brace.
+
+	     We print it only once.  Should we encounter the same PC again, we
+	     will just print the corresponding source lines.  */
+	  if (last_line == 0)
 	    {
-	      start_preceding_line_to_display = first_le->line;
-	      end_preceding_line_to_display = sal.line;
+	      const struct linetable_entry *le;
+	      int nlines;
+
+	      nlines = SYMTAB_LINETABLE (sal.symtab)->nitems;
+	      le = SYMTAB_LINETABLE (sal.symtab)->item;
+
+	      /* Skip all the preceding functions.  */
+	      for (i = 0; i < nlines && le[i].pc < insn->addr; i++)
+		continue;
+
+	      if (i < nlines && le[i].pc == insn->addr && le[i].line < sal.line)
+		{
+		  start_preceding_line_to_display = le[i].line;
+		  end_preceding_line_to_display = sal.line;
+		}
 	    }
 	}
       else
@@ -635,7 +623,7 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
       if (new_source_line)
 	{
 	  /* Skip the newline if this is the first instruction.  */
-	  if (pc > low)
+	  if (ix > 0)
 	    ui_out_text (uiout, "\n");
 	  if (ui_out_tuple_chain != NULL)
 	    {
@@ -692,45 +680,14 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
 	  ui_out_list_chain
 	    = make_cleanup_ui_out_list_begin_end (uiout, "line_asm_insn");
 	}
-      else
-	{
-	  /* Here we're appending instructions to an existing line.
-	     By construction the very first insn will have a symtab
-	     and follow the new_source_line path above.  */
-	  gdb_assert (ui_out_tuple_chain != NULL);
-	  gdb_assert (ui_out_list_chain != NULL);
-	}
 
-      if (sal.end != 0)
-	end_pc = min (sal.end, high);
-      else
-	end_pc = pc + 1;
-
-      memset (&insn, 0, sizeof (insn));
-      insn.addr = pc;
-
-      while (insn.addr < end_pc && (how_many < 0 || num_displayed < how_many))
-	{
-	  int size;
-
-	  size = dump_insn (gdbarch, uiout, di, &insn, flags, stb);
-	  if (size <= 0)
-	    break;
-
-	  num_displayed += 1;
-	  insn.addr += size;
-
-	  /* Allow user to bail out with ^C.  */
-	  QUIT;
-	}
-
-      pc = insn.addr;
-
-      if (how_many >= 0 && num_displayed >= how_many)
-	break;
+      dump_insn (gdbarch, uiout, di, insn, flags, stb);
 
       last_symtab = sal.symtab;
       last_line = sal.line;
+
+      /* Allow user to bail out with ^C.  */
+      QUIT;
     }
 
   do_cleanups (ui_out_chain);
@@ -739,29 +696,18 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
 
 static void
 do_assembly_only (struct gdbarch *gdbarch, struct ui_out *uiout,
-		  struct disassemble_info * di,
-		  CORE_ADDR low, CORE_ADDR high,
-		  int how_many, int flags, struct ui_file *stb)
+		  struct disassemble_info * di, VEC (disas_insn_t) *insns,
+		  int flags, struct ui_file *stb)
 {
   struct cleanup *ui_out_chain;
-  struct disas_insn insn;
-  int num_displayed = 0;
+  struct disas_insn *insn;
+  unsigned int ix;
 
   ui_out_chain = make_cleanup_ui_out_list_begin_end (uiout, "asm_insns");
 
-  memset (&insn, 0, sizeof (insn));
-  insn.addr = low;
-
-  while (insn.addr < high && (how_many < 0 || num_displayed < how_many))
+  for (ix = 0; VEC_iterate (disas_insn_t, insns, ix, insn); ++ix)
     {
-      int size;
-
-      size = dump_insn (gdbarch, uiout, di, &insn, flags, stb);
-      if (size <= 0)
-	break;
-
-      num_displayed += 1;
-      insn.addr += size;
+      dump_insn (gdbarch, uiout, di, insn, flags, stb);
 
       /* Allow user to bail out with ^C.  */
       QUIT;
@@ -817,30 +763,81 @@ gdb_disassembly (struct gdbarch *gdbarch, struct ui_out *uiout,
 		 char *file_string, int flags, int how_many,
 		 CORE_ADDR low, CORE_ADDR high)
 {
+  VEC (disas_insn_t) *insns;
+  struct cleanup *cleanups;
+  int num_displayed;
+
+  if (flags & DISASSEMBLY_SOURCE_DEPRECATED)
+    {
+      struct symtab *symtab;
+
+      /* Assume symtab is valid for whole PC range.  */
+      symtab = find_pc_line_symtab (low);
+
+      if (symtab != NULL && SYMTAB_LINETABLE (symtab) != NULL
+	  && SYMTAB_LINETABLE (symtab)->nitems > 0)
+	{
+	  struct ui_file *stb;
+	  struct disassemble_info di;
+
+	  stb = mem_fileopen ();
+	  cleanups = make_cleanup_ui_file_delete (stb);
+	  di = gdb_disassemble_info (gdbarch, stb);
+
+	  do_mixed_source_and_assembly_deprecated (gdbarch, uiout, &di, symtab,
+						   low, high, how_many, flags,
+						   stb);
+	  do_cleanups (cleanups);
+	  gdb_flush (gdb_stdout);
+	  return;
+	}
+
+      /* If we don't have sources, fall through to gdb_disassembly_vec.  */
+      flags &= ~DISASSEMBLY_SOURCE_DEPRECATED;
+    }
+
+  insns = NULL;
+  cleanups = make_cleanup (VEC_cleanup (disas_insn_t), &insns);
+
+  num_displayed = 0;
+  while (low < high && (how_many < 0 || num_displayed < how_many))
+    {
+      struct disas_insn *insn;
+      int size;
+
+      insn = VEC_safe_push (disas_insn_t, insns, NULL);
+      insn->addr = low;
+      insn->number = 0;
+      insn->is_speculative = 0;
+
+      size = gdb_insn_length (gdbarch, low);
+      if (size <= 0)
+	break;
+
+      num_displayed += 1;
+      low += size;
+    }
+
+  gdb_disassembly_vec (gdbarch, uiout, flags, insns);
+  do_cleanups (cleanups);
+}
+
+/* See disasm.h.  */
+
+void gdb_disassembly_vec (struct gdbarch *gdbarch, struct ui_out *uiout,
+			  int flags, VEC (disas_insn_t) *insns)
+{
   struct ui_file *stb = mem_fileopen ();
   struct cleanup *cleanups = make_cleanup_ui_file_delete (stb);
   struct disassemble_info di = gdb_disassemble_info (gdbarch, stb);
-  struct symtab *symtab;
-  struct linetable_entry *le = NULL;
-  int nlines = -1;
 
-  /* Assume symtab is valid for whole PC range.  */
-  symtab = find_pc_line_symtab (low);
+  /* We don't support the deprecated mixed source and disassembly mode.  */
+  gdb_assert ((flags & DISASSEMBLY_SOURCE_DEPRECATED) == 0);
 
-  if (symtab != NULL && SYMTAB_LINETABLE (symtab) != NULL)
-    nlines = SYMTAB_LINETABLE (symtab)->nitems;
-
-  if (!(flags & (DISASSEMBLY_SOURCE_DEPRECATED | DISASSEMBLY_SOURCE))
-      || nlines <= 0)
-    do_assembly_only (gdbarch, uiout, &di, low, high, how_many, flags, stb);
-
-  else if (flags & DISASSEMBLY_SOURCE)
-    do_mixed_source_and_assembly (gdbarch, uiout, &di, symtab, low, high,
-				  how_many, flags, stb);
-
-  else if (flags & DISASSEMBLY_SOURCE_DEPRECATED)
-    do_mixed_source_and_assembly_deprecated (gdbarch, uiout, &di, symtab,
-					     low, high, how_many, flags, stb);
+  if ((flags & DISASSEMBLY_SOURCE) != 0)
+    do_mixed_source_and_assembly (gdbarch, uiout, &di, insns, flags, stb);
+  else
+    do_assembly_only (gdbarch, uiout, &di, insns, flags, stb);
 
   do_cleanups (cleanups);
   gdb_flush (gdb_stdout);
