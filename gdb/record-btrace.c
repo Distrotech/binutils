@@ -538,11 +538,17 @@ btrace_insn_history (struct ui_out *uiout,
 {
   struct gdbarch *gdbarch;
   struct btrace_insn_iterator it;
+  VEC (disas_insn_t) *insns;
+  struct cleanup *cleanups;
 
   DEBUG ("itrace (0x%x): [%u; %u)", flags, btrace_insn_number (begin),
 	 btrace_insn_number (end));
 
+  flags |= DISASSEMBLY_SPECULATIVE;
+
   gdbarch = target_gdbarch ();
+  insns = NULL;
+  cleanups = make_cleanup (VEC_cleanup (disas_insn_t), &insns);
 
   for (it = *begin; btrace_insn_cmp (&it, end) != 0; btrace_insn_next (&it, 1))
     {
@@ -560,42 +566,34 @@ btrace_insn_history (struct ui_out *uiout,
 	  /* We have trace so we must have a configuration.  */
 	  gdb_assert (conf != NULL);
 
+	  /* Print the instructions we collected, so far, then the error.
+
+	     This will result in two disjoint "asm_insns" lists with a
+	     stand-alone error in-between.  It's better than what we had
+	     before but still not OK for MI users.  */
+	  gdb_disassembly_vec (gdbarch, uiout, flags, insns);
+
 	  btrace_ui_out_decode_error (uiout, it.function->errcode,
 				      conf->format);
+
+	  /* Start over.  */
+	  VEC_free (disas_insn_t, insns);
 	}
       else
 	{
-	  char prefix[4];
+	  struct disas_insn *dinsn;
 
-	  /* We may add a speculation prefix later.  We use the same space
-	     that is used for the pc prefix.  */
-	  if ((flags & DISASSEMBLY_OMIT_PC) == 0)
-	    strncpy (prefix, pc_prefix (insn->pc), 3);
-	  else
-	    {
-	      prefix[0] = ' ';
-	      prefix[1] = ' ';
-	      prefix[2] = ' ';
-	    }
-	  prefix[3] = 0;
-
-	  /* Print the instruction index.  */
-	  ui_out_field_uint (uiout, "index", btrace_insn_number (&it));
-	  ui_out_text (uiout, "\t");
-
-	  /* Indicate speculative execution by a leading '?'.  */
-	  if ((insn->flags & BTRACE_INSN_FLAG_SPECULATIVE) != 0)
-	    prefix[0] = '?';
-
-	  /* Print the prefix; we tell gdb_disassembly below to omit it.  */
-	  ui_out_field_fmt (uiout, "prefix", "%s", prefix);
-
-	  /* Disassembly with '/m' flag may not produce the expected result.
-	     See PR gdb/11833.  */
-	  gdb_disassembly (gdbarch, uiout, NULL, flags | DISASSEMBLY_OMIT_PC,
-			   1, insn->pc, insn->pc + 1);
+	  dinsn = VEC_safe_push (disas_insn_t, insns, NULL);
+	  dinsn->addr = insn->pc;
+	  dinsn->number = btrace_insn_number (&it);
+	  dinsn->is_speculative = (insn->flags & BTRACE_INSN_FLAG_SPECULATIVE) != 0;
 	}
     }
+
+  /* Print the instructions we collected.  */
+  gdb_disassembly_vec (gdbarch, uiout, flags, insns);
+
+  do_cleanups (cleanups);
 }
 
 /* The to_insn_history method of target record-btrace.  */
