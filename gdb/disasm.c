@@ -170,13 +170,13 @@ compare_lines (const void *mle1p, const void *mle2p)
   return val;
 }
 
-/* Prints the instruction at PC into UIOUT and returns the length of the
+/* Prints the instruction INSN into UIOUT and returns the length of the
    printed instruction in bytes.  */
 
 static int
 dump_insn (struct gdbarch *gdbarch, struct ui_out *uiout,
-	   struct disassemble_info * di, CORE_ADDR pc, int flags,
-	   struct ui_file *stb)
+	   struct disassemble_info * di, const struct disas_insn *insn,
+	   int flags, struct ui_file *stb)
 {
   /* parts of the symbolic representation of the address */
   int unmapped;
@@ -186,10 +186,37 @@ dump_insn (struct gdbarch *gdbarch, struct ui_out *uiout,
   struct cleanup *ui_out_chain;
   char *filename = NULL;
   char *name = NULL;
+  CORE_ADDR pc;
 
   ui_out_chain = make_cleanup_ui_out_tuple_begin_end (uiout, NULL);
+  pc = insn->addr;
 
-  if ((flags & DISASSEMBLY_OMIT_PC) == 0)
+  if (insn->number != 0)
+    {
+      ui_out_field_fmt (uiout, "insn-number", "%u", insn->number);
+      ui_out_text (uiout, "\t");
+    }
+
+  if ((flags & DISASSEMBLY_SPECULATIVE) != 0)
+    {
+      if (insn->is_speculative)
+	{
+	  ui_out_field_string (uiout, "is-speculative", "?");
+
+	  /* The speculative execution indication overwrites the first
+	     character of the PC prefix.
+	     We assume a PC prefix length of 3 characters.  */
+	  if ((flags & DISASSEMBLY_OMIT_PC) == 0)
+	    ui_out_text (uiout, pc_prefix (pc) + 1);
+	  else
+	    ui_out_text (uiout, "  ");
+	}
+      else if ((flags & DISASSEMBLY_OMIT_PC) == 0)
+	ui_out_text (uiout, pc_prefix (pc));
+      else
+	ui_out_text (uiout, "   ");
+    }
+  else if ((flags & DISASSEMBLY_OMIT_PC) == 0)
     ui_out_text (uiout, pc_prefix (pc));
   ui_out_field_core_addr (uiout, "address", gdbarch, pc);
 
@@ -347,7 +374,7 @@ do_mixed_source_and_assembly_deprecated
 
   for (i = 0; i < newlines; i++)
     {
-      CORE_ADDR pc;
+      struct disas_insn insn;
 
       /* Print out everything from next_line to the current line.  */
       if (mle[i].line >= next_line)
@@ -402,17 +429,20 @@ do_mixed_source_and_assembly_deprecated
 	    = make_cleanup_ui_out_list_begin_end (uiout, "line_asm_insn");
 	}
 
-      pc = mle[i].start_pc;
-      while (pc < mle[i].end_pc && (how_many < 0 || num_displayed < how_many))
+      memset (&insn, 0, sizeof (insn));
+      insn.addr = mle[i].start_pc;
+
+      while (insn.addr < mle[i].end_pc
+	     && (how_many < 0 || num_displayed < how_many))
 	{
 	  int size;
 
-	  size = dump_insn (gdbarch, uiout, di, pc, flags, stb);
+	  size = dump_insn (gdbarch, uiout, di, &insn, flags, stb);
 	  if (size <= 0)
 	    break;
 
 	  num_displayed += 1;
-	  pc += size;
+	  insn.addr += size;
 
 	  /* Allow user to bail out with ^C.  */
 	  QUIT;
@@ -551,6 +581,7 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
       int start_preceding_line_to_display = 0;
       int end_preceding_line_to_display = 0;
       int new_source_line = 0;
+      struct disas_insn insn;
 
       sal = find_pc_line (pc, 0);
 
@@ -675,20 +706,25 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
       else
 	end_pc = pc + 1;
 
-      while (pc < end_pc && (how_many < 0 || num_displayed < how_many))
+      memset (&insn, 0, sizeof (insn));
+      insn.addr = pc;
+
+      while (insn.addr < end_pc && (how_many < 0 || num_displayed < how_many))
 	{
 	  int size;
 
-	  size = dump_insn (gdbarch, uiout, di, pc, flags, stb);
+	  size = dump_insn (gdbarch, uiout, di, &insn, flags, stb);
 	  if (size <= 0)
 	    break;
 
 	  num_displayed += 1;
-	  pc += size;
+	  insn.addr += size;
 
 	  /* Allow user to bail out with ^C.  */
 	  QUIT;
 	}
+
+      pc = insn.addr;
 
       if (how_many >= 0 && num_displayed >= how_many)
 	break;
@@ -708,20 +744,24 @@ do_assembly_only (struct gdbarch *gdbarch, struct ui_out *uiout,
 		  int how_many, int flags, struct ui_file *stb)
 {
   struct cleanup *ui_out_chain;
+  struct disas_insn insn;
   int num_displayed = 0;
 
   ui_out_chain = make_cleanup_ui_out_list_begin_end (uiout, "asm_insns");
 
-  while (low < high && (how_many < 0 || num_displayed < how_many))
+  memset (&insn, 0, sizeof (insn));
+  insn.addr = low;
+
+  while (insn.addr < high && (how_many < 0 || num_displayed < how_many))
     {
       int size;
 
-      size = dump_insn (gdbarch, uiout, di, low, flags, stb);
+      size = dump_insn (gdbarch, uiout, di, &insn, flags, stb);
       if (size <= 0)
 	break;
 
       num_displayed += 1;
-      low += size;
+      insn.addr += size;
 
       /* Allow user to bail out with ^C.  */
       QUIT;

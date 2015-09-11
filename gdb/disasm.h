@@ -27,10 +27,24 @@
 #define DISASSEMBLY_FILENAME	(0x1 << 3)
 #define DISASSEMBLY_OMIT_PC	(0x1 << 4)
 #define DISASSEMBLY_SOURCE	(0x1 << 5)
+#define DISASSEMBLY_SPECULATIVE	(0x1 << 6)
 
 struct gdbarch;
 struct ui_out;
 struct ui_file;
+
+/* An instruction to be disassembled.  */
+
+struct disas_insn {
+  /* The address of the memory containing the instruction.  */
+  CORE_ADDR addr;
+
+  /* An optional instruction number.  If non-zero, it is printed first.  */
+  unsigned int number;
+
+  /* A bit-field saying whether the instruction was executed speculatively.  */
+  unsigned int is_speculative:1;
+};
 
 /* Return a filled in disassemble_info object for use by gdb.  */
 
