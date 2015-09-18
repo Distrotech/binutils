@@ -43,80 +43,24 @@ struct deprecated_dis_line_entry
   CORE_ADDR end_pc;
 };
 
-/* This Structure is used to store line number information.
-   We need a different sort of line table from the normal one cuz we can't
-   depend upon implicit line-end pc's for lines to do the
-   reordering in this function.  */
-
-struct dis_line_entry
-{
-  struct symtab *symtab;
-  int line;
-};
-
-/* Hash function for dis_line_entry.  */
-
-static hashval_t
-hash_dis_line_entry (const void *item)
-{
-  const struct dis_line_entry *dle = item;
-
-  return htab_hash_pointer (dle->symtab) + dle->line;
-}
-
-/* Equal function for dis_line_entry.  */
+/* Return non-zero if LINE appears in SYMTAB's line table.  */
 
 static int
-eq_dis_line_entry (const void *item_lhs, const void *item_rhs)
+line_has_code_p (struct symtab *symtab, int line)
 {
-  const struct dis_line_entry *lhs = item_lhs;
-  const struct dis_line_entry *rhs = item_rhs;
+  struct linetable *ltable;
+  int nlines, ix;
 
-  return (lhs->symtab == rhs->symtab
-	  && lhs->line == rhs->line);
-}
+  ltable = SYMTAB_LINETABLE (symtab);
+  if (ltable == NULL)
+    return 0;
 
-/* Create the table to manage lines for mixed source/disassembly.  */
+  nlines = ltable->nitems;
+  for (ix = 0; ix < nlines; ++ix)
+    if (ltable->item[ix].line == line)
+      return 1;
 
-static htab_t
-allocate_dis_line_table (void)
-{
-  return htab_create_alloc (41,
-			    hash_dis_line_entry, eq_dis_line_entry,
-			    xfree, xcalloc, xfree);
-}
-
-/* Add DLE to TABLE.
-   Returns 1 if added, 0 if already present.  */
-
-static void
-maybe_add_dis_line_entry (htab_t table, struct symtab *symtab, int line)
-{
-  void **slot;
-  struct dis_line_entry dle, *dlep;
-
-  dle.symtab = symtab;
-  dle.line = line;
-  slot = htab_find_slot (table, &dle, INSERT);
-  if (*slot == NULL)
-    {
-      dlep = XNEW (struct dis_line_entry);
-      dlep->symtab = symtab;
-      dlep->line = line;
-      *slot = dlep;
-    }
-}
-
-/* Return non-zero if SYMTAB, LINE are in TABLE.  */
-
-static int
-line_has_code_p (htab_t table, struct symtab *symtab, int line)
-{
-  struct dis_line_entry dle;
-
-  dle.symtab = symtab;
-  dle.line = line;
-  return htab_find (table, &dle) != NULL;
+  return 0;
 }
 
 /* Like target_read_memory, but slightly different parameters.  */
@@ -481,39 +425,15 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
   int out_of_order = 0;
   int next_line = 0;
   enum print_source_lines_flags psl_flags = 0;
-  struct cleanup *cleanups;
   struct cleanup *ui_out_chain;
   struct cleanup *ui_out_tuple_chain;
   struct cleanup *ui_out_list_chain;
   struct symtab *last_symtab;
   int last_line;
-  htab_t dis_line_table;
   struct disas_insn *insn;
   unsigned int ix;
 
-  /* First pass: collect the list of all source files and lines.
-     We do this so that we can only print lines containing code once.
-     We try to print the source text leading up to the next instruction,
-     but if that text is for code that will be disassembled later, then
-     we'll want to defer printing it until later with its associated code.  */
-
-  dis_line_table = allocate_dis_line_table ();
-  cleanups = make_cleanup_htab_delete (dis_line_table);
-
-  /* Add lines for every PC value.  */
-  for (ix = 0; VEC_iterate (disas_insn_t, insns, ix, insn); ++ix)
-    {
-      struct symtab_and_line sal;
-
-      sal = find_pc_line (insn->addr, 0);
-
-      if (sal.symtab != NULL)
-	maybe_add_dis_line_entry (dis_line_table, sal.symtab, sal.line);
-    }
-
-  /* Second pass: print the disassembly.
-
-     Output format, from an MI perspective:
+  /* Output format, from an MI perspective:
        The result is a ui_out list, field name "asm_insns", where elements have
        name "src_and_asm_line".
        Each element is a tuple of source line specs (field names line, file,
@@ -525,9 +445,6 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
      which is where we put file name and source line contents output.
 
      Cleanup usage:
-     cleanups:
-       For things created at the beginning of this function and need to be
-       kept until the end of this function.
      ui_out_chain
        Handles the outer "asm_insns" list.
      ui_out_tuple_chain
@@ -601,7 +518,7 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
 		     not associated with code that we'll print later.  */
 		  for (l = sal.line - 1; l > last_line; --l)
 		    {
-		      if (line_has_code_p (dis_line_table, sal.symtab, l))
+		      if (line_has_code_p (sal.symtab, l))
 			break;
 		    }
 		  if (l < sal.line - 1)
@@ -691,7 +608,6 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
     }
 
   do_cleanups (ui_out_chain);
-  do_cleanups (cleanups);
 }
 
 static void
