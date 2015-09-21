@@ -25,6 +25,7 @@
 #include "gdbcore.h"
 #include "dis-asm.h"
 #include "source.h"
+#include "block.h"
 
 /* Disassemble functions.
    FIXME: We should get rid of all the duplicate code in gdb that does
@@ -61,6 +62,54 @@ line_has_code_p (struct symtab *symtab, int line)
       return 1;
 
   return 0;
+}
+
+/* Return the first line in the function that contains PC or zero if the line
+   can't be determined.  */
+
+static int
+first_line_in_pc_function (struct symtab *symtab, CORE_ADDR pc)
+{
+  const struct symbol *sym;
+  const struct block *block;
+  struct linetable *ltable;
+  CORE_ADDR high, low;
+  int nlines, ix, first;
+
+  sym = find_pc_function (pc);
+  if (sym == NULL)
+    return 0;
+
+  block = SYMBOL_BLOCK_VALUE (sym);
+  if (block == NULL)
+    return 0;
+
+  ltable = SYMTAB_LINETABLE (symtab);
+  if (ltable == NULL)
+    return 0;
+
+  low = BLOCK_START (block);
+  high = BLOCK_END (block);
+  nlines = ltable->nitems;
+  first = INT_MAX;
+
+  /* Skip preceding functions.  */
+  for (ix = 0; ix < nlines && ltable->item[ix].pc < low ; ++ix);
+
+  /* Determine the first line in the function PC range.  */
+  for (; ix < nlines && ltable->item[ix].pc < high; ++ix)
+    {
+      int line = ltable->item[ix].line;
+
+      if (line != 0 && line < first)
+	first = line;
+    }
+
+  /* Return zero if we didn't find any line entry.  */
+  if (first == INT_MAX)
+    first = 0;
+
+ return first;
 }
 
 /* Like target_read_memory, but slightly different parameters.  */
@@ -510,13 +559,16 @@ do_mixed_source_and_assembly (struct gdbarch *gdbarch, struct ui_out *uiout,
 	  /* Same source file as last time.  */
 	  if (sal.symtab != NULL)
 	    {
-	      if (sal.line > last_line + 1 && last_line != 0)
+	      int first_line;
+
+	      /* Print preceding source lines not associated with code.
+		 Restrict the search to the current function.  */
+	      first_line = first_line_in_pc_function (sal.symtab, insn->addr);
+	      if (first_line > 0)
 		{
 		  int l;
 
-		  /* Several preceding source lines.  Print the trailing ones
-		     not associated with code that we'll print later.  */
-		  for (l = sal.line - 1; l > last_line; --l)
+		  for (l = sal.line - 1; l >= first_line; --l)
 		    {
 		      if (line_has_code_p (sal.symtab, l))
 			break;
