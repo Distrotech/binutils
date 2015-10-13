@@ -4388,6 +4388,14 @@ save_waitstatus (struct thread_info *tp, struct target_waitstatus *ws)
     }
 }
 
+/* A cleanup that disables thread create/exit events.  */
+
+static void
+disable_thread_events (void *arg)
+{
+  target_thread_events (0);
+}
+
 /* See infrun.h.  */
 
 void
@@ -4406,6 +4414,9 @@ stop_all_threads (void)
 
   entry_ptid = inferior_ptid;
   old_chain = make_cleanup (switch_to_thread_cleanup, &entry_ptid);
+
+  target_thread_events (1);
+  make_cleanup (disable_thread_events, NULL);
 
   /* Request threads to stop, and then wait for the stops.  Because
      threads we already know about can spawn more threads while we're
@@ -4484,7 +4495,8 @@ stop_all_threads (void)
 	    {
 	      /* All resumed threads exited.  */
 	    }
-	  else if (ws.kind == TARGET_WAITKIND_EXITED
+	  else if (ws.kind == TARGET_WAITKIND_THREAD_EXITED
+		   || ws.kind == TARGET_WAITKIND_EXITED
 		   || ws.kind == TARGET_WAITKIND_SIGNALLED)
 	    {
 	      if (debug_infrun)
@@ -4631,6 +4643,14 @@ handle_inferior_event_1 (struct execution_control_state *ecs)
 	 reported multiple times without an intervening resume.  */
       if (debug_infrun)
 	fprintf_unfiltered (gdb_stdlog, "infrun: TARGET_WAITKIND_IGNORE\n");
+      prepare_to_wait (ecs);
+      return;
+    }
+
+  if (ecs->ws.kind == TARGET_WAITKIND_THREAD_EXITED)
+    {
+      if (debug_infrun)
+	fprintf_unfiltered (gdb_stdlog, "infrun: TARGET_WAITKIND_THREAD_EXITED\n");
       prepare_to_wait (ecs);
       return;
     }
@@ -4837,6 +4857,15 @@ handle_inferior_event_1 (struct execution_control_state *ecs)
 	context_switch (ecs->ptid);
       resume (GDB_SIGNAL_0);
       prepare_to_wait (ecs);
+      return;
+
+    case TARGET_WAITKIND_THREAD_CREATED:
+      if (debug_infrun)
+        fprintf_unfiltered (gdb_stdlog, "infrun: TARGET_WAITKIND_THREAD_CREATED\n");
+      if (!ptid_equal (ecs->ptid, inferior_ptid))
+	context_switch (ecs->ptid);
+      if (!switch_back_to_stepped_thread (ecs))
+	keep_going (ecs);
       return;
 
     case TARGET_WAITKIND_EXITED:
