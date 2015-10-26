@@ -2967,9 +2967,6 @@ convert_branch:
 	}
       else
 	{
-	  asection *tsec;
-	  bfd_vma toff;
-
 	  /* We have "mov foo@GOT[(%re1g)], %reg2",
 	     "test %reg1, foo@GOT(%reg2)" and
 	     "binop foo@GOT[(%reg1)], %reg2".
@@ -2979,7 +2976,8 @@ convert_branch:
 	  if (h == htab->elf.hdynamic)
 	    continue;
 
-	  if (bfd_link_get_defined_symbol (abfd, &h->root, &tsec, &toff)
+	  if (bfd_link_get_defined_symbol (link_info, &h->root, NULL,
+					   NULL)
 	      && SYMBOL_REFERENCES_LOCAL (link_info, h))
 	    {
 convert_load:

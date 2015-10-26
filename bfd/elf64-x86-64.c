@@ -3126,7 +3126,7 @@ elf_x86_64_convert_load (bfd *abfd, asection *sec,
 		 || h->root.type == bfd_link_hash_warning)
 	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
-	  defined = bfd_link_get_defined_symbol (abfd, &h->root,
+	  defined = bfd_link_get_defined_symbol (link_info, &h->root,
 						 &tsec, &toff);
 
 	  /* STT_GNU_IFUNC must keep GOTPCREL relocations.  We also

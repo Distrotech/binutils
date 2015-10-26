@@ -3310,7 +3310,7 @@ FUNCTION
 
 SYNOPSIS
 	bfd_boolean bfd_link_get_defined_symbol
-	  (bfd *output_bfd, struct bfd_link_hash_entry *h,
+	  (struct bfd_link_info *info, struct bfd_link_hash_entry *h,
 	   asection **sec, bfd_vma *value);
 
 DESCRIPTION
@@ -3319,15 +3319,17 @@ DESCRIPTION
 */
 
 bfd_boolean
-bfd_link_get_defined_symbol (bfd *output_bfd,
+bfd_link_get_defined_symbol (struct bfd_link_info *info,
 			     struct bfd_link_hash_entry *h,
 			     asection **sec, bfd_vma *value)
 {
   if (h->type == bfd_link_hash_defined
       || h->type == bfd_link_hash_defweak)
     {
-      *sec = h->u.def.section;
-      *value = h->u.def.value;
+      if (sec)
+	*sec = h->u.def.section;
+      if (value)
+	*value = h->u.def.value;
       return TRUE;
     }
 
@@ -3348,11 +3350,39 @@ bfd_link_get_defined_symbol (bfd *output_bfd,
 
       if (sec_name != NULL && *sec_name != '\0')
 	{
-	  asection *s = bfd_get_section_by_name (output_bfd, sec_name);
-	  if (s != NULL)
+	  bfd *i;
+	  bfd_vma size = 0;
+	  bfd_boolean found = FALSE;
+
+	  for (i = info->input_bfds; i != NULL; i = i->link.next)
 	    {
-	      *sec = s;
-	      *value = sec_name == (h->root.string + 7) ? s->size : 0;
+	      asection *s = bfd_get_section_by_name (i, sec_name);
+	      if (s != NULL)
+		{
+		  if (!found)
+		    {
+		      if (sec)
+			*sec = s;
+		      if (!value)
+			return TRUE;
+		      if (sec_name == (h->root.string + 8))
+			{
+			  *value = 0;
+			  return TRUE;
+			}
+		      found = TRUE;
+		    }
+
+		  /* Estimate the size of the output XXX section for
+		     __stop_XXX value.  */
+		  size = align_power (size, s->alignment_power);
+		  size += s->size;
+		}
+	    }
+
+	  if (found)
+	    {
+	      *value = size;
 	      return TRUE;
 	    }
 	}
