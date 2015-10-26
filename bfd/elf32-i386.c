@@ -2753,7 +2753,7 @@ elf_i386_readonly_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 
 static bfd_boolean
 elf_i386_convert_load (bfd *abfd, asection *sec,
-			     struct bfd_link_info *link_info)
+		       struct bfd_link_info *link_info)
 {
   Elf_Internal_Shdr *symtab_hdr;
   Elf_Internal_Rela *internal_relocs;
@@ -2967,6 +2967,9 @@ convert_branch:
 	}
       else
 	{
+	  asection *tsec;
+	  bfd_vma toff;
+
 	  /* We have "mov foo@GOT[(%re1g)], %reg2",
 	     "test %reg1, foo@GOT(%reg2)" and
 	     "binop foo@GOT[(%reg1)], %reg2".
@@ -2976,8 +2979,7 @@ convert_branch:
 	  if (h == htab->elf.hdynamic)
 	    continue;
 
-	  if ((h->root.type == bfd_link_hash_defined
-	       || h->root.type == bfd_link_hash_defweak)
+	  if (bfd_link_get_defined_symbol (abfd, &h->root, &tsec, &toff)
 	      && SYMBOL_REFERENCES_LOCAL (link_info, h))
 	    {
 convert_load:

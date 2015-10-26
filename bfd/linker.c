@@ -3303,3 +3303,60 @@ bfd_hide_sym_by_version (struct bfd_elf_version_tree *verdefs,
   bfd_find_version_for_sym (verdefs, sym_name, &hidden);
   return hidden;
 }
+
+/*
+FUNCTION
+	bfd_link_get_defined_symbol
+
+SYNOPSIS
+	bfd_boolean bfd_link_get_defined_symbol
+	  (bfd *output_bfd, struct bfd_link_hash_entry *h,
+	   asection **sec, bfd_vma *value);
+
+DESCRIPTION
+	Return TRUE, store symbol section and value in @var{*sec} and
+	@var{*value} if symbol @var{h} is defined during a final link.
+*/
+
+bfd_boolean
+bfd_link_get_defined_symbol (bfd *output_bfd,
+			     struct bfd_link_hash_entry *h,
+			     asection **sec, bfd_vma *value)
+{
+  if (h->type == bfd_link_hash_defined
+      || h->type == bfd_link_hash_defweak)
+    {
+      *sec = h->u.def.section;
+      *value = h->u.def.value;
+      return TRUE;
+    }
+
+  if (h->type == bfd_link_hash_new
+      || h->type == bfd_link_hash_undefined
+      || h->type == bfd_link_hash_undefweak)
+    {
+      /* Check yet undefined reference to __start_XXX or __stop_XXX
+	 symbols.  The linker will later define such symbols for output
+	 sections that have a name representable as a C identifier.  */
+      const char *sec_name;
+      if (strncmp (h->root.string, "__start_", 8) == 0)
+	sec_name = h->root.string + 8;
+      else if (strncmp (h->root.string, "__stop_", 7) == 0)
+	sec_name = h->root.string + 7;
+      else
+	sec_name = NULL;
+
+      if (sec_name != NULL && *sec_name != '\0')
+	{
+	  asection *s = bfd_get_section_by_name (output_bfd, sec_name);
+	  if (s != NULL)
+	    {
+	      *sec = s;
+	      *value = sec_name == (h->root.string + 7) ? s->size : 0;
+	      return TRUE;
+	    }
+	}
+    }
+
+  return FALSE;
+}
