@@ -2140,7 +2140,7 @@ update_watchpoint (struct watchpoint *b, int reparse)
 	  base->loc->pspace = frame_pspace;
 	  base->loc->address = -1;
 	  base->loc->length = -1;
-	  base->loc->watchpoint_type = -1;
+	  base->loc->watchpoint_type = (enum target_hw_bp_type) -1;
 	}
     }
   else if (!within_current_scope)
