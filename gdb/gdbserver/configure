@@ -4813,6 +4813,21 @@ fi
 
 # See if we are building with C++, and substitute COMPILER.
 
+  # The "doesn't support C++ yet" hall of shame.
+  case $host in
+    *-*aix* | \
+    *-*go32* | \
+    *-*darwin* | \
+    *-*solaris* | \
+    *-*nto* | \
+    *-*bsd* | \
+    xtensa*-*-linux* | \
+    null)
+      enable_build_with_cxx=no ;;
+    *)
+      enable_build_with_cxx=yes ;;
+  esac
+
   # Check whether --enable-build-with-cxx was given.
 if test "${enable_build_with_cxx+set}" = set; then :
   enableval=$enable_build_with_cxx; case $enableval in
@@ -4821,8 +4836,6 @@ if test "${enable_build_with_cxx+set}" = set; then :
       *)
 	  as_fn_error "bad value $enableval for --enable-build-with-cxx" "$LINENO" 5 ;;
     esac
-else
-  enable_build_with_cxx=no
 fi
 
 
