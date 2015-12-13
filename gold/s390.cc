@@ -402,6 +402,14 @@ class Target_s390 : public Sized_target<size, true>
   do_can_check_for_function_pointers() const
   { return true; }
 
+  // Adjust -fsplit-stack code which calls non-split-stack code.
+  void
+  do_calls_non_split(Relobj* object, unsigned int shndx,
+		     section_offset_type fnoffset, section_size_type fnsize,
+		     const unsigned char* prelocs, size_t reloc_count,
+		     unsigned char* view, section_size_type view_size,
+		     std::string* from, std::string* to) const;
+
   // Return the size of the GOT section.
   section_size_type
   got_size() const
@@ -687,6 +695,17 @@ class Target_s390 : public Sized_target<size, true>
 				  this->rela_dyn_section(layout));
   }
 
+  // A function for targets to call.  Return whether BYTES/LEN matches
+  // VIEW/VIEW_SIZE at OFFSET.  Like the one in Target, but takes
+  // an unsigned char * parameter.
+  bool
+  match_view_u(const unsigned char* view, section_size_type view_size,
+     section_offset_type offset, const unsigned char* bytes, size_t len) const
+    {
+      return this->match_view(view, view_size, offset,
+			      reinterpret_cast<const char*>(bytes), len);
+    }
+
   // Information about this specific target which we pass to the
   // general Target structure.
   static Target::Target_info s390_info;
@@ -724,6 +743,22 @@ class Target_s390 : public Sized_target<size, true>
   bool tls_base_symbol_defined_;
   // For use in do_tls_offset_for_*
   Layout *layout_;
+
+  // Code sequences for -fsplit-stack matching.
+  static const unsigned char ss_code_nopmark[];
+  static const unsigned char ss_code_ear[];
+  static const unsigned char ss_code_c[];
+  static const unsigned char ss_code_l[];
+  static const unsigned char ss_code_ahi[];
+  static const unsigned char ss_code_alfi[];
+  static const unsigned char ss_code_cr[];
+  static const unsigned char ss_code_larl[];
+  static const unsigned char ss_code_jg[];
+  static const unsigned char ss_code_jgl[];
+  static const unsigned char ss_code_jl[];
+  static const unsigned char ss_code_jhe[];
+  static const unsigned char ss_code_basr[];
+  static const unsigned char ss_code_basr_2[];
 };
 
 template<>
@@ -4241,6 +4276,423 @@ Target_s390<size>::do_code_fill(section_size_type length) const
   if (length & 1)
     gold_warning(_("S/390 code fill of odd length requested"));
   return std::string(length, static_cast<char>(0x07));
+}
+
+// Code sequences to match below.
+
+template<int size>
+const unsigned char
+Target_s390<size>::ss_code_nopmark[] = {
+  0x07, 0x0f,				// nopr %r15
+};
+
+template<>
+const unsigned char
+Target_s390<32>::ss_code_ear[] = {
+  0xb2, 0x4f, 0x00, 0x10,		// ear %r1, %a0
+};
+
+template<>
+const unsigned char
+Target_s390<64>::ss_code_ear[] = {
+  0xb2, 0x4f, 0x00, 0x10,		// ear %r1, %a0
+  0xeb, 0x11, 0x00, 0x20, 0x00, 0x0d,	// sllg %r1,%r1,32
+  0xb2, 0x4f, 0x00, 0x11,		// ear %r1, %a1
+};
+
+template<>
+const unsigned char
+Target_s390<32>::ss_code_c[] = {
+  0x59, 0xf0, 0x10, 0x20,		// c %r15, 0x20(%r1)
+};
+
+template<>
+const unsigned char
+Target_s390<64>::ss_code_c[] = {
+  0xe3, 0xf0, 0x10, 0x38, 0x00, 0x20,	// cg %r15, 0x38(%r1)
+};
+
+template<>
+const unsigned char
+Target_s390<32>::ss_code_l[] = {
+  0x58, 0x10, 0x10, 0x20,		// l %r1, 0x20(%r1)
+};
+
+template<>
+const unsigned char
+Target_s390<64>::ss_code_l[] = {
+  0xe3, 0x10, 0x10, 0x38, 0x00, 0x04,	// lg %r1, 0x38(%r1)
+};
+
+template<>
+const unsigned char
+Target_s390<32>::ss_code_ahi[] = {
+  0xa7, 0x1a,				// ahi %r1, ...
+};
+
+template<>
+const unsigned char
+Target_s390<64>::ss_code_ahi[] = {
+  0xa7, 0x1b,				// aghi %r1, ...
+};
+
+template<>
+const unsigned char
+Target_s390<32>::ss_code_alfi[] = {
+  0xc2, 0x1b,				// alfi %r1, ...
+};
+
+template<>
+const unsigned char
+Target_s390<64>::ss_code_alfi[] = {
+  0xc2, 0x1a,				// algfi %r1, ...
+};
+
+template<>
+const unsigned char
+Target_s390<32>::ss_code_cr[] = {
+  0x19, 0xf1,				// cr %r15, %r1
+};
+
+template<>
+const unsigned char
+Target_s390<64>::ss_code_cr[] = {
+  0xb9, 0x20, 0x00, 0xf1,		// cgr %r15, %r1
+};
+
+template<int size>
+const unsigned char
+Target_s390<size>::ss_code_larl[] = {
+  0xc0, 0x10		,		// larl ...
+};
+
+template<int size>
+const unsigned char
+Target_s390<size>::ss_code_jg[] = {
+  0xc0, 0xf4		,		// jg ...
+};
+
+template<int size>
+const unsigned char
+Target_s390<size>::ss_code_jgl[] = {
+  0xc0, 0x44,				// jgl ...
+};
+
+template<int size>
+const unsigned char
+Target_s390<size>::ss_code_jl[] = {
+  0xa7, 0x44,				// jl ...
+};
+
+template<int size>
+const unsigned char
+Target_s390<size>::ss_code_jhe[] = {
+  0xa7, 0xa4,				// jhe ...
+};
+
+template<int size>
+const unsigned char
+Target_s390<size>::ss_code_basr[] = {
+  0x0d, 0x10,				// basr %r1, 0
+  0x5a, 0x10, 0x10, 0x12,		// a %r1, 0x12(%r1)
+  0x0d, 0x11,				// basr %r1, %r1
+};
+
+template<int size>
+const unsigned char
+Target_s390<size>::ss_code_basr_2[] = {
+  0x0d, 0x10,				// basr %r1, 0
+  0x5a, 0x10, 0x10, 0x14,		// a %r1, 0x14(%r1)
+  0x0d, 0x11,				// basr %r1, %r1
+};
+
+// FNOFFSET in section SHNDX in OBJECT is the start of a function
+// compiled with -fsplit-stack.  The function calls non-split-stack
+// code.  We have to change the function so that it always ensures
+// that it has enough stack space to run some random function.
+
+template<int size>
+void
+Target_s390<size>::do_calls_non_split(Relobj* object, unsigned int shndx,
+				      section_offset_type fnoffset,
+				      section_size_type,
+				      const unsigned char *prelocs,
+				      size_t reloc_count,
+				      unsigned char* view,
+				      section_size_type view_size,
+				      std::string*,
+				      std::string*) const
+{
+  // true if there's a conditional call to __morestack in the function,
+  // false if there's an unconditional one.
+  bool conditional = false;
+  // Offset of the byte after the compare insn, if conditional.
+  section_offset_type cmpend = 0;
+  // Type and immediate offset of the add instruction that adds frame size
+  // to guard.
+  enum {
+    SS_ADD_NONE,
+    SS_ADD_AHI,
+    SS_ADD_ALFI,
+  } fsadd_type = SS_ADD_NONE;
+  section_offset_type fsadd_offset = 0;
+  uint32_t fsadd_frame_size = 0;
+  // Type and offset of the conditional jump.
+  enum {
+    SS_JUMP_NONE,
+    SS_JUMP_JL,
+    SS_JUMP_JHE,
+  } jump_type = SS_JUMP_NONE;
+  section_offset_type jump_offset = 0;
+  // Section view and offset of param block.
+  section_offset_type param_offset = 0;
+  unsigned char *param_view = 0;
+  section_size_type param_view_size = 0;
+  // Current position in function.
+  section_offset_type curoffset = fnoffset;
+  // Frame size.
+  typename elfcpp::Elf_types<size>::Elf_Addr frame_size;
+  // Relocation parsing.
+  typedef typename Reloc_types<elfcpp::SHT_RELA, size, true>::Reloc Reltype;
+  const int reloc_size = Reloc_types<elfcpp::SHT_RELA, size, true>::reloc_size;
+
+  // If the function starts with a nopr %r15, it's a split-stack-compiled
+  // function that doesn't have a stack frame.  Ignore it.
+
+  if (this->match_view_u(view, view_size, curoffset, ss_code_nopmark,
+		       sizeof ss_code_nopmark))
+    return;
+
+  // First, figure out if there's a conditional call by looking for the
+  // extract-tp, add, cmp sequence.
+
+  if (this->match_view_u(view, view_size, curoffset, ss_code_ear,
+		       sizeof ss_code_ear))
+    {
+      // Found extract-tp, now look for an add and compare.
+      curoffset += sizeof ss_code_ear;
+      conditional = true;
+      if (this->match_view_u(view, view_size, curoffset, ss_code_c,
+			   sizeof ss_code_c))
+	{
+	  // Found a direct compare of stack pointer with the guard,
+	  // we're done here.
+	  curoffset += sizeof ss_code_c;
+	}
+      else if (this->match_view_u(view, view_size, curoffset, ss_code_l,
+			   sizeof ss_code_l))
+	{
+	  // Found a load of guard to r1, look for an add and compare.
+	  curoffset += sizeof ss_code_l;
+          if (this->match_view_u(view, view_size, curoffset, ss_code_ahi,
+			       sizeof ss_code_ahi))
+	    {
+	      curoffset += sizeof ss_code_ahi;
+	      // Found an ahi, extract its immediate
+	      fsadd_offset = curoffset;
+	      fsadd_type = SS_ADD_AHI;
+	      if (convert_to_section_size_type(curoffset + 2) > view_size)
+	        goto bad;
+	      fsadd_frame_size
+	        = elfcpp::Swap<16, true>::readval(view + curoffset);
+	      curoffset += 2;
+	    }
+	  else if (this->match_view_u(view, view_size, curoffset,
+		    ss_code_alfi, sizeof ss_code_alfi))
+	    {
+	      curoffset += sizeof ss_code_alfi;
+	      // Found an alfi, extract its immediate
+	      fsadd_offset = curoffset;
+	      fsadd_type = SS_ADD_ALFI;
+	      if (convert_to_section_size_type(curoffset + 4) > view_size)
+	        goto bad;
+	      fsadd_frame_size
+	        = elfcpp::Swap_unaligned<32, true>::readval(view + curoffset);
+	      curoffset += 4;
+	    }
+	  else
+            {
+	      goto bad;
+            }
+	  // Now, there has to be a compare.
+          if (this->match_view_u(view, view_size, curoffset, ss_code_cr,
+			       sizeof ss_code_cr))
+	    curoffset += sizeof ss_code_cr;
+	  else
+	    goto bad;
+	}
+      else
+        {
+	  goto bad;
+        }
+      cmpend = curoffset;
+    }
+
+  // Second, look for the call.
+
+  if (this->match_view_u(view, view_size, curoffset, ss_code_larl,
+		       sizeof ss_code_larl))
+    {
+      // Found a zarch-style call: larl + jg
+      curoffset += sizeof ss_code_larl;
+
+      // Find out larl's operand.  It should be a local symbol in .rodata
+      // section.
+      const unsigned char *pr = prelocs;
+      for (size_t i = 0; i < reloc_count; ++i, pr += reloc_size)
+        {
+          Reltype reloc(pr);
+	  if (static_cast<section_offset_type>(reloc.get_r_offset())
+	      == curoffset)
+	    {
+              typename elfcpp::Elf_types<size>::Elf_WXword r_info
+	        = reloc.get_r_info();
+              unsigned int r_sym = elfcpp::elf_r_sym<size>(r_info);
+              unsigned int r_type = elfcpp::elf_r_type<size>(r_info);
+	      if (r_type != elfcpp::R_390_PC32DBL)
+	        goto bad;
+	      if (r_sym >= object->local_symbol_count())
+		goto bad;
+	      Sized_relobj_file<size, true> *object_sized =
+		static_cast<Sized_relobj_file<size, true> *>(object);
+              const Symbol_value<size>* sym = object_sized->local_symbol(r_sym);
+	      bool param_shndx_ordinary;
+	      const unsigned int param_shndx =
+		sym->input_shndx(&param_shndx_ordinary);
+	      if (!param_shndx_ordinary)
+		goto bad;
+	      param_offset = sym->input_value() + reloc.get_r_addend() - 2
+			     - object->output_section(param_shndx)->address();
+	      param_view = object->get_output_view(param_shndx,
+						      &param_view_size);
+	      break;
+	    }
+	}
+
+      if (!param_view)
+	goto bad;
+
+      curoffset += 4;
+
+      // Now, there has to be a jump to __morestack.
+      jump_offset = curoffset;
+
+      if (this->match_view_u(view, view_size, curoffset,
+			   conditional ? ss_code_jgl : ss_code_jg,
+			   sizeof ss_code_jg))
+	curoffset += sizeof ss_code_jg;
+      else
+	goto bad;
+
+      if (conditional)
+        jump_type = SS_JUMP_JL;
+
+      curoffset += 4;
+    }
+  else if (size == 32)
+    {
+      // There'll be an ESA-style call, possibly with a cond jump first.
+      if (conditional)
+	{
+	  if (this->match_view_u(view, view_size, curoffset, ss_code_jl,
+			       sizeof ss_code_jl))
+	    {
+	      // Jump if morestack call needed - we need to follow it.
+	      int16_t off;
+	      jump_type = SS_JUMP_JL;
+	      jump_offset = curoffset;
+	      curoffset += sizeof ss_code_jl;
+	      if (convert_to_section_size_type(curoffset + 2) > view_size)
+	        goto bad;
+	      off = elfcpp::Swap<16, true>::readval(view + curoffset);
+	      curoffset += off * 2 - sizeof ss_code_jl;
+	    }
+	  else if (this->match_view_u(view, view_size, curoffset, ss_code_jhe,
+				    sizeof ss_code_jhe))
+	    {
+	      jump_type = SS_JUMP_JHE;
+	      // Jump if morestack not needed - skip over it.  Bump cmpend,
+	      // so that jump is nopped out along with the rest if we need
+	      // to make the call unconditional.
+	      curoffset += sizeof ss_code_jhe;
+	      curoffset += 2;
+	      cmpend = curoffset;
+	    }
+	  else
+	    {
+	      goto bad;
+	    }
+	}
+
+      // Match the basr sequence. There are two variants, depending on
+      // whether the start is 4-aligned or not.
+      if (this->match_view_u(view, view_size, curoffset, ss_code_basr,
+			   sizeof ss_code_basr))
+	curoffset += sizeof ss_code_basr;
+      else if (this->match_view_u(view, view_size, curoffset, ss_code_basr_2,
+			   sizeof ss_code_basr_2))
+	curoffset += sizeof ss_code_basr_2 + 2;
+      else
+        goto bad;
+
+      // We found the param block.
+      param_offset = curoffset;
+      param_view = view;
+      param_view_size = view_size;
+    }
+  else
+    {
+      goto bad;
+    }
+
+  // Read the frame size.
+  if (convert_to_section_size_type(param_offset + size / 8) > param_view_size)
+    goto bad;
+  frame_size = elfcpp::Swap<size, true>::readval(param_view + param_offset);
+
+  // Sanity check.
+  if (fsadd_type != SS_ADD_NONE && fsadd_frame_size != frame_size)
+    goto bad;
+
+  // Bump the frame size.
+  frame_size += parameters->options().split_stack_adjust_size();
+
+  // Store it to the param block.
+  elfcpp::Swap<size, true>::writeval(param_view + param_offset, frame_size);
+
+  if (!conditional)
+    {
+      // If the call was already unconditional, we're done.
+    }
+  else if (frame_size <= 0xffffffff && fsadd_type == SS_ADD_ALFI)
+    {
+      // Using alfi to add the frame size, and it still fits.  Adjust it.
+      elfcpp::Swap_unaligned<32, true>::writeval(view + fsadd_offset,
+						 frame_size);
+    }
+  else
+    {
+      // We were either relying on the backoff area, or used ahi to load
+      // frame size.  This won't fly, as our new frame size is too large.
+      // Convert the sequence to unconditional by nopping out the comparison,
+      // and rewiring the jump.
+      this->set_view_to_nop(view, view_size, fnoffset, cmpend - fnoffset);
+
+      // If jump type was jhe, we already nopped it out above.
+      if (jump_type == SS_JUMP_JL)
+        {
+	  // If jump is jl/jgl, we'll mutate it to j/jg.
+	  view[jump_offset+1] = 0xf4;
+	}
+    }
+
+  return;
+
+bad:
+  if (!object->has_no_split_stack())
+      object->error(_("failed to match split-stack sequence at "
+		      "section %u offset %0zx"),
+		    shndx, static_cast<size_t>(fnoffset));
 }
 
 // Relocate section data.

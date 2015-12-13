@@ -1,3 +1,46 @@
+2015-12-22  Marcin Kościelnicki  <koriakin@0x04.net>
+
+	* s390.cc (Target_s390::match_view_u): New helper method.
+	(Target_s390::ss_code_nopmark): New const.
+	(Target_s390::ss_code_ear): New const.
+	(Target_s390::ss_code_c): New const.
+	(Target_s390::ss_code_l): New const.
+	(Target_s390::ss_code_ahi): New const.
+	(Target_s390::ss_code_alfi): New const.
+	(Target_s390::ss_code_cr): New const.
+	(Target_s390::ss_code_larl): New const.
+	(Target_s390::ss_code_jg): New const.
+	(Target_s390::ss_code_jgl): New const.
+	(Target_s390::ss_code_jl): New const.
+	(Target_s390::ss_code_jhe): New const.
+	(Target_s390::ss_code_basr): New const.
+	(Target_s390::ss_code_basr_2): New const.
+	(Target_s390::do_calls_non_split): New method.
+	* testsuite/Makefile.am: Added new tests.
+	* testsuite/split_s390.sh: New test.
+	* testsuite/split_s390_1_a1.s: New test.
+	* testsuite/split_s390_1_a2.s: New test.
+	* testsuite/split_s390_1_e1.s: New test.
+	* testsuite/split_s390_1_e2.s: New test.
+	* testsuite/split_s390_1_e3.s: New test.
+	* testsuite/split_s390_1_e4.s: New test.
+	* testsuite/split_s390_1_n.s: New test.
+	* testsuite/split_s390_1_z1.s: New test.
+	* testsuite/split_s390_1_z2.s: New test.
+	* testsuite/split_s390_1_z3.s: New test.
+	* testsuite/split_s390_1_z4.s: New test.
+	* testsuite/split_s390_2_ns.s: New test.
+	* testsuite/split_s390_2_s.s: New test.
+	* testsuite/split_s390x_1_a1.s: New test.
+	* testsuite/split_s390x_1_a2.s: New test.
+	* testsuite/split_s390x_1_n.s: New test.
+	* testsuite/split_s390x_1_z1.s: New test.
+	* testsuite/split_s390x_1_z2.s: New test.
+	* testsuite/split_s390x_1_z3.s: New test.
+	* testsuite/split_s390x_1_z4.s: New test.
+	* testsuite/split_s390x_2_ns.s: New test.
+	* testsuite/split_s390x_2_s.s: New test.
+
 2015-12-17  Peter Collingbourne  <pcc@google.com>
 
 	PR gold/18780
