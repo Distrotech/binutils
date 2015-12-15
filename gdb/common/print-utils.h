@@ -71,4 +71,12 @@ extern const char *host_address_to_string_1 (const void *addr);
 #define host_address_to_string(ADDR) \
   host_address_to_string_1 ((const void *) (ADDR))
 
+/* Return the next entry in the circular print buffer.  */
+
+extern char *get_print_cell (void);
+
+/* How many characters (including the terminating null byte) fit in a
+   cell.  */
+#define PRINT_CELL_SIZE 50
+
 #endif /* COMMON_CELLS_H */

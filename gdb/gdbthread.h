@@ -187,7 +187,37 @@ struct thread_info
   ptid_t ptid;			/* "Actual process id";
 				    In fact, this may be overloaded with 
 				    kernel thread id, etc.  */
-  int num;			/* Convenient handle (GDB thread id) */
+
+  /* Each thread has two GDB IDs.  One is simply called the thread ID
+     (Id) and is composed of the thread's inferior number and a
+     per-inferior thread number pair.  The other is a global (GId),
+     which is a single unique number unique between all inferiors.
+     E.g.:
+
+      (gdb) info threads -gid
+	Id    GId   Target Id   Frame
+      * 1.1   1     Thread A    0x16a09237 in foo () at foo.c:10
+	1.2   3     Thread B    0x15ebc6ed in bar () at foo.c:20
+	1.3   5     Thread C    0x15ebc6ed in bar () at foo.c:20
+	2.1   2     Thread A    0x16a09237 in foo () at foo.c:10
+	2.2   4     Thread B    0x15ebc6ed in bar () at foo.c:20
+	2.3   6     Thread C    0x15ebc6ed in bar () at foo.c:20
+
+     Above, both inferiors 1 and 2 have threads numbered 1-3, but each
+     thread has its own unique global ID.  */
+
+  /* The thread's global GDB thread number.  This is exposed to MI,
+     Python/Scheme, visible with "info threads -gid", and is also what
+     the $_gthread convenience variable is bound to.  */
+  int global_num;
+
+  /* The per-inferior thread number.  This is unique in the inferior
+     the thread belongs to, but not unique between inferiors.  This is
+     what the $_thread convenience variable is bound to.  */
+  int per_inf_num;
+
+  /* The inferior this thread belongs to.  */
+  struct inferior *inf;
 
   /* The name of the thread, as specified by the user.  This is NULL
      if the thread does not have a user-given name.  */
@@ -353,27 +383,38 @@ extern int thread_has_single_step_breakpoint_here (struct thread_info *tp,
 						   struct address_space *aspace,
 						   CORE_ADDR addr);
 
-/* Translate the integer thread id (GDB's homegrown id, not the system's)
-   into a "pid" (which may be overloaded with extra thread information).  */
-extern ptid_t thread_id_to_pid (int);
+/* Translate the integer thread id (GDB's homegrown global id, not the
+   system's) into a "pid" (which may be overloaded with extra thread
+   information).  */
+extern ptid_t global_thread_id_to_ptid (int num);
 
 /* Translate a 'pid' (which may be overloaded with extra thread information) 
    into the integer thread id (GDB's homegrown id, not the system's).  */
-extern int pid_to_thread_id (ptid_t ptid);
+extern int ptid_to_global_thread_id (ptid_t ptid);
+
+const char *print_thread_id (struct thread_info *thr);
 
 /* Boolean test for an already-known pid (which may be overloaded with
    extra thread information).  */
 extern int in_thread_list (ptid_t ptid);
 
-/* Boolean test for an already-known thread id (GDB's homegrown id, 
-   not the system's).  */
-extern int valid_thread_id (int thread);
+/* Boolean test for an already-known thread id (GDB's homegrown global
+   id, not the system's).  */
+extern int valid_global_thread_id (int thread);
+
+/* Parse TIDSTR as a per-inferior thread ID, in either INF_NUM.THR_NUM
+   or THR_NUM form.  In the latter case, the missing INF_NUM is filled
+   in from the current inferior.  If ENDPTR is not NULL,
+   parse_thread_id stores the address of the first character after the
+   thread ID.  Either a valid thread is returned, or an error is
+   thrown.  */
+struct thread_info *parse_thread_id (const char *tidstr, const char **end);
 
 /* Search function to lookup a thread by 'pid'.  */
 extern struct thread_info *find_thread_ptid (ptid_t ptid);
 
 /* Find thread by GDB user-visible thread number.  */
-struct thread_info *find_thread_id (int num);
+struct thread_info *find_thread_global_id (int num);
 
 /* Finds the first thread of the inferior given by PID.  If PID is -1,
    returns the first thread in the list.  */
@@ -401,6 +442,9 @@ extern struct thread_info *iterate_over_threads (thread_callback_func, void *);
 #define ALL_NON_EXITED_THREADS(T)				\
   for (T = thread_list; T; T = T->next) \
     if ((T)->state != THREAD_EXITED)
+
+#define ALL_THREADS(T)				\
+  for (T = thread_list; T; T = T->next) \
 
 /* Traverse all threads, including those that have THREAD_EXITED
    state.  Allows deleting the currently iterated thread.  */
@@ -500,7 +544,15 @@ extern void thread_command (char *tidstr, int from_tty);
    `set print thread-events'.  */
 extern int print_thread_events;
 
-extern void print_thread_info (struct ui_out *uiout, char *threads,
+/* Prints the list of threads and their details on UIOUT.  If
+   REQUESTED_THREADS is not NULL, it's a list of GDB ids of the thread
+   that should be printed.  Otherwise, all threads are printed.  If
+   PID is not -1, only print threads from the process PID.  Otherwise,
+   threads from all attached PIDs are printed.  If both
+   REQUESTED_THREADS is not NULL and PID is not -1, then the thread is
+   printed if it belongs to the specified process.  Otherwise, an
+   error is raised.  */
+extern void print_thread_info (struct ui_out *uiout, char *requested_threads,
 			       int pid);
 
 extern struct cleanup *make_cleanup_restore_current_thread (void);

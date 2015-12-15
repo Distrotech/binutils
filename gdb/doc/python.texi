@@ -2995,7 +2995,11 @@ user-specified thread name.
 @end defvar
 
 @defvar InferiorThread.num
-ID of the thread, as assigned by GDB.
+The per-inferior number of the thread, as assigned by GDB.
+@end defvar
+
+@defvar InferiorThread.global_num
+The global ID of the thread, as assigned by GDB.
 @end defvar
 
 @defvar InferiorThread.ptid
@@ -4638,9 +4642,9 @@ first command is @code{silent}.  This is not reported by the
 @end defvar
 
 @defvar Breakpoint.thread
-If the breakpoint is thread-specific, this attribute holds the thread
-id.  If the breakpoint is not thread-specific, this attribute is
-@code{None}.  This attribute is writable.
+If the breakpoint is thread-specific, this attribute holds the
+thread's global id.  If the breakpoint is not thread-specific, this
+attribute is @code{None}.  This attribute is writable.
 @end defvar
 
 @defvar Breakpoint.task

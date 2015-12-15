@@ -1,0 +1,153 @@
+# Copyright 2015 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+load_lib gdb-python.exp
+
+standard_testfile
+
+if { [prepare_for_testing "failed to prepare" ${testfile} ${srcfile} {pthreads debug}] } {
+    return -1
+}
+
+clean_restart ${testfile}
+
+if { ![runto_main] } then {
+    return -1
+}
+
+# "info threads" while there's only inferior 1 should show
+# single-number thread IDs.
+with_test_prefix "single inferior" {
+    gdb_test "info threads" " 1 .* main .* at .*$srcfile:.*"
+
+    gdb_test "thread" "Current thread is 1 .*"
+}
+
+# "info threads" while there are multiple inferior should show
+# expanded thread IDs.
+with_test_prefix "two inferiors" {
+    # Add another inferior.
+    gdb_test "add-inferior" "Added inferior 2.*" "add empty inferior 2"
+
+    # Now that we'd added another inferior, thread IDs now show the
+    # inferior number.
+    gdb_test "info threads" " 1\.1 .* main .* at .*$srcfile:.*"
+
+    gdb_test "thread" "Current thread is 1\.1 .*"
+
+    gdb_test "inferior 2" "Switching to inferior 2 .*" "switch to inferior 2"
+    gdb_test "file ${binfile}" ".*" "load file in inferior 2"
+
+    runto_main
+
+    # Now that we'd added another inferior, thread IDs now show the
+    # inferior number.
+    gdb_test "info threads" \
+	[multi_line \
+	     "  1\.1 .* main .* at .*$srcfile:.*" \
+	     "\\* 2\.1 .* main .* at .*$srcfile:.*"] \
+	"info threads show inferior numbers"
+
+    gdb_test "thread" "Current thread is 2\.1 .*" \
+	"switch to thread using extended thread ID"
+
+    gdb_breakpoint "thread_function"
+
+    gdb_continue_to_breakpoint "once"
+    gdb_test "inferior 1" "Switching to inferior 1 .*"
+    gdb_continue_to_breakpoint "twice"
+
+    gdb_test "info threads" \
+	[multi_line \
+	     "  1\.1 .*" \
+	     "\\* 1\.2 .* thread_function .* at .*$srcfile:.*" \
+	     "  2\.1 .*" \
+	     "  2\.2 .* thread_function .* at .*$srcfile:.*"] \
+	"info threads again"
+
+    # Same, but show the global ID.
+    gdb_test "info threads -gid" \
+	[multi_line \
+	     "  1\.1 +1 +.*" \
+	     "\\* 1\.2 +4 +.* thread_function .* at .*$srcfile:.*" \
+	     "  2\.1 +2 +.*" \
+	     "  2\.2 +3 +.* thread_function .* at .*$srcfile:.*"]
+
+    # Confirm the convenience variables show the expected numbers.
+    gdb_test "p \$_thread == 2" " = 1"
+    gdb_test "p \$_gthread == 4" " = 1"
+
+    # Without an explicit inferior component, GDB defaults to the
+    # current inferior.  Make sure we don't refer to a thread by
+    # global ID by mistake.
+    gdb_test "thread 4" "Unknown thread 1.4\\."
+
+    # If Python is configured, check that InferiorThread.global_num
+    # returns the expected number.
+    if { ![skip_python_tests] } {
+	gdb_py_test_silent_cmd "python t0 = gdb.selected_thread ()" "test gdb.selected_thread" 1
+	gdb_test "python print ('result = %s' % t0.num)" " = 2" "test InferiorThread.num"
+	gdb_test "python print ('result = %s' % t0.global_num)" " = 4" "test InferiorThread.global_num"
+    }
+}
+
+# Remove the second inferior and confirm that GDB goes back to showing
+# single-number thread IDs.
+with_test_prefix "back to one inferior" {
+    gdb_test "kill inferior 2" "" "kill inferior 2" "Kill the program being debugged.*" "y"
+    gdb_test "thread 1.1" "Switching to thread 1\.1 .*"
+    gdb_test "remove-inferior 2" ".*" "remove inferior 2"
+
+    # "info threads" while there's only inferior 1 should show
+    # single-number thread IDs.
+    gdb_test "info threads" \
+	[multi_line \
+	     "\\* 1 .*" \
+	     "  2 .* thread_function .* at .*$srcfile:.*"]
+
+    gdb_test "thread" "Current thread is 1 .*"
+}
+
+# Add another inferior and remove inferior 1.  Since even though
+# there's a single inferior, it's number is not 1, GDB should show
+# extended thread IDs that include the inferior number.
+with_test_prefix "single-inferior but not initial" {
+    # Add another inferior.
+    gdb_test "add-inferior" "Added inferior 3.*" "add empty inferior"
+
+    # Now that we'd added another inferior, thread IDs should show the
+    # inferior number.
+    gdb_test "info threads" \
+	[multi_line \
+	     "\\* 1\.1 .*" \
+	     "  1\.2 .* thread_function .* at .*$srcfile:.*"] \
+	"info threads with multiple inferiors"
+
+    gdb_test "thread" "Current thread is 1\.1 .*"
+
+    gdb_test "inferior 3" "Switching to inferior 3 .*" "switch to inferior 3"
+    gdb_test "file ${binfile}" ".*" "load file in inferior 3"
+
+    runto_main
+
+    gdb_test "remove-inferior 1" ".*" "remove inferior 1"
+
+    # Even though we have a single inferior, its number is > 1, so
+    # thread IDs should show the inferior number.
+    gdb_test "info threads" " 3\.1 .* main .* at .*$srcfile:.*" \
+	"info threads with single inferior"
+
+    gdb_test "thread" "Current thread is 3\.1 .*" "thread again"
+}
