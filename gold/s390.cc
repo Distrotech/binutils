@@ -4562,7 +4562,8 @@ Target_s390<size>::do_calls_non_split(Relobj* object, unsigned int shndx,
 	      if (!param_shndx_ordinary)
 		goto bad;
 	      param_offset = sym->input_value() + reloc.get_r_addend() - 2
-			     - object->output_section(param_shndx)->address();
+			     - object->output_section(param_shndx)->address()
+			     - object->output_section_offset(param_shndx);
 	      param_view = object->get_output_view(param_shndx,
 						      &param_view_size);
 	      break;
