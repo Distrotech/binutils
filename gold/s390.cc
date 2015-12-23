@@ -748,10 +748,6 @@ class Target_s390 : public Sized_target<size, true>
   static const unsigned char ss_code_nopmark[];
   static const unsigned char ss_code_ear[];
   static const unsigned char ss_code_c[];
-  static const unsigned char ss_code_l[];
-  static const unsigned char ss_code_ahi[];
-  static const unsigned char ss_code_alfi[];
-  static const unsigned char ss_code_cr[];
   static const unsigned char ss_code_larl[];
   static const unsigned char ss_code_jg[];
   static const unsigned char ss_code_jgl[];
@@ -759,6 +755,26 @@ class Target_s390 : public Sized_target<size, true>
   static const unsigned char ss_code_jhe[];
   static const unsigned char ss_code_basr[];
   static const unsigned char ss_code_basr_2[];
+
+  // Variable code sequence matchers for -fsplit-stack.
+  bool ss_match_l(unsigned char* view,
+		  section_size_type view_size,
+		  section_offset_type *offset,
+		  int *guard_reg) const;
+  bool ss_match_ahi(unsigned char* view,
+		    section_size_type view_size,
+		    section_offset_type *offset,
+		    int guard_reg,
+		    uint32_t *arg) const;
+  bool ss_match_alfi(unsigned char* view,
+		     section_size_type view_size,
+		     section_offset_type *offset,
+		     int guard_reg,
+		     uint32_t *arg) const;
+  bool ss_match_cr(unsigned char* view,
+		   section_size_type view_size,
+		   section_offset_type *offset,
+		   int guard_reg) const;
 };
 
 template<>
@@ -4312,54 +4328,6 @@ Target_s390<64>::ss_code_c[] = {
   0xe3, 0xf0, 0x10, 0x38, 0x00, 0x20,	// cg %r15, 0x38(%r1)
 };
 
-template<>
-const unsigned char
-Target_s390<32>::ss_code_l[] = {
-  0x58, 0x10, 0x10, 0x20,		// l %r1, 0x20(%r1)
-};
-
-template<>
-const unsigned char
-Target_s390<64>::ss_code_l[] = {
-  0xe3, 0x10, 0x10, 0x38, 0x00, 0x04,	// lg %r1, 0x38(%r1)
-};
-
-template<>
-const unsigned char
-Target_s390<32>::ss_code_ahi[] = {
-  0xa7, 0x1a,				// ahi %r1, ...
-};
-
-template<>
-const unsigned char
-Target_s390<64>::ss_code_ahi[] = {
-  0xa7, 0x1b,				// aghi %r1, ...
-};
-
-template<>
-const unsigned char
-Target_s390<32>::ss_code_alfi[] = {
-  0xc2, 0x1b,				// alfi %r1, ...
-};
-
-template<>
-const unsigned char
-Target_s390<64>::ss_code_alfi[] = {
-  0xc2, 0x1a,				// algfi %r1, ...
-};
-
-template<>
-const unsigned char
-Target_s390<32>::ss_code_cr[] = {
-  0x19, 0xf1,				// cr %r15, %r1
-};
-
-template<>
-const unsigned char
-Target_s390<64>::ss_code_cr[] = {
-  0xb9, 0x20, 0x00, 0xf1,		// cgr %r15, %r1
-};
-
 template<int size>
 const unsigned char
 Target_s390<size>::ss_code_larl[] = {
@@ -4406,6 +4374,121 @@ Target_s390<size>::ss_code_basr_2[] = {
   0x0d, 0x11,				// basr %r1, %r1
 };
 
+template<>
+bool
+Target_s390<32>::ss_match_l(unsigned char* view,
+			    section_size_type view_size,
+			    section_offset_type *offset,
+			    int *guard_reg) const
+{
+  // l %guard_reg, 0x20(%r1)
+  if (convert_to_section_size_type(*offset + 4) > view_size
+      || view[*offset] != 0x58
+      || (view[*offset + 1] & 0xf) != 0x0
+      || view[*offset + 2] != 0x10
+      || view[*offset + 3] != 0x20)
+    return false;
+  *offset += 4;
+  *guard_reg = view[*offset + 1] >> 4 & 0xf;
+  return true;
+}
+
+template<>
+bool
+Target_s390<64>::ss_match_l(unsigned char* view,
+			    section_size_type view_size,
+			    section_offset_type *offset,
+			    int *guard_reg) const
+{
+  // lg %guard_reg, 0x38(%r1)
+  if (convert_to_section_size_type(*offset + 6) > view_size
+      || view[*offset] != 0xe3
+      || (view[*offset + 1] & 0xf) != 0x0
+      || view[*offset + 2] != 0x10
+      || view[*offset + 3] != 0x38
+      || view[*offset + 4] != 0x00
+      || view[*offset + 5] != 0x04)
+    return false;
+  *offset += 6;
+  *guard_reg = view[*offset + 1] >> 4 & 0xf;
+  return true;
+}
+
+template<int size>
+bool
+Target_s390<size>::ss_match_ahi(unsigned char* view,
+				section_size_type view_size,
+				section_offset_type *offset,
+				int guard_reg,
+				uint32_t *arg) const
+{
+  int op = size == 32 ? 0xa : 0xb;
+  // a[g]hi %guard_reg, <arg>
+  if (convert_to_section_size_type(*offset + 4) > view_size
+      || view[*offset] != 0xa7
+      || view[*offset + 1] != (guard_reg << 4 | op)
+      // Disallow negative size.
+      || view[*offset + 2] & 0x80)
+    return false;
+  *arg = elfcpp::Swap<16, true>::readval(view + *offset + 2);
+  *offset += 4;
+  return true;
+}
+
+template<int size>
+bool
+Target_s390<size>::ss_match_alfi(unsigned char* view,
+				 section_size_type view_size,
+				 section_offset_type *offset,
+				 int guard_reg,
+				 uint32_t *arg) const
+{
+  int op = size == 32 ? 0xb : 0xa;
+  // al[g]fi %guard_reg, <arg>
+  if (convert_to_section_size_type(*offset + 6) > view_size
+      || view[*offset] != 0xc2
+      || view[*offset + 1] != (guard_reg << 4 | op))
+    return false;
+  *arg = elfcpp::Swap<32, true>::readval(view + *offset + 2);
+  *offset += 6;
+  return true;
+}
+
+template<>
+bool
+Target_s390<32>::ss_match_cr(unsigned char* view,
+			     section_size_type view_size,
+			     section_offset_type *offset,
+			     int guard_reg) const
+{
+  // cr %r15, %guard_reg
+  if (convert_to_section_size_type(*offset + 2) > view_size
+      || view[*offset] != 0x19
+      || view[*offset + 1] != (0xf0 | guard_reg))
+    return false;
+  *offset += 2;
+  return true;
+}
+
+template<>
+bool
+Target_s390<64>::ss_match_cr(unsigned char* view,
+			     section_size_type view_size,
+			     section_offset_type *offset,
+			     int guard_reg) const
+{
+  // cgr %r15, %guard_reg
+  if (convert_to_section_size_type(*offset + 4) > view_size
+      || view[*offset] != 0xb9
+      || view[*offset + 1] != 0x20
+      || view[*offset + 2] != 0x00
+      || view[*offset + 3] != (0xf0 | guard_reg))
+    return false;
+  *offset += 4;
+  return true;
+}
+
+
 // FNOFFSET in section SHNDX in OBJECT is the start of a function
 // compiled with -fsplit-stack.  The function calls non-split-stack
 // code.  We have to change the function so that it always ensures
@@ -4437,6 +4520,8 @@ Target_s390<size>::do_calls_non_split(Relobj* object, unsigned int shndx,
   } fsadd_type = SS_ADD_NONE;
   section_offset_type fsadd_offset = 0;
   uint32_t fsadd_frame_size = 0;
+  // Register used for loading guard.  Usually r1, but can also be r0 or r2-r5.
+  int guard_reg;
   // Type and offset of the conditional jump.
   enum {
     SS_JUMP_NONE,
@@ -4479,46 +4564,27 @@ Target_s390<size>::do_calls_non_split(Relobj* object, unsigned int shndx,
 	  // we're done here.
 	  curoffset += sizeof ss_code_c;
 	}
-      else if (this->match_view_u(view, view_size, curoffset, ss_code_l,
-			   sizeof ss_code_l))
+      else if (this->ss_match_l(view, view_size, &curoffset, &guard_reg))
 	{
-	  // Found a load of guard to r1, look for an add and compare.
-	  curoffset += sizeof ss_code_l;
-          if (this->match_view_u(view, view_size, curoffset, ss_code_ahi,
-			       sizeof ss_code_ahi))
+	  // Found a load of guard to register, look for an add and compare.
+          if (this->ss_match_ahi(view, view_size, &curoffset, guard_reg,
+				 &fsadd_frame_size))
 	    {
-	      curoffset += sizeof ss_code_ahi;
-	      // Found an ahi, extract its immediate
-	      fsadd_offset = curoffset;
+	      fsadd_offset = curoffset - 2;
 	      fsadd_type = SS_ADD_AHI;
-	      if (convert_to_section_size_type(curoffset + 2) > view_size)
-	        goto bad;
-	      fsadd_frame_size
-	        = elfcpp::Swap<16, true>::readval(view + curoffset);
-	      curoffset += 2;
 	    }
-	  else if (this->match_view_u(view, view_size, curoffset,
-		    ss_code_alfi, sizeof ss_code_alfi))
+	  else if (this->ss_match_alfi(view, view_size, &curoffset, guard_reg,
+				       &fsadd_frame_size))
 	    {
-	      curoffset += sizeof ss_code_alfi;
-	      // Found an alfi, extract its immediate
-	      fsadd_offset = curoffset;
 	      fsadd_type = SS_ADD_ALFI;
-	      if (convert_to_section_size_type(curoffset + 4) > view_size)
-	        goto bad;
-	      fsadd_frame_size
-	        = elfcpp::Swap_unaligned<32, true>::readval(view + curoffset);
-	      curoffset += 4;
+	      fsadd_offset = curoffset - 4;
 	    }
 	  else
             {
 	      goto bad;
             }
 	  // Now, there has to be a compare.
-          if (this->match_view_u(view, view_size, curoffset, ss_code_cr,
-			       sizeof ss_code_cr))
-	    curoffset += sizeof ss_code_cr;
-	  else
+          if (!this->ss_match_cr(view, view_size, &curoffset, guard_reg))
 	    goto bad;
 	}
       else
